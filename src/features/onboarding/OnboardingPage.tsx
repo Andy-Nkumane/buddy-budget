@@ -1,9 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, CircleDollarSign, Plus, Trash2 } from 'lucide-react';
 import { useState, type ChangeEvent } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { useAuth } from '../../app/providers/AuthProvider';
+import { queryKeys } from '../../data/queryKeys';
 import { setupFirstBudget } from '../../data/repositories/budgetRepository';
 import {
   currencyOptions,
@@ -16,6 +19,7 @@ import { BrandMark } from '../../shared/ui/BrandMark';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import { parseMoney, profileSchema, toDatabaseMoney } from '../../shared/validation/schemas';
+import type { UserPreferences } from '../../shared/types/domain';
 
 const onboardingSchema = profileSchema.extend({
   templateName: z.string().trim().min(1, 'Name your template.').max(80),
@@ -57,6 +61,8 @@ const onboardingLocaleOptions = includePreferenceOption(localeOptions, defaults.
 const onboardingTimezoneOptions = includePreferenceOption(timezoneOptions, defaults.timezone);
 
 export const OnboardingPage = () => {
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -94,6 +100,18 @@ export const OnboardingPage = () => {
           default_amount: toDatabaseMoney(item.amount),
         })),
       });
+      const userId = session?.user.id ?? '';
+      const completedAt = new Date().toISOString();
+      const preferencesKey = queryKeys.preferences(userId);
+      queryClient.setQueryData<UserPreferences>(preferencesKey, (current) => ({
+        user_id: userId,
+        last_budget_month_id: current?.last_budget_month_id ?? null,
+        last_route: current?.last_route ?? null,
+        theme: input.theme,
+        onboarding_completed_at: current?.onboarding_completed_at ?? completedAt,
+        updated_at: completedAt,
+      }));
+      await queryClient.invalidateQueries({ queryKey: preferencesKey, refetchType: 'none' });
       void navigate(`/app/budget/${month.month_start}`, { replace: true });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Setup failed. Please try again.');

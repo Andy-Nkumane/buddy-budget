@@ -32,8 +32,8 @@ export default defineConfig(({ mode }) => {
         includeAssets: ['icons/*.png'],
         manifest: {
           id: base,
-          name: 'BuddyBudget',
-          short_name: 'BuddyBudget',
+          name: 'Buddy Budget',
+          short_name: 'Buddy Budget',
           description: 'Your calm monthly budgeting companion.',
           start_url: base,
           scope: base,
