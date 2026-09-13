@@ -4,6 +4,7 @@ import {
   createMonthFromTemplate,
   retrieveDefaultTemplate,
   retrieveMonthByStart,
+  retrieveProfile,
 } from '../../data/repositories/budgetRepository';
 import { currentMonthStart } from '../../shared/formatting/money';
 import { useAuth } from '../../app/providers/AuthProvider';
@@ -12,11 +13,16 @@ import { queryKeys } from '../../data/queryKeys';
 export const useEnsureCurrentMonth = (): void => {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
-  const attempted = useRef(false);
+  const attemptedMonthStart = useRef<string | null>(null);
   const queryClient = useQueryClient();
-  const monthStart = currentMonthStart();
+  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
+  const monthStart = currentMonthStart(profile.data?.timezone);
   const monthKey = queryKeys.month(userId, monthStart);
-  const month = useQuery({ queryKey: monthKey, queryFn: () => retrieveMonthByStart(monthStart) });
+  const month = useQuery({
+    queryKey: monthKey,
+    queryFn: () => retrieveMonthByStart(monthStart),
+    enabled: profile.isSuccess,
+  });
   const template = useQuery({
     queryKey: queryKeys.defaultTemplate(userId),
     queryFn: retrieveDefaultTemplate,
@@ -27,8 +33,14 @@ export const useEnsureCurrentMonth = (): void => {
   });
 
   useEffect(() => {
-    if (month.data !== null || !template.data || attempted.current) return;
-    attempted.current = true;
+    if (
+      !profile.isSuccess ||
+      month.data !== null ||
+      !template.data ||
+      attemptedMonthStart.current === monthStart
+    )
+      return;
+    attemptedMonthStart.current = monthStart;
     create.mutate(template.data.id);
-  }, [create, month.data, template.data]);
+  }, [create, month.data, monthStart, profile.isSuccess, template.data]);
 };

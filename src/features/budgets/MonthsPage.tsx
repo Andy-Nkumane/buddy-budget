@@ -7,7 +7,12 @@ import {
   retrieveProfile,
   searchMonths,
 } from '../../data/repositories/budgetRepository';
-import { currentMonthStart, formatMoney, formatMonth } from '../../shared/formatting/money';
+import {
+  currentMonthStart,
+  formatMoney,
+  formatMonth,
+  isMonthReadOnly,
+} from '../../shared/formatting/money';
 import type { BudgetMonthWithItems } from '../../shared/types/domain';
 import {
   downloadBudgetReportPdf,
@@ -41,7 +46,7 @@ export const MonthsPage = () => {
       />
     );
   const locale = profile.data?.locale ?? 'en-ZA';
-  const current = currentMonthStart();
+  const current = currentMonthStart(profile.data?.timezone);
   const exportMonth = async (id: string) => {
     setExportError(null);
     setExportingId(id);
@@ -163,7 +168,8 @@ export const MonthsPage = () => {
                   <Download aria-hidden="true" size={18} />
                 </button>
                 <Link className="button button--secondary" to={`/app/budget/${month.month_start}`}>
-                  Open <ArrowRight aria-hidden="true" size={17} />
+                  {isMonthReadOnly(month.month_start, current) ? 'View' : 'Open'}{' '}
+                  <ArrowRight aria-hidden="true" size={17} />
                 </Link>
               </div>
             </article>

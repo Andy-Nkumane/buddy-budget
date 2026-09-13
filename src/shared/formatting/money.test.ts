@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BudgetMonthItem } from '../types/domain';
-import { calculateTotals, formatMoney } from './money';
+import { calculateTotals, currentMonthStart, formatMoney, isMonthReadOnly } from './money';
 
 const item = (item_type: 'income' | 'expense', amount: string): BudgetMonthItem => ({
   id: crypto.randomUUID(),
@@ -55,5 +55,31 @@ describe('money calculations', () => {
   it('adds decimal amounts without floating-point drift', () => {
     const amounts = Array.from({ length: 10 }, () => item('income', '0.10'));
     expect(calculateTotals(amounts).income).toBe(1);
+  });
+});
+
+describe('historical month access', () => {
+  it('uses the configured timezone at a calendar-month boundary', () => {
+    const boundary = new Date('2026-08-31T13:00:00Z');
+    expect(currentMonthStart('Pacific/Auckland', boundary)).toBe('2026-09-01');
+    expect(currentMonthStart('America/Los_Angeles', boundary)).toBe('2026-08-01');
+  });
+
+  it('falls back to UTC for an invalid legacy timezone', () => {
+    expect(currentMonthStart('Invalid/Timezone', new Date('2026-09-01T00:30:00Z'))).toBe(
+      '2026-09-01',
+    );
+  });
+
+  it('keeps the current and previous calendar months editable', () => {
+    expect(isMonthReadOnly('2026-09-01', '2026-09-01')).toBe(false);
+    expect(isMonthReadOnly('2026-08-01', '2026-09-01')).toBe(false);
+  });
+
+  it('locks months that are at least two calendar months old across year boundaries', () => {
+    expect(isMonthReadOnly('2026-07-01', '2026-09-01')).toBe(true);
+    expect(isMonthReadOnly('2025-11-01', '2026-01-01')).toBe(true);
+    expect(isMonthReadOnly('2025-12-01', '2026-01-01')).toBe(false);
+    expect(isMonthReadOnly('2026-10-01', '2026-09-01')).toBe(false);
   });
 });

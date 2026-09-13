@@ -41,6 +41,7 @@ describe('BudgetRow', () => {
       <BudgetRow
         item={item}
         currencyCode="ZAR"
+        readOnly={false}
         onArchive={vi.fn()}
         onToggleDisabled={vi.fn()}
         onChanged={vi.fn()}
@@ -61,6 +62,7 @@ describe('BudgetRow', () => {
       <BudgetRow
         item={item}
         currencyCode="ZAR"
+        readOnly={false}
         onArchive={vi.fn()}
         onToggleDisabled={vi.fn()}
         onChanged={vi.fn()}
@@ -82,6 +84,7 @@ describe('BudgetRow', () => {
       <BudgetRow
         item={{ ...item, is_disabled: true }}
         currencyCode="ZAR"
+        readOnly={false}
         onArchive={vi.fn()}
         onToggleDisabled={onToggleDisabled}
         onChanged={vi.fn()}
@@ -91,5 +94,23 @@ describe('BudgetRow', () => {
     expect(screen.getByLabelText('Groceries amount')).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Resume Groceries' }));
     expect(onToggleDisabled).toHaveBeenCalledWith(expect.objectContaining({ id: 'item-id' }));
+  });
+
+  it('disables the amount and hides editing actions for a read-only month', () => {
+    render(
+      <BudgetRow
+        item={item}
+        currencyCode="ZAR"
+        readOnly
+        onArchive={vi.fn()}
+        onToggleDisabled={vi.fn()}
+        onChanged={vi.fn()}
+        onDraft={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Groceries amount')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Pause Groceries' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename Groceries' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Archive Groceries' })).not.toBeInTheDocument();
   });
 });

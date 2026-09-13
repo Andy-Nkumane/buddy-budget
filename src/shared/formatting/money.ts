@@ -38,8 +38,21 @@ export const formatMonth = (monthStart: string, locale = 'en-ZA'): string =>
     new Date(`${monthStart}T00:00:00Z`),
   );
 
-export const currentMonthStart = (): string => {
-  const date = new Date();
+export const currentMonthStart = (timeZone?: string, date = new Date()): string => {
+  if (timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+      }).formatToParts(date);
+      const year = parts.find((part) => part.type === 'year')?.value;
+      const month = parts.find((part) => part.type === 'month')?.value;
+      if (year && month) return `${year}-${month}-01`;
+    } catch {
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    }
+  }
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
@@ -48,3 +61,6 @@ export const adjacentMonthStart = (monthStart: string, offset: number): string =
   const next = new Date(Date.UTC(year, month - 1 + offset, 1));
   return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`;
 };
+
+export const isMonthReadOnly = (monthStart: string, current = currentMonthStart()): boolean =>
+  monthStart < adjacentMonthStart(current, -1);

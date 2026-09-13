@@ -5,6 +5,7 @@ import {
   CalendarPlus,
   CheckCircle2,
   CircleAlert,
+  LockKeyhole,
   Plus,
   TrendingDown,
   TrendingUp,
@@ -27,6 +28,7 @@ import {
   currentMonthStart,
   formatMoney,
   formatMonth,
+  isMonthReadOnly,
 } from '../../shared/formatting/money';
 import type { BudgetMonthItem, BudgetMonthWithItems, ItemType } from '../../shared/types/domain';
 import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
@@ -48,10 +50,12 @@ export const BudgetPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const current = currentMonthStart();
+  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
+  const current = currentMonthStart(profile.data?.timezone);
   const monthStart = routeMonth === 'current' || !routeMonth ? current : routeMonth;
+  const readOnly = validMonth.test(monthStart) && isMonthReadOnly(monthStart, current);
   const [addingType, setAddingType] = useState<ItemType | null>(() =>
-    searchParams.get('add') === 'expense' ? 'expense' : null,
+    !readOnly && searchParams.get('add') === 'expense' ? 'expense' : null,
   );
   const [archivedItem, setArchivedItem] = useState<BudgetMonthItem | null>(null);
   const [archivingItemIds, setArchivingItemIds] = useState<Set<string>>(() => new Set());
@@ -60,23 +64,26 @@ export const BudgetPage = () => {
   const pendingRemoteRefresh = useRef(false);
   const monthKey = useMemo(() => queryKeys.month(userId, monthStart), [monthStart, userId]);
 
-  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const defaultTemplate = useQuery({
     queryKey: queryKeys.defaultTemplate(userId),
     queryFn: retrieveDefaultTemplate,
+    enabled: !readOnly,
   });
   const categories = useQuery({
     queryKey: queryKeys.categories(userId),
     queryFn: () => searchCategories(),
+    enabled: !readOnly,
   });
   const month = useQuery({
     queryKey: monthKey,
     queryFn: () => retrieveMonthByStart(monthStart),
-    enabled: validMonth.test(monthStart),
+    enabled: validMonth.test(monthStart) && profile.isSuccess,
   });
   const loadedMonthId = month.data?.id;
   const createMonth = useMutation({
     mutationFn: async () => {
+      if (readOnly)
+        throw new Error('Months that are two or more calendar months old are read-only.');
       if (!defaultTemplate.data) throw new Error('Create a default template first.');
       return createMonthFromTemplate(monthStart, defaultTemplate.data.id);
     },
@@ -84,7 +91,7 @@ export const BudgetPage = () => {
   });
 
   useEffect(() => {
-    if (!loadedMonthId) return;
+    if (readOnly || !loadedMonthId) return;
     const key = `buddybudget-month-${loadedMonthId}`;
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== key) return;
@@ -103,7 +110,7 @@ export const BudgetPage = () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('buddybudget-edit-state', handleEditState);
     };
-  }, [loadedMonthId, monthKey, queryClient]);
+  }, [loadedMonthId, monthKey, queryClient, readOnly]);
 
   useEffect(() => {
     if (!loadedMonthId) return;
@@ -117,11 +124,18 @@ export const BudgetPage = () => {
   }, [archivedItem]);
 
   if (!validMonth.test(monthStart)) return <ErrorState message="That month address is invalid." />;
-  if (month.isLoading || defaultTemplate.isLoading || profile.isLoading || categories.isLoading) {
+  if (
+    month.isLoading ||
+    profile.isLoading ||
+    (!readOnly && (defaultTemplate.isLoading || categories.isLoading))
+  ) {
     return <LoadingState label="Opening your month…" />;
   }
-  if (month.error || defaultTemplate.error || profile.error || categories.error) {
-    const error = month.error ?? defaultTemplate.error ?? profile.error ?? categories.error;
+  if (month.error || profile.error || (!readOnly && (defaultTemplate.error || categories.error))) {
+    const error =
+      month.error ??
+      profile.error ??
+      (!readOnly ? (defaultTemplate.error ?? categories.error) : null);
     return (
       <ErrorState
         message={error instanceof Error ? error.message : 'The database is unavailable.'}
@@ -143,7 +157,12 @@ export const BudgetPage = () => {
             ? 'We’re preparing the current month from your recurring plan.'
             : 'Past and future months are only created when you choose.'}
         </p>
-        {defaultTemplate.data ? (
+        {readOnly ? (
+          <div className="inline-alert" role="status">
+            <LockKeyhole aria-hidden="true" size={18} />
+            This historical month is read-only and cannot be created.
+          </div>
+        ) : defaultTemplate.data ? (
           <Button loading={createMonth.isPending} onClick={() => createMonth.mutate()}>
             Create this month
           </Button>
@@ -171,6 +190,7 @@ export const BudgetPage = () => {
   const itemsByType = (type: ItemType) =>
     visibleBudgetItems.filter((item) => item.item_type === type && item.archived_at === null);
   const updateDraft = (id: string, amount: string) => {
+    if (readOnly) return;
     if (parseMoney(amount) === null) return;
     queryClient.setQueryData<BudgetMonthWithItems>(monthKey, (existing) =>
       existing
@@ -185,6 +205,7 @@ export const BudgetPage = () => {
   };
   const refresh = () => void queryClient.invalidateQueries({ queryKey: monthKey });
   const archive = async (item: BudgetMonthItem) => {
+    if (readOnly) return;
     setArchivingItemIds((current) => new Set(current).add(item.id));
     try {
       setActionError(null);
@@ -215,7 +236,7 @@ export const BudgetPage = () => {
     }
   };
   const undoArchive = async () => {
-    if (!archivedItem) return;
+    if (readOnly || !archivedItem) return;
     try {
       await updateMonthItem(archivedItem.id, { archived_at: null });
       setArchivedItem(null);
@@ -226,6 +247,7 @@ export const BudgetPage = () => {
     }
   };
   const toggleDisabled = async (item: BudgetMonthItem) => {
+    if (readOnly) return;
     const isDisabled = !item.is_disabled;
     queryClient.setQueryData<BudgetMonthWithItems>(monthKey, (existing) =>
       existing
@@ -253,7 +275,11 @@ export const BudgetPage = () => {
         <div>
           <p className="eyebrow">Monthly budget</p>
           <h1>{formatMonth(monthStart, locale)}</h1>
-          <p>Adjust the plan as life happens. Changes save automatically.</p>
+          <p>
+            {readOnly
+              ? 'This historical month is preserved as a read-only report.'
+              : 'Adjust the plan as life happens. Changes save automatically.'}
+          </p>
         </div>
         <div className="month-switcher">
           <button
@@ -278,6 +304,13 @@ export const BudgetPage = () => {
           </button>
         </div>
       </div>
+
+      {readOnly && (
+        <div className="inline-alert" role="status">
+          <LockKeyhole aria-hidden="true" size={18} />
+          Months become read-only when they are two calendar months old.
+        </div>
+      )}
 
       {remoteChange && (
         <div className="inline-alert" role="status">
@@ -345,13 +378,15 @@ export const BudgetPage = () => {
                   {activeCount} active{pausedCount ? `, ${pausedCount} paused` : ''}
                 </span>
               </div>
-              <Button
-                variant="secondary"
-                icon={<Plus aria-hidden="true" size={18} />}
-                onClick={() => setAddingType(type)}
-              >
-                Add {type}
-              </Button>
+              {!readOnly && (
+                <Button
+                  variant="secondary"
+                  icon={<Plus aria-hidden="true" size={18} />}
+                  onClick={() => setAddingType(type)}
+                >
+                  Add {type}
+                </Button>
+              )}
             </div>
             <div className="budget-list">
               {sectionItems.length ? (
@@ -360,6 +395,7 @@ export const BudgetPage = () => {
                     key={item.id}
                     item={item}
                     currencyCode={currency}
+                    readOnly={readOnly}
                     onArchive={(entry) => void archive(entry)}
                     onToggleDisabled={(entry) => void toggleDisabled(entry)}
                     onChanged={refresh}
@@ -369,9 +405,11 @@ export const BudgetPage = () => {
               ) : (
                 <div className="empty-row">
                   <p>No {type} items yet.</p>
-                  <button className="text-button" onClick={() => setAddingType(type)}>
-                    Add the first one
-                  </button>
+                  {!readOnly && (
+                    <button className="text-button" onClick={() => setAddingType(type)}>
+                      Add the first one
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -379,7 +417,7 @@ export const BudgetPage = () => {
         );
       })}
 
-      {archivedItem && (
+      {!readOnly && archivedItem && (
         <div className="undo-toast" role="status">
           <CheckCircle2 aria-hidden="true" size={19} />
           <span>{archivedItem.name_snapshot} archived</span>
@@ -390,7 +428,7 @@ export const BudgetPage = () => {
       )}
 
       <Modal
-        open={addingType !== null}
+        open={!readOnly && addingType !== null}
         title={`Add one-off ${addingType ?? 'item'}`}
         description="This changes only this month unless you also add it to your template."
         onClose={() => setAddingType(null)}

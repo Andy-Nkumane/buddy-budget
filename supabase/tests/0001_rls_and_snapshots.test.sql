@@ -174,20 +174,23 @@ select throws_ok(
 
 select lives_ok(
   $$select public.create_month_from_template(
-      '2026-02-01', 'a1000000-0000-4000-8000-000000000001'
+      (date_trunc('month', current_date) - interval '1 month')::date,
+      'a1000000-0000-4000-8000-000000000001'
     )$$,
   'Alice can create a month from Alice template'
 );
 
 select is(
-  (select count(*) from public.budget_months where month_start = '2026-02-01'),
+  (select count(*) from public.budget_months
+    where month_start = (date_trunc('month', current_date) - interval '1 month')::date),
   1::bigint,
   'Month creation creates exactly one month'
 );
 
 select is(
   (select count(*) from public.budget_month_items where budget_month_id = (
-    select id from public.budget_months where month_start = '2026-02-01'
+    select id from public.budget_months
+      where month_start = (date_trunc('month', current_date) - interval '1 month')::date
   )),
   2::bigint,
   'Month creation copies active template items'
@@ -195,7 +198,8 @@ select is(
 
 select lives_ok(
   $$select public.create_month_from_template(
-      '2026-02-01', 'a1000000-0000-4000-8000-000000000001'
+      (date_trunc('month', current_date) - interval '1 month')::date,
+      'a1000000-0000-4000-8000-000000000001'
     )$$,
   'Duplicate month creation is idempotent'
 );

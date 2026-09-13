@@ -8,6 +8,7 @@ import { useDebouncedAutosave } from './useDebouncedAutosave';
 interface BudgetRowProps {
   item: BudgetMonthItem;
   currencyCode: string;
+  readOnly: boolean;
   onDraft: (id: string, amount: string) => void;
   onArchive: (item: BudgetMonthItem) => void;
   onToggleDisabled: (item: BudgetMonthItem) => void;
@@ -17,6 +18,7 @@ interface BudgetRowProps {
 export const BudgetRow = ({
   item,
   currencyCode,
+  readOnly,
   onDraft,
   onArchive,
   onToggleDisabled,
@@ -35,6 +37,7 @@ export const BudgetRow = ({
   );
 
   const saveName = async () => {
+    if (readOnly) return;
     const trimmed = name.trim();
     if (!trimmed) {
       setNameError('Enter an item name.');
@@ -57,7 +60,7 @@ export const BudgetRow = ({
       <div className="budget-row__identity">
         <span className={`item-dot item-dot--${item.item_type}`} aria-hidden="true" />
         <div>
-          {renaming ? (
+          {renaming && !readOnly ? (
             <div className="inline-name-editor">
               <input
                 aria-label="Item name"
@@ -95,58 +98,60 @@ export const BudgetRow = ({
         <input
           aria-label={`${item.name_snapshot} amount`}
           className="money-input"
-          disabled={item.is_disabled}
+          disabled={readOnly || item.is_disabled}
           inputMode="decimal"
           onChange={(event) => autosave.setValue(event.target.value)}
           onFocus={(event) => event.currentTarget.select()}
           value={autosave.value}
         />
       </div>
-      <div className="budget-row__actions">
-        <span className={`save-state save-state--${autosave.status}`} aria-live="polite">
-          {autosave.status === 'saving' && 'Saving…'}
-          {autosave.status === 'saved' && 'Saved'}
-          {autosave.status === 'failed' && 'Not saved'}
-        </span>
-        {autosave.status === 'failed' && (
-          <Button
-            variant="ghost"
-            icon={<RefreshCw aria-hidden="true" size={16} />}
-            onClick={autosave.retry}
-          >
-            Retry
-          </Button>
-        )}
-        <button
-          className="icon-button row-menu-button"
-          type="button"
-          aria-label={`${item.is_disabled ? 'Resume' : 'Pause'} ${item.name_snapshot}`}
-          title={item.is_disabled ? 'Resume item' : 'Pause item'}
-          onClick={() => onToggleDisabled(item)}
-        >
-          {item.is_disabled ? (
-            <CirclePlay aria-hidden="true" size={18} />
-          ) : (
-            <CirclePause aria-hidden="true" size={18} />
+      {!readOnly && (
+        <div className="budget-row__actions">
+          <span className={`save-state save-state--${autosave.status}`} aria-live="polite">
+            {autosave.status === 'saving' && 'Saving…'}
+            {autosave.status === 'saved' && 'Saved'}
+            {autosave.status === 'failed' && 'Not saved'}
+          </span>
+          {autosave.status === 'failed' && (
+            <Button
+              variant="ghost"
+              icon={<RefreshCw aria-hidden="true" size={16} />}
+              onClick={autosave.retry}
+            >
+              Retry
+            </Button>
           )}
-        </button>
-        <button
-          className="icon-button row-menu-button"
-          type="button"
-          aria-label={`Rename ${item.name_snapshot}`}
-          onClick={() => setRenaming(true)}
-        >
-          <Pencil aria-hidden="true" size={17} />
-        </button>
-        <button
-          className="icon-button row-menu-button"
-          type="button"
-          aria-label={`Archive ${item.name_snapshot}`}
-          onClick={() => onArchive(item)}
-        >
-          <Archive aria-hidden="true" size={17} />
-        </button>
-      </div>
+          <button
+            className="icon-button row-menu-button"
+            type="button"
+            aria-label={`${item.is_disabled ? 'Resume' : 'Pause'} ${item.name_snapshot}`}
+            title={item.is_disabled ? 'Resume item' : 'Pause item'}
+            onClick={() => onToggleDisabled(item)}
+          >
+            {item.is_disabled ? (
+              <CirclePlay aria-hidden="true" size={18} />
+            ) : (
+              <CirclePause aria-hidden="true" size={18} />
+            )}
+          </button>
+          <button
+            className="icon-button row-menu-button"
+            type="button"
+            aria-label={`Rename ${item.name_snapshot}`}
+            onClick={() => setRenaming(true)}
+          >
+            <Pencil aria-hidden="true" size={17} />
+          </button>
+          <button
+            className="icon-button row-menu-button"
+            type="button"
+            aria-label={`Archive ${item.name_snapshot}`}
+            onClick={() => onArchive(item)}
+          >
+            <Archive aria-hidden="true" size={17} />
+          </button>
+        </div>
+      )}
       {autosave.error && (
         <p className="budget-row__error" role="alert">
           {autosave.error}
