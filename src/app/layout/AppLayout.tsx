@@ -22,6 +22,7 @@ import { useEnsureCurrentMonth } from '../../features/budgets/useEnsureCurrentMo
 import { Button } from '../../shared/ui/Button';
 import { BrandMark } from '../../shared/ui/BrandMark';
 import { useAuth } from '../providers/AuthProvider';
+import { queryKeys } from '../../data/queryKeys';
 
 const navigation = [
   { to: '/app/budget/current', label: 'Budget', icon: CircleDollarSign },
@@ -52,10 +53,22 @@ export const AppLayout = () => {
   const { session, signOut } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const preferences = useQuery({ queryKey: ['preferences'], queryFn: retrievePreferences });
-  const profile = useQuery({ queryKey: ['profile'], queryFn: retrieveProfile });
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const userId = session?.user.id ?? '';
+  const preferences = useQuery({
+    queryKey: queryKeys.preferences(userId),
+    queryFn: retrievePreferences,
+  });
+  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   useEnsureCurrentMonth();
   const accountName = profile.data?.display_name?.trim() || session?.user.email || 'Account';
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : 'Could not sign out.');
+    }
+  };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -86,7 +99,11 @@ export const AppLayout = () => {
           <span className="sidebar__account-name" title={accountName}>
             {accountName}
           </span>
-          <button className="icon-button" aria-label="Sign out" onClick={() => void signOut()}>
+          <button
+            className="icon-button"
+            aria-label="Sign out"
+            onClick={() => void handleSignOut()}
+          >
             <LogOut aria-hidden="true" size={19} />
           </button>
         </footer>
@@ -117,7 +134,7 @@ export const AppLayout = () => {
           <Navigation close={() => setMenuOpen(false)} />
           <Button
             icon={<LogOut aria-hidden="true" size={18} />}
-            onClick={() => void signOut()}
+            onClick={() => void handleSignOut()}
             variant="ghost"
           >
             Sign out
@@ -126,6 +143,11 @@ export const AppLayout = () => {
       )}
 
       <main className="app-main" id="main-content">
+        {accountError && (
+          <div className="inline-alert inline-alert--error" role="alert">
+            {accountError}
+          </div>
+        )}
         <Outlet />
       </main>
 

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useId, useReducer, useRef } from 'react';
+import { setBudgetEditorState } from '../../pwa/editState';
 import { parseMoney, toDatabaseMoney } from '../../shared/validation/schemas';
 import { autosaveReducer, createAutosaveState } from './autosaveMachine';
 
@@ -8,6 +9,7 @@ export const useDebouncedAutosave = (
   onDraft: (value: string) => void,
   delay = 650,
 ) => {
+  const editorId = useId();
   const [state, dispatch] = useReducer(autosaveReducer, initialValue, createAutosaveState);
   const saveRef = useRef(save);
   const draftRef = useRef(onDraft);
@@ -53,8 +55,9 @@ export const useDebouncedAutosave = (
 
   useEffect(() => {
     const editing = state.value !== state.persistedValue || state.status === 'saving';
-    window.dispatchEvent(new CustomEvent('buddybudget-edit-state', { detail: { editing } }));
-  }, [state.persistedValue, state.status, state.value]);
+    setBudgetEditorState(editorId, editing);
+    return () => setBudgetEditorState(editorId, false);
+  }, [editorId, state.persistedValue, state.status, state.value]);
 
   const setValue = (value: string) => {
     dispatch({ type: 'edit', value });

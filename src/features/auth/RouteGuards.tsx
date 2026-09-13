@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { retrievePreferences } from '../../data/repositories/budgetRepository';
+import { queryKeys } from '../../data/queryKeys';
 import { LoadingState } from '../../shared/ui/AsyncState';
 
 export const RequireAuthentication = () => {
@@ -13,14 +14,22 @@ export const RequireAuthentication = () => {
 };
 
 export const RequireOnboarding = () => {
-  const preferences = useQuery({ queryKey: ['preferences'], queryFn: retrievePreferences });
+  const { session } = useAuth();
+  const preferences = useQuery({
+    queryKey: queryKeys.preferences(session?.user.id ?? ''),
+    queryFn: retrievePreferences,
+  });
   if (preferences.isLoading) return <LoadingState label="Preparing your budget…" />;
   if (!preferences.data?.onboarding_completed_at) return <Navigate replace to="/onboarding" />;
   return <Outlet />;
 };
 
 export const AppHome = () => {
-  const preferences = useQuery({ queryKey: ['preferences'], queryFn: retrievePreferences });
+  const { session } = useAuth();
+  const preferences = useQuery({
+    queryKey: queryKeys.preferences(session?.user.id ?? ''),
+    queryFn: retrievePreferences,
+  });
   if (preferences.isLoading) return <LoadingState />;
   if (!preferences.data?.onboarding_completed_at) return <Navigate replace to="/onboarding" />;
   const lastRoute = preferences.data.last_route;

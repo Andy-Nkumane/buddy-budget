@@ -1,5 +1,15 @@
 import type { Session } from '@supabase/supabase-js';
-import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { configurationError, supabase } from '../../data/supabase/client';
 import { BrandMark } from '../../shared/ui/BrandMark';
 
@@ -13,10 +23,25 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const manualSignOut = useRef(false);
+  const authenticatedUserId = useRef<string | null>(null);
+
+  const applySession = useCallback(
+    (nextSession: Session | null) => {
+      const nextUserId = nextSession?.user.id ?? null;
+      if (authenticatedUserId.current && authenticatedUserId.current !== nextUserId) {
+        void queryClient.cancelQueries();
+        queryClient.clear();
+      }
+      authenticatedUserId.current = nextUserId;
+      setSession(nextSession);
+    },
+    [queryClient],
+  );
 
   useEffect(() => {
     if (!supabase) {
@@ -28,12 +53,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!active) return;
       if (error)
         setSessionMessage('Your saved session could not be restored. Please sign in again.');
-      setSession(data.session);
+      applySession(data.session);
       setLoading(false);
     });
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      setSession(nextSession);
+      applySession(nextSession);
       setLoading(false);
       if (event === 'SIGNED_OUT' && !manualSignOut.current) {
         setSessionMessage('Your session ended. Please sign in again.');
@@ -46,7 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, []);
+  }, [applySession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

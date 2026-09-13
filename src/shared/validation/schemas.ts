@@ -34,11 +34,6 @@ export const itemSchema = z.object({
   categoryId: z.string().uuid().nullable().optional(),
 });
 
-export const categorySchema = z.object({
-  name: z.string().trim().min(1, 'Enter a category name.').max(60),
-  itemType: z.enum(['income', 'expense']),
-});
-
 export const parseMoney = (rawValue: string): number | null => {
   const normalized = rawValue.trim().replace(/\s/g, '').replace(/,/g, '');
   if (!/^\d{0,12}(?:\.\d{0,2})?$/.test(normalized) || normalized === '') return null;

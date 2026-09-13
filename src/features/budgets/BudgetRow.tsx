@@ -9,7 +9,6 @@ interface BudgetRowProps {
   item: BudgetMonthItem;
   currencyCode: string;
   onDraft: (id: string, amount: string) => void;
-  onSaved: () => void;
   onArchive: (item: BudgetMonthItem) => void;
   onToggleDisabled: (item: BudgetMonthItem) => void;
   onChanged: () => void;
@@ -19,7 +18,6 @@ export const BudgetRow = ({
   item,
   currencyCode,
   onDraft,
-  onSaved,
   onArchive,
   onToggleDisabled,
   onChanged,
@@ -32,7 +30,6 @@ export const BudgetRow = ({
     async (amount) => {
       await updateMonthItemAmount(item.id, amount);
       localStorage.setItem(`buddybudget-month-${item.budget_month_id}`, Date.now().toString());
-      onSaved();
     },
     (amount) => onDraft(item.id, amount),
   );

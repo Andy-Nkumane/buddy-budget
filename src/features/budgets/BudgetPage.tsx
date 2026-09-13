@@ -10,7 +10,7 @@ import {
   TrendingUp,
   WalletCards,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   createMonthFromTemplate,
@@ -33,12 +33,17 @@ import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { Button } from '../../shared/ui/Button';
 import { Modal } from '../../shared/ui/Modal';
 import { parseMoney } from '../../shared/validation/schemas';
+import { hasActiveBudgetEditors } from '../../pwa/editState';
 import { AddMonthItemForm } from './AddMonthItemForm';
 import { BudgetRow } from './BudgetRow';
+import { useAuth } from '../../app/providers/AuthProvider';
+import { queryKeys } from '../../data/queryKeys';
 
 const validMonth = /^\d{4}-(0[1-9]|1[0-2])-01$/;
 
 export const BudgetPage = () => {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? '';
   const { monthStart: routeMonth } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -51,14 +56,19 @@ export const BudgetPage = () => {
   const [archivedItem, setArchivedItem] = useState<BudgetMonthItem | null>(null);
   const [archivingItemIds, setArchivingItemIds] = useState<Set<string>>(() => new Set());
   const [remoteChange, setRemoteChange] = useState(false);
-  const monthKey = useMemo(() => ['month', monthStart], [monthStart]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const pendingRemoteRefresh = useRef(false);
+  const monthKey = useMemo(() => queryKeys.month(userId, monthStart), [monthStart, userId]);
 
-  const profile = useQuery({ queryKey: ['profile'], queryFn: retrieveProfile });
+  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const defaultTemplate = useQuery({
-    queryKey: ['default-template'],
+    queryKey: queryKeys.defaultTemplate(userId),
     queryFn: retrieveDefaultTemplate,
   });
-  const categories = useQuery({ queryKey: ['categories'], queryFn: () => searchCategories() });
+  const categories = useQuery({
+    queryKey: queryKeys.categories(userId),
+    queryFn: () => searchCategories(),
+  });
   const month = useQuery({
     queryKey: monthKey,
     queryFn: () => retrieveMonthByStart(monthStart),
@@ -79,10 +89,20 @@ export const BudgetPage = () => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== key) return;
       setRemoteChange(true);
+      if (hasActiveBudgetEditors()) pendingRemoteRefresh.current = true;
+      else void queryClient.invalidateQueries({ queryKey: monthKey });
+    };
+    const handleEditState = () => {
+      if (hasActiveBudgetEditors() || !pendingRemoteRefresh.current) return;
+      pendingRemoteRefresh.current = false;
       void queryClient.invalidateQueries({ queryKey: monthKey });
     };
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('buddybudget-edit-state', handleEditState);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('buddybudget-edit-state', handleEditState);
+    };
   }, [loadedMonthId, monthKey, queryClient]);
 
   useEffect(() => {
@@ -167,6 +187,7 @@ export const BudgetPage = () => {
   const archive = async (item: BudgetMonthItem) => {
     setArchivingItemIds((current) => new Set(current).add(item.id));
     try {
+      setActionError(null);
       await queryClient.cancelQueries({ queryKey: monthKey });
       await updateMonthItem(item.id, { archived_at: new Date().toISOString() });
       queryClient.setQueryData<BudgetMonthWithItems>(monthKey, (existing) =>
@@ -181,8 +202,9 @@ export const BudgetPage = () => {
       );
       setArchivedItem(item);
       localStorage.setItem(`buddybudget-month-${item.budget_month_id}`, Date.now().toString());
-    } catch {
+    } catch (error) {
       setArchivedItem(null);
+      setActionError(error instanceof Error ? error.message : 'The item could not be archived.');
       refresh();
     } finally {
       setArchivingItemIds((current) => {
@@ -194,9 +216,14 @@ export const BudgetPage = () => {
   };
   const undoArchive = async () => {
     if (!archivedItem) return;
-    await updateMonthItem(archivedItem.id, { archived_at: null });
-    setArchivedItem(null);
-    refresh();
+    try {
+      await updateMonthItem(archivedItem.id, { archived_at: null });
+      setArchivedItem(null);
+      setActionError(null);
+      refresh();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'The item could not be restored.');
+    }
   };
   const toggleDisabled = async (item: BudgetMonthItem) => {
     const isDisabled = !item.is_disabled;
@@ -212,8 +239,10 @@ export const BudgetPage = () => {
     );
     try {
       await updateMonthItem(item.id, { is_disabled: isDisabled });
+      setActionError(null);
       localStorage.setItem(`buddybudget-month-${item.budget_month_id}`, Date.now().toString());
-    } catch {
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'The item could not be updated.');
       refresh();
     }
   };
@@ -257,6 +286,12 @@ export const BudgetPage = () => {
           <button className="text-button" onClick={() => setRemoteChange(false)}>
             Dismiss
           </button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="inline-alert inline-alert--error" role="alert">
+          {actionError}
         </div>
       )}
 
@@ -322,14 +357,13 @@ export const BudgetPage = () => {
               {sectionItems.length ? (
                 sectionItems.map((item) => (
                   <BudgetRow
-                    key={`${item.id}-${item.updated_at}`}
+                    key={item.id}
                     item={item}
                     currencyCode={currency}
                     onArchive={(entry) => void archive(entry)}
                     onToggleDisabled={(entry) => void toggleDisabled(entry)}
                     onChanged={refresh}
                     onDraft={updateDraft}
-                    onSaved={() => undefined}
                   />
                 ))
               ) : (

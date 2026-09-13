@@ -24,11 +24,19 @@ test.describe('critical monthly budget flow', () => {
     await page.reload();
     await expect(page.locator('.money-input').first()).toHaveValue(replacement);
 
+    const itemName = `E2E one-off ${Date.now()}`;
     await page.getByRole('button', { name: 'Add expense' }).first().click();
-    await page.getByLabel('Name').fill(`E2E one-off ${Date.now()}`);
+    await page.getByLabel('Name').fill(itemName);
     await page.getByLabel('Amount').fill('42.00');
     await page.getByRole('button', { name: 'Add expense' }).last().click();
-    await expect(page.getByText(/E2E one-off/)).toBeVisible();
+    const createdRow = page.locator('.budget-row').filter({ hasText: itemName });
+    await expect(createdRow).toBeVisible();
+
+    await firstAmount.fill(original);
+    await expect(page.getByText('Saved').first()).toBeVisible();
+    page.once('dialog', (dialog) => dialog.accept());
+    await createdRow.getByRole('button', { name: `Archive ${itemName}` }).click();
+    await expect(createdRow).toBeHidden();
 
     await page.getByRole('link', { name: 'Months' }).first().click();
     await expect(page.locator('.month-export-format select').first()).toHaveValue('pdf');

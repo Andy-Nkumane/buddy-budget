@@ -8,14 +8,10 @@ const outputDirectory = new URL('../public/icons/', import.meta.url);
 await mkdir(outputDirectory, { recursive: true });
 
 await Promise.all(
-  [192, 512].flatMap((size) => [
+  [192, 512].map((size) =>
     sharp(fileURLToPath(source))
       .resize(size, size, { fit: 'cover' })
       .png()
       .toFile(fileURLToPath(new URL(`icon-${size}.png`, outputDirectory))),
-    sharp(fileURLToPath(source))
-      .resize(size, size, { fit: 'cover' })
-      .png()
-      .toFile(fileURLToPath(new URL(`maskable-${size}.png`, outputDirectory))),
-  ]),
+  ),
 );

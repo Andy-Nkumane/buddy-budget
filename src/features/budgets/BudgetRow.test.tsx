@@ -45,7 +45,6 @@ describe('BudgetRow', () => {
         onToggleDisabled={vi.fn()}
         onChanged={vi.fn()}
         onDraft={vi.fn()}
-        onSaved={vi.fn()}
       />,
     );
     fireEvent.change(screen.getByLabelText('Groceries amount'), { target: { value: '125.5' } });
@@ -66,7 +65,6 @@ describe('BudgetRow', () => {
         onToggleDisabled={vi.fn()}
         onChanged={vi.fn()}
         onDraft={vi.fn()}
-        onSaved={vi.fn()}
       />,
     );
     fireEvent.change(screen.getByLabelText('Groceries amount'), { target: { value: '12.345' } });
@@ -88,7 +86,6 @@ describe('BudgetRow', () => {
         onToggleDisabled={onToggleDisabled}
         onChanged={vi.fn()}
         onDraft={vi.fn()}
-        onSaved={vi.fn()}
       />,
     );
     expect(screen.getByLabelText('Groceries amount')).toBeDisabled();

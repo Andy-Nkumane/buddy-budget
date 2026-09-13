@@ -20,6 +20,33 @@ const throwWhenError = (error: { message: string } | null): void => {
   if (error) throw new Error(error.message);
 };
 
+const EXPORT_PAGE_SIZE = 1000;
+type PageResult<T> = { data: T[] | null; error: { message: string } | null };
+
+const retrieveAllPages = async <T>(
+  retrievePage: (from: number, to: number) => PromiseLike<PageResult<T>>,
+): Promise<T[]> => {
+  const records: T[] = [];
+  for (let from = 0; ; from += EXPORT_PAGE_SIZE) {
+    const { data, error } = await retrievePage(from, from + EXPORT_PAGE_SIZE - 1);
+    throwWhenError(error);
+    const page = data ?? [];
+    records.push(...page);
+    if (page.length < EXPORT_PAGE_SIZE) return records;
+  }
+};
+
+const groupRecordsBy = <T>(records: T[], retrieveKey: (record: T) => string): Map<string, T[]> => {
+  const grouped = new Map<string, T[]>();
+  records.forEach((record) => {
+    const key = retrieveKey(record);
+    const group = grouped.get(key);
+    if (group) group.push(record);
+    else grouped.set(key, [record]);
+  });
+  return grouped;
+};
+
 const retrieveAuthenticatedUser = async (): Promise<User> => {
   const { data, error } = await requireSupabase().auth.getUser();
   throwWhenError(error);
@@ -56,31 +83,12 @@ export const updateProfileAndPreferences = async (input: {
   timezone: string;
   theme: ThemePreference;
 }): Promise<void> => {
-  const user = await retrieveAuthenticatedUser();
-  const client = requireSupabase();
-  const profileResult = await client.from('profiles').upsert({
-    user_id: user.id,
-    display_name: input.displayName || null,
-    currency_code: input.currencyCode,
-    locale: input.locale,
-    timezone: input.timezone,
-    updated_at: new Date().toISOString(),
-  });
-  throwWhenError(profileResult.error);
-  const preferencesResult = await client.from('user_preferences').upsert({
-    user_id: user.id,
-    theme: input.theme,
-    updated_at: new Date().toISOString(),
-  });
-  throwWhenError(preferencesResult.error);
-};
-
-export const completeOnboarding = async (): Promise<void> => {
-  const user = await retrieveAuthenticatedUser();
-  const { error } = await requireSupabase().from('user_preferences').upsert({
-    user_id: user.id,
-    onboarding_completed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  const { error } = await requireSupabase().rpc('update_profile_and_preferences', {
+    requested_display_name: input.displayName,
+    requested_currency_code: input.currencyCode,
+    requested_locale: input.locale,
+    requested_timezone: input.timezone,
+    requested_theme: input.theme,
   });
   throwWhenError(error);
 };
@@ -127,66 +135,69 @@ export const updateLastLocation = async (
       user_id: user.id,
       last_route: safeRoute,
       ...(lastBudgetMonthId ? { last_budget_month_id: lastBudgetMonthId } : {}),
-      updated_at: new Date().toISOString(),
     });
   throwWhenError(error);
 };
 
 export const searchCategories = async (includeArchived = false): Promise<Category[]> => {
-  let query = requireSupabase()
-    .from('categories')
-    .select('*')
-    .order('item_type')
-    .order('sort_order');
-  if (!includeArchived) query = query.is('archived_at', null);
-  const { data, error } = await query;
-  throwWhenError(error);
-  return data ?? [];
+  const client = requireSupabase();
+  return retrieveAllPages<Category>((from, to) => {
+    let query = client
+      .from('categories')
+      .select('*')
+      .order('item_type')
+      .order('sort_order')
+      .order('created_at')
+      .order('id')
+      .range(from, to);
+    if (!includeArchived) query = query.is('archived_at', null);
+    return query;
+  });
 };
 
 export const createCategory = async (input: {
   name: string;
   itemType: ItemType;
 }): Promise<Category> => {
-  const user = await retrieveAuthenticatedUser();
-  const categories = await searchCategories(true);
-  const nextOrder = categories.filter((category) => category.item_type === input.itemType).length;
-  const { data, error } = await requireSupabase()
-    .from('categories')
-    .insert({
-      user_id: user.id,
-      name: input.name,
-      item_type: input.itemType,
-      sort_order: nextOrder,
-    })
-    .select('*')
-    .single();
+  const { data, error } = await requireSupabase().rpc('create_category', {
+    requested_name: input.name,
+    requested_item_type: input.itemType,
+  });
   throwWhenError(error);
-  if (!data) throw new Error('The category could not be created.');
-  return data;
+  if (!data?.[0]) throw new Error('The category could not be created.');
+  return data[0];
 };
 
 export const updateCategory = async (
   id: string,
   values: Partial<Pick<Category, 'name' | 'sort_order' | 'archived_at'>>,
 ): Promise<void> => {
-  const { error } = await requireSupabase()
-    .from('categories')
-    .update({ ...values, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  const { error } = await requireSupabase().from('categories').update(values).eq('id', id);
+  throwWhenError(error);
+};
+
+export const moveCategory = async (id: string, direction: -1 | 1): Promise<void> => {
+  const { error } = await requireSupabase().rpc('move_category', {
+    requested_category_id: id,
+    requested_direction: direction,
+  });
   throwWhenError(error);
 };
 
 const retrieveTemplateItems = async (templateId: string): Promise<TemplateItem[]> => {
-  const { data, error } = await requireSupabase()
-    .from('template_items')
-    .select('*')
-    .eq('template_id', templateId)
-    .is('archived_at', null)
-    .order('item_type', { ascending: false })
-    .order('sort_order');
-  throwWhenError(error);
-  return data ?? [];
+  const client = requireSupabase();
+  return retrieveAllPages<TemplateItem>((from, to) =>
+    client
+      .from('template_items')
+      .select('*')
+      .eq('template_id', templateId)
+      .is('archived_at', null)
+      .order('item_type', { ascending: false })
+      .order('sort_order')
+      .order('created_at')
+      .order('id')
+      .range(from, to),
+  );
 };
 
 export const retrieveDefaultTemplate = async (): Promise<TemplateWithItems | null> => {
@@ -202,19 +213,36 @@ export const retrieveDefaultTemplate = async (): Promise<TemplateWithItems | nul
 };
 
 export const searchTemplates = async (): Promise<TemplateWithItems[]> => {
-  const { data, error } = await requireSupabase()
-    .from('budget_templates')
-    .select('*')
-    .is('archived_at', null)
-    .order('is_default', { ascending: false })
-    .order('created_at');
-  throwWhenError(error);
-  return Promise.all(
-    (data ?? []).map(async (template) => ({
-      ...template,
-      template_items: await retrieveTemplateItems(template.id),
-    })),
-  );
+  const client = requireSupabase();
+  const [templates, templateItems] = await Promise.all([
+    retrieveAllPages<BudgetTemplate>((from, to) =>
+      client
+        .from('budget_templates')
+        .select('*')
+        .is('archived_at', null)
+        .order('is_default', { ascending: false })
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<TemplateItem>((from, to) =>
+      client
+        .from('template_items')
+        .select('*')
+        .is('archived_at', null)
+        .order('item_type', { ascending: false })
+        .order('sort_order')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
+  ]);
+  if (!templates.length) return [];
+  const itemsByTemplate = groupRecordsBy(templateItems, (item) => item.template_id);
+  return templates.map((template) => ({
+    ...template,
+    template_items: itemsByTemplate.get(template.id) ?? [],
+  }));
 };
 
 export const createTemplate = async (
@@ -232,17 +260,6 @@ export const createTemplate = async (
   return data;
 };
 
-export const updateTemplate = async (
-  id: string,
-  values: Partial<Pick<BudgetTemplate, 'name' | 'archived_at'>>,
-): Promise<void> => {
-  const { error } = await requireSupabase()
-    .from('budget_templates')
-    .update({ ...values, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  throwWhenError(error);
-};
-
 export const setDefaultTemplate = async (templateId: string): Promise<void> => {
   const { error } = await requireSupabase().rpc('set_default_template', {
     requested_template_id: templateId,
@@ -257,24 +274,16 @@ export const createTemplateItem = async (input: {
   amount: string;
   categoryId?: string | null;
 }): Promise<TemplateItem> => {
-  const user = await retrieveAuthenticatedUser();
-  const existing = await retrieveTemplateItems(input.templateId);
-  const { data, error } = await requireSupabase()
-    .from('template_items')
-    .insert({
-      template_id: input.templateId,
-      user_id: user.id,
-      name: input.name,
-      item_type: input.itemType,
-      default_amount: input.amount,
-      category_id: input.categoryId ?? null,
-      sort_order: existing.filter((item) => item.item_type === input.itemType).length,
-    })
-    .select('*')
-    .single();
+  const { data, error } = await requireSupabase().rpc('create_template_item', {
+    requested_template_id: input.templateId,
+    requested_name: input.name,
+    requested_item_type: input.itemType,
+    requested_amount: input.amount,
+    requested_category_id: input.categoryId ?? null,
+  });
   throwWhenError(error);
-  if (!data) throw new Error('The template item could not be created.');
-  return data;
+  if (!data?.[0]) throw new Error('The template item could not be created.');
+  return data[0];
 };
 
 export const updateTemplateItem = async (
@@ -283,23 +292,32 @@ export const updateTemplateItem = async (
     Pick<TemplateItem, 'name' | 'default_amount' | 'category_id' | 'sort_order' | 'archived_at'>
   >,
 ): Promise<void> => {
-  const { error } = await requireSupabase()
-    .from('template_items')
-    .update({ ...values, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  const { error } = await requireSupabase().from('template_items').update(values).eq('id', id);
+  throwWhenError(error);
+};
+
+export const moveTemplateItem = async (id: string, direction: -1 | 1): Promise<void> => {
+  const { error } = await requireSupabase().rpc('move_template_item', {
+    requested_item_id: id,
+    requested_direction: direction,
+  });
   throwWhenError(error);
 };
 
 const retrieveMonthItems = async (monthId: string): Promise<BudgetMonthItem[]> => {
-  const { data, error } = await requireSupabase()
-    .from('budget_month_items')
-    .select('*')
-    .eq('budget_month_id', monthId)
-    .is('archived_at', null)
-    .order('item_type', { ascending: false })
-    .order('sort_order');
-  throwWhenError(error);
-  return data ?? [];
+  const client = requireSupabase();
+  return retrieveAllPages<BudgetMonthItem>((from, to) =>
+    client
+      .from('budget_month_items')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .is('archived_at', null)
+      .order('item_type', { ascending: false })
+      .order('sort_order')
+      .order('created_at')
+      .order('id')
+      .range(from, to),
+  );
 };
 
 const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => ({
@@ -330,17 +348,25 @@ export const retrieveMonthById = async (id: string): Promise<BudgetMonthWithItem
 };
 
 export const searchMonths = async (): Promise<MonthSummary[]> => {
-  const { data, error } = await requireSupabase()
-    .from('budget_months')
-    .select('*')
-    .order('month_start', { ascending: false });
-  throwWhenError(error);
-  return Promise.all(
-    (data ?? []).map(async (month) => ({
-      ...month,
-      ...calculateTotals(await retrieveMonthItems(month.id)),
-    })),
-  );
+  const client = requireSupabase();
+  const [months, monthItems] = await Promise.all([
+    retrieveAllPages<BudgetMonth>((from, to) =>
+      client
+        .from('budget_months')
+        .select('*')
+        .order('month_start', { ascending: false })
+        .range(from, to),
+    ),
+    retrieveAllPages<BudgetMonthItem>((from, to) =>
+      client.from('budget_month_items').select('*').is('archived_at', null).range(from, to),
+    ),
+  ]);
+  if (!months.length) return [];
+  const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
+  return months.map((month) => ({
+    ...month,
+    ...calculateTotals(itemsByMonth.get(month.id) ?? []),
+  }));
 };
 
 export interface MonthExportRange {
@@ -351,12 +377,32 @@ export interface MonthExportRange {
 export const retrieveMonthsForExport = async (
   range: MonthExportRange = {},
 ): Promise<BudgetMonthWithItems[]> => {
-  let query = requireSupabase().from('budget_months').select('*').order('month_start');
-  if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
-  if (range.toMonth) query = query.lte('month_start', range.toMonth);
-  const { data, error } = await query;
-  throwWhenError(error);
-  return Promise.all((data ?? []).map(combineMonth));
+  const client = requireSupabase();
+  const [months, monthItems] = await Promise.all([
+    retrieveAllPages<BudgetMonth>((from, to) => {
+      let query = client.from('budget_months').select('*').order('month_start').range(from, to);
+      if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
+      if (range.toMonth) query = query.lte('month_start', range.toMonth);
+      return query;
+    }),
+    retrieveAllPages<BudgetMonthItem>((from, to) =>
+      client
+        .from('budget_month_items')
+        .select('*')
+        .is('archived_at', null)
+        .order('item_type', { ascending: false })
+        .order('sort_order')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
+  ]);
+  if (!months.length) return [];
+  const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
+  return months.map((month) => ({
+    ...month,
+    budget_month_items: itemsByMonth.get(month.id) ?? [],
+  }));
 };
 
 export const createMonthFromTemplate = async (
@@ -376,7 +422,7 @@ export const createMonthFromTemplate = async (
 export const updateMonthItemAmount = async (id: string, amount: string): Promise<void> => {
   const { error } = await requireSupabase()
     .from('budget_month_items')
-    .update({ amount, updated_at: new Date().toISOString() })
+    .update({ amount })
     .eq('id', id);
   throwWhenError(error);
 };
@@ -390,10 +436,7 @@ export const updateMonthItem = async (
     >
   >,
 ): Promise<void> => {
-  const { error } = await requireSupabase()
-    .from('budget_month_items')
-    .update({ ...values, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  const { error } = await requireSupabase().from('budget_month_items').update(values).eq('id', id);
   throwWhenError(error);
 };
 
@@ -404,43 +447,48 @@ export const createMonthItem = async (input: {
   amount: string;
   categoryId?: string | null;
 }): Promise<BudgetMonthItem> => {
-  const user = await retrieveAuthenticatedUser();
-  const items = await retrieveMonthItems(input.monthId);
-  const category = input.categoryId
-    ? (await searchCategories(true)).find((candidate) => candidate.id === input.categoryId)
-    : null;
-  const { data, error } = await requireSupabase()
-    .from('budget_month_items')
-    .insert({
-      budget_month_id: input.monthId,
-      user_id: user.id,
-      source_template_item_id: null,
-      category_id: input.categoryId ?? null,
-      item_type: input.itemType,
-      name_snapshot: input.name,
-      category_snapshot: category?.name ?? null,
-      default_amount_snapshot: input.amount,
-      amount: input.amount,
-      sort_order: items.filter((item) => item.item_type === input.itemType).length,
-    })
-    .select('*')
-    .single();
+  const { data, error } = await requireSupabase().rpc('create_month_item', {
+    requested_month_id: input.monthId,
+    requested_name: input.name,
+    requested_item_type: input.itemType,
+    requested_amount: input.amount,
+    requested_category_id: input.categoryId ?? null,
+  });
   throwWhenError(error);
-  if (!data) throw new Error('The month item could not be created.');
-  return data;
+  if (!data?.[0]) throw new Error('The month item could not be created.');
+  return data[0];
 };
 
 export const exportAllData = async (range: MonthExportRange = {}) => {
-  const [profile, preferences, categories, templates, budgetMonths] = await Promise.all([
-    retrieveProfile(),
-    retrievePreferences(),
-    searchCategories(true),
-    searchTemplates(),
-    retrieveMonthsForExport(range),
-  ]);
+  const client = requireSupabase();
+  const [profile, preferences, categories, templates, templateItems, budgetMonths] =
+    await Promise.all([
+      retrieveProfile(),
+      retrievePreferences(),
+      retrieveAllPages<Category>((from, to) =>
+        client.from('categories').select('*').order('created_at').order('id').range(from, to),
+      ),
+      retrieveAllPages<BudgetTemplate>((from, to) =>
+        client.from('budget_templates').select('*').order('created_at').order('id').range(from, to),
+      ),
+      retrieveAllPages<TemplateItem>((from, to) =>
+        client.from('template_items').select('*').order('created_at').order('id').range(from, to),
+      ),
+      retrieveAllPages<BudgetMonth>((from, to) => {
+        let query = client.from('budget_months').select('*').order('month_start').range(from, to);
+        if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
+        if (range.toMonth) query = query.lte('month_start', range.toMonth);
+        return query;
+      }),
+    ]);
+  const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
+    client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
+  );
+  const itemsByTemplate = groupRecordsBy(templateItems, (item) => item.template_id);
+  const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 1,
+    schema_version: 2,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -448,8 +496,14 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     profile,
     preferences,
     categories,
-    templates,
-    budget_months: budgetMonths,
+    templates: templates.map((template) => ({
+      ...template,
+      template_items: itemsByTemplate.get(template.id) ?? [],
+    })),
+    budget_months: budgetMonths.map((month) => ({
+      ...month,
+      budget_month_items: itemsByMonth.get(month.id) ?? [],
+    })),
   };
 };
 

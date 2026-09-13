@@ -43,19 +43,17 @@ export default defineConfig(({ mode }) => {
           theme_color: '#194f47',
           categories: ['finance', 'productivity', 'utilities'],
           icons: [
-            { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
-            { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
             {
-              src: `${base}icons/maskable-192.png`,
+              src: `${base}icons/icon-192.png`,
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'maskable',
+              purpose: 'any maskable',
             },
             {
-              src: `${base}icons/maskable-512.png`,
+              src: `${base}icons/icon-512.png`,
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'maskable',
+              purpose: 'any maskable',
             },
           ],
           screenshots: [
@@ -89,7 +87,7 @@ export default defineConfig(({ mode }) => {
           cleanupOutdatedCaches: true,
           navigateFallback: `${base}index.html`,
           navigateFallbackDenylist: [/\/auth\//, /supabase\.co/, /\/exports?\//],
-          globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+          globPatterns: ['**/*.{js,css,html,svg,woff2}', 'icons/icon-{192,512}.png'],
           runtimeCaching: [],
         },
       }),
@@ -97,9 +95,15 @@ export default defineConfig(({ mode }) => {
     test: {
       include: ['src/**/*.test.{ts,tsx}'],
       environment: 'jsdom',
+      pool: 'vmThreads',
       setupFiles: ['./src/test/setup.ts'],
       css: true,
-      coverage: { provider: 'v8', reporter: ['text', 'html'] },
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'html'],
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/vite-env.d.ts'],
+      },
     },
   };
 });

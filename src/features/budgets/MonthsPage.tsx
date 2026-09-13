@@ -18,12 +18,16 @@ import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { Button } from '../../shared/ui/Button';
 import { Modal } from '../../shared/ui/Modal';
 import { BudgetReportPreview } from '../reports/BudgetReportPreview';
+import { useAuth } from '../../app/providers/AuthProvider';
+import { queryKeys } from '../../data/queryKeys';
 
 type MonthExportFormat = 'csv' | 'json' | 'pdf';
 
 export const MonthsPage = () => {
-  const months = useQuery({ queryKey: ['months'], queryFn: searchMonths });
-  const profile = useQuery({ queryKey: ['profile'], queryFn: retrieveProfile });
+  const { session } = useAuth();
+  const userId = session?.user.id ?? '';
+  const months = useQuery({ queryKey: queryKeys.months(userId), queryFn: searchMonths });
+  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const [exportFormats, setExportFormats] = useState<Record<string, MonthExportFormat>>({});
   const [reportMonth, setReportMonth] = useState<BudgetMonthWithItems | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);

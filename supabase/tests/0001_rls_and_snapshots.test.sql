@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(31);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -224,6 +224,75 @@ select throws_ok(
   '23505',
   null,
   'A user cannot have two active default templates'
+);
+
+select lives_ok(
+  $$select public.update_profile_and_preferences(
+      'Alice Budget', 'USD', 'en-US', 'America/New_York', 'dark'
+    )$$,
+  'Settings are updated atomically'
+);
+
+select is(
+  (select display_name from public.profiles),
+  'Alice Budget',
+  'Atomic settings update saves the profile'
+);
+
+select is(
+  (select theme from public.user_preferences),
+  'dark',
+  'Atomic settings update saves preferences'
+);
+
+select lives_ok(
+  $$select public.create_category('First expense category', 'expense')$$,
+  'Category append RPC creates the first category'
+);
+
+select lives_ok(
+  $$select public.create_category('Second expense category', 'expense')$$,
+  'Category append RPC creates the second category'
+);
+
+select lives_ok(
+  $$select public.move_category(
+      (select id from public.categories where name = 'Second expense category'), -1
+    )$$,
+  'Category reorder RPC moves a category'
+);
+
+select is(
+  (select array_agg(name order by sort_order) from public.categories where item_type = 'expense'),
+  array['Second expense category', 'First expense category']::text[],
+  'Category reorder produces deterministic positions'
+);
+
+select lives_ok(
+  $$select public.create_template_item(
+      'a1000000-0000-4000-8000-000000000001', 'Utilities', 'expense', 100, null
+    )$$,
+  'Template item append RPC creates an item'
+);
+
+select lives_ok(
+  $$select public.create_template_item(
+      'a1000000-0000-4000-8000-000000000001', 'Groceries', 'expense', 200, null
+    )$$,
+  'Template item append RPC creates another item'
+);
+
+select lives_ok(
+  $$select public.move_template_item(
+      (select id from public.template_items where name = 'Groceries'), -1
+    )$$,
+  'Template item reorder RPC moves an item'
+);
+
+select is(
+  (select array_agg(name order by sort_order) from public.template_items where item_type = 'expense'),
+  array['Rent', 'Groceries', 'Utilities']::text[],
+  'Template item reorder produces deterministic positions'
 );
 
 reset role;

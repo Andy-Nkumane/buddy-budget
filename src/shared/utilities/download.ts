@@ -11,15 +11,21 @@ const saveBlob = (filename: string, type: string, content: string): void => {
   link.href = url;
   link.download = filename;
   link.rel = 'noopener';
+  document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 export const downloadJson = (filename: string, value: unknown): void => {
   saveBlob(filename, 'application/json;charset=utf-8', JSON.stringify(value, null, 2));
 };
 
-const escapeCsv = (value: string | number): string => `"${String(value).replace(/"/g, '""')}"`;
+export const escapeCsv = (value: string | number): string => {
+  const stringValue = String(value);
+  const safeValue = /^[=+\-@]/.test(stringValue) ? `'${stringValue}` : stringValue;
+  return `"${safeValue.replace(/"/g, '""')}"`;
+};
 
 export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange: string): void => {
   const rows = [
@@ -87,30 +93,29 @@ export const downloadBudgetReportPdf = async (
   );
   cursorY += 18;
 
+  const summaryTotals = calculateReportTotalsByCurrency(months);
   autoTable(document, {
     startY: cursorY,
     head: [['Currency', 'Income', 'Expenses', 'Remaining']],
-    body: calculateReportTotalsByCurrency(months).map((totals) => [
+    body: summaryTotals.map((totals) => [
       totals.currency,
-      {
-        content: formatSignedReportAmount(totals.income, 'income', totals.currency, locale),
-        styles: { fontStyle: 'bold', textColor: incomeColor },
-      },
-      {
-        content: formatSignedReportAmount(totals.expenses, 'expense', totals.currency, locale),
-        styles: { fontStyle: 'bold', textColor: expenseColor },
-      },
-      {
-        content: formatMoney(totals.remaining, totals.currency, locale),
-        styles: {
-          fontStyle: 'bold',
-          textColor: totals.remaining < 0 ? expenseColor : incomeColor,
-        },
-      },
+      formatSignedReportAmount(totals.income, 'income', totals.currency, locale),
+      formatSignedReportAmount(totals.expenses, 'expense', totals.currency, locale),
+      formatMoney(totals.remaining, totals.currency, locale),
     ]),
     theme: 'grid',
     headStyles: { fillColor: [25, 79, 71], textColor: [255, 255, 255] },
     styles: { fontSize: 9, cellPadding: 6 },
+    didParseCell: (cell) => {
+      if (cell.section !== 'body' || cell.column.index === 0) return;
+      cell.cell.styles.fontStyle = 'bold';
+      if (cell.column.index === 1) cell.cell.styles.textColor = incomeColor;
+      if (cell.column.index === 2) cell.cell.styles.textColor = expenseColor;
+      if (cell.column.index === 3) {
+        cell.cell.styles.textColor =
+          summaryTotals[cell.row.index].remaining < 0 ? expenseColor : incomeColor;
+      }
+    },
   });
   cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
 
@@ -160,23 +165,20 @@ export const downloadBudgetReportPdf = async (
         item.name_snapshot,
         item.category_snapshot ?? 'Uncategorised',
         item.is_disabled ? 'Paused' : 'Active',
-        {
-          content: formatSignedReportAmount(
-            Number(item.amount),
-            item.item_type,
-            month.currency_code,
-            locale,
-          ),
-          styles: {
-            fontStyle: 'bold',
-            textColor: item.item_type === 'income' ? incomeColor : expenseColor,
-          },
-        },
+        formatSignedReportAmount(Number(item.amount), item.item_type, month.currency_code, locale),
       ]),
       theme: 'striped',
       headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
       styles: { fontSize: 8.5, cellPadding: 5 },
       columnStyles: { 3: { halign: 'right' } },
+      didParseCell: (cell) => {
+        if (cell.section !== 'body' || cell.column.index !== 3) return;
+        cell.cell.styles.fontStyle = 'bold';
+        cell.cell.styles.textColor =
+          month.budget_month_items[cell.row.index].item_type === 'income'
+            ? incomeColor
+            : expenseColor;
+      },
     });
     cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
   });

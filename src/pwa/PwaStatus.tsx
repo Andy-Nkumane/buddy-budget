@@ -2,6 +2,7 @@ import { Download, RefreshCw, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Button } from '../shared/ui/Button';
+import type { BudgetEditStateDetail } from './editState';
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -33,7 +34,7 @@ export const PwaStatus = () => {
     };
     const handleInstalled = () => setInstallPrompt(null);
     const handleEditState = (event: Event) =>
-      setEditing((event as CustomEvent<{ editing: boolean }>).detail.editing);
+      setEditing((event as CustomEvent<BudgetEditStateDetail>).detail.editingCount > 0);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('beforeinstallprompt', handlePrompt);
@@ -60,7 +61,7 @@ export const PwaStatus = () => {
       {!online && (
         <div className="status-banner status-banner--offline" role="status">
           <WifiOff aria-hidden="true" size={18} />
-          <span>You’re offline. Viewing is limited and budget changes are disabled.</span>
+          <span>You’re offline. Unsaved budget changes will need to be retried when online.</span>
         </div>
       )}
       {needRefresh && (

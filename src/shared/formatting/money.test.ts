@@ -51,4 +51,9 @@ describe('money calculations', () => {
     const disabled = { ...item('expense', '100'), is_disabled: true };
     expect(calculateTotals([disabled]).expenses).toBe(0);
   });
+
+  it('adds decimal amounts without floating-point drift', () => {
+    const amounts = Array.from({ length: 10 }, () => item('income', '0.10'));
+    expect(calculateTotals(amounts).income).toBe(1);
+  });
 });

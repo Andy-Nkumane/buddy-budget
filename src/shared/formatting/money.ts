@@ -8,15 +8,27 @@ export const formatMoney = (value: number, currencyCode = 'ZAR', locale = 'en-ZA
     maximumFractionDigits: 2,
   }).format(value);
 
+export const moneyToMinorUnits = (value: string | number): number => {
+  const normalized = String(value).trim().replace(/,/g, '');
+  const match = /^(-?)(\d+)(?:\.(\d{0,2}))?$/.exec(normalized);
+  if (!match) throw new Error('Invalid monetary amount.');
+  const minorUnits = Number(match[2]) * 100 + Number((match[3] ?? '').padEnd(2, '0'));
+  return match[1] === '-' ? -minorUnits : minorUnits;
+};
+
+export const minorUnitsToMoney = (value: number): number => value / 100;
+
 export const calculateTotals = (items: BudgetMonthItem[]) => {
   const activeItems = items.filter((item) => item.archived_at === null && !item.is_disabled);
-  const income = activeItems
+  const incomeMinorUnits = activeItems
     .filter((item) => item.item_type === 'income')
-    .reduce((total, item) => total + Number(item.amount), 0);
-  const expenses = activeItems
+    .reduce((total, item) => total + moneyToMinorUnits(item.amount), 0);
+  const expenseMinorUnits = activeItems
     .filter((item) => item.item_type === 'expense')
-    .reduce((total, item) => total + Number(item.amount), 0);
-  const remaining = income - expenses;
+    .reduce((total, item) => total + moneyToMinorUnits(item.amount), 0);
+  const income = minorUnitsToMoney(incomeMinorUnits);
+  const expenses = minorUnitsToMoney(expenseMinorUnits);
+  const remaining = minorUnitsToMoney(incomeMinorUnits - expenseMinorUnits);
   const savingsRate = income > 0 ? (remaining / income) * 100 : null;
   return { income, expenses, remaining, savingsRate };
 };

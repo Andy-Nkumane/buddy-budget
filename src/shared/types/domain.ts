@@ -2,7 +2,7 @@ export type ItemType = 'income' | 'expense';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
-export interface Profile {
+export type Profile = {
   user_id: string;
   display_name: string | null;
   currency_code: string;
@@ -10,18 +10,18 @@ export interface Profile {
   timezone: string;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface UserPreferences {
+export type UserPreferences = {
   user_id: string;
   last_budget_month_id: string | null;
   last_route: string | null;
   theme: ThemePreference;
   onboarding_completed_at: string | null;
   updated_at: string;
-}
+};
 
-export interface Category {
+export type Category = {
   id: string;
   user_id: string;
   item_type: ItemType;
@@ -30,9 +30,9 @@ export interface Category {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface BudgetTemplate {
+export type BudgetTemplate = {
   id: string;
   user_id: string;
   name: string;
@@ -40,9 +40,9 @@ export interface BudgetTemplate {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface TemplateItem {
+export type TemplateItem = {
   id: string;
   template_id: string;
   user_id: string;
@@ -54,13 +54,13 @@ export interface TemplateItem {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface TemplateWithItems extends BudgetTemplate {
+export type TemplateWithItems = BudgetTemplate & {
   template_items: TemplateItem[];
-}
+};
 
-export interface BudgetMonth {
+export type BudgetMonth = {
   id: string;
   user_id: string;
   source_template_id: string | null;
@@ -71,9 +71,9 @@ export interface BudgetMonth {
   last_opened_at: string;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface BudgetMonthItem {
+export type BudgetMonthItem = {
   id: string;
   budget_month_id: string;
   user_id: string;
@@ -89,14 +89,14 @@ export interface BudgetMonthItem {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface BudgetMonthWithItems extends BudgetMonth {
+export type BudgetMonthWithItems = BudgetMonth & {
   budget_month_items: BudgetMonthItem[];
-}
+};
 
-export interface MonthSummary extends BudgetMonth {
+export type MonthSummary = BudgetMonth & {
   income: number;
   expenses: number;
   remaining: number;
-}
+};

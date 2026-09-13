@@ -24,20 +24,26 @@ import { Modal } from '../../shared/ui/Modal';
 import { SelectField } from '../../shared/ui/SelectField';
 import { profileSchema } from '../../shared/validation/schemas';
 import { ExportDataForm } from './ExportDataForm';
+import { queryKeys } from '../../data/queryKeys';
 
 type SettingsValues = z.infer<typeof profileSchema>;
 
 export const SettingsPage = () => {
   const queryClient = useQueryClient();
-  const { signOut } = useAuth();
-  const profile = useQuery({ queryKey: ['profile'], queryFn: retrieveProfile });
-  const preferences = useQuery({ queryKey: ['preferences'], queryFn: retrievePreferences });
+  const { session, signOut } = useAuth();
+  const userId = session?.user.id ?? '';
+  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
+  const preferences = useQuery({
+    queryKey: queryKeys.preferences(userId),
+    queryFn: retrievePreferences,
+  });
   const [saved, setSaved] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [accountError, setAccountError] = useState<string | null>(null);
   const { register, handleSubmit, reset, formState } = useForm<SettingsValues>({
     resolver: zodResolver(profileSchema),
   });
@@ -58,8 +64,8 @@ export const SettingsPage = () => {
     try {
       await updateProfileAndPreferences(values);
       document.documentElement.dataset.theme = values.theme;
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
-      await queryClient.invalidateQueries({ queryKey: ['preferences'] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.preferences(userId) });
       setSaved(true);
       window.setTimeout(() => setSaved(false), 3000);
     } catch (error) {
@@ -77,6 +83,13 @@ export const SettingsPage = () => {
       setDeleteError(
         error instanceof Error ? error.message : 'Account deletion could not be completed.',
       );
+    }
+  };
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : 'Could not sign out.');
     }
   };
 
@@ -194,7 +207,11 @@ export const SettingsPage = () => {
         <section className="settings-card">
           <h2>Account</h2>
           <div className="stacked-actions">
-            <Button variant="secondary" icon={<LogOut size={18} />} onClick={() => void signOut()}>
+            <Button
+              variant="secondary"
+              icon={<LogOut size={18} />}
+              onClick={() => void handleSignOut()}
+            >
               Sign out
             </Button>
             <Button
@@ -205,6 +222,11 @@ export const SettingsPage = () => {
               Delete account
             </Button>
           </div>
+          {accountError && (
+            <div className="inline-alert inline-alert--error" role="alert">
+              {accountError}
+            </div>
+          )}
         </section>
       </div>
       <Modal

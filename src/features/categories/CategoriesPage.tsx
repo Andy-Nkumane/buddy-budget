@@ -3,6 +3,7 @@ import { Archive, ArrowDown, ArrowUp, Check, Pencil, Plus, X } from 'lucide-reac
 import { useState } from 'react';
 import {
   createCategory,
+  moveCategory,
   searchCategories,
   updateCategory,
 } from '../../data/repositories/budgetRepository';
@@ -11,15 +12,32 @@ import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { Modal } from '../../shared/ui/Modal';
+import { useAuth } from '../../app/providers/AuthProvider';
+import { queryKeys } from '../../data/queryKeys';
 
 const CategoryRow = ({ category, refresh }: { category: Category; refresh: () => void }) => {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
+  const [error, setError] = useState<string | null>(null);
   const save = async () => {
     if (!name.trim()) return;
-    await updateCategory(category.id, { name: name.trim() });
-    setEditing(false);
-    refresh();
+    try {
+      await updateCategory(category.id, { name: name.trim() });
+      setEditing(false);
+      setError(null);
+      refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the category.');
+    }
+  };
+  const change = async (operation: () => Promise<void>) => {
+    try {
+      await operation();
+      setError(null);
+      refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update the category.');
+    }
   };
   return (
     <div className="category-row">
@@ -60,20 +78,14 @@ const CategoryRow = ({ category, refresh }: { category: Category; refresh: () =>
         <button
           className="icon-button"
           aria-label={`Move ${category.name} up`}
-          onClick={() =>
-            void updateCategory(category.id, {
-              sort_order: Math.max(0, category.sort_order - 1),
-            }).then(refresh)
-          }
+          onClick={() => void change(() => moveCategory(category.id, -1))}
         >
           <ArrowUp size={17} />
         </button>
         <button
           className="icon-button"
           aria-label={`Move ${category.name} down`}
-          onClick={() =>
-            void updateCategory(category.id, { sort_order: category.sort_order + 1 }).then(refresh)
-          }
+          onClick={() => void change(() => moveCategory(category.id, 1))}
         >
           <ArrowDown size={17} />
         </button>
@@ -83,25 +95,36 @@ const CategoryRow = ({ category, refresh }: { category: Category; refresh: () =>
           onClick={() => {
             if (!window.confirm(`Archive ${category.name}? Existing month snapshots stay intact.`))
               return;
-            void updateCategory(category.id, { archived_at: new Date().toISOString() }).then(
-              refresh,
+            void change(() =>
+              updateCategory(category.id, { archived_at: new Date().toISOString() }),
             );
           }}
         >
           <Archive size={17} />
         </button>
       </div>
+      {error && (
+        <span className="field__error" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 };
 
 export const CategoriesPage = () => {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? '';
   const queryClient = useQueryClient();
-  const categories = useQuery({ queryKey: ['categories'], queryFn: () => searchCategories() });
+  const categories = useQuery({
+    queryKey: queryKeys.categories(userId),
+    queryFn: () => searchCategories(),
+  });
   const [addType, setAddType] = useState<ItemType | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['categories'] });
+  const refresh = () =>
+    void queryClient.invalidateQueries({ queryKey: queryKeys.categories(userId) });
   const add = async () => {
     if (!name.trim() || !addType) {
       setError('Enter a category name.');

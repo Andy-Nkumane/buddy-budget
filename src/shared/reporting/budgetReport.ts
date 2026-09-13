@@ -1,4 +1,9 @@
-import { calculateTotals, formatMoney } from '../formatting/money';
+import {
+  calculateTotals,
+  formatMoney,
+  minorUnitsToMoney,
+  moneyToMinorUnits,
+} from '../formatting/money';
 import type { BudgetMonthWithItems, ItemType } from '../types/domain';
 
 export interface ReportCurrencyTotals {
@@ -19,9 +24,15 @@ export const calculateReportTotalsByCurrency = (
       expenses: 0,
       remaining: 0,
     };
-    aggregate.income += totals.income;
-    aggregate.expenses += totals.expenses;
-    aggregate.remaining += totals.remaining;
+    aggregate.income = minorUnitsToMoney(
+      moneyToMinorUnits(aggregate.income) + moneyToMinorUnits(totals.income),
+    );
+    aggregate.expenses = minorUnitsToMoney(
+      moneyToMinorUnits(aggregate.expenses) + moneyToMinorUnits(totals.expenses),
+    );
+    aggregate.remaining = minorUnitsToMoney(
+      moneyToMinorUnits(aggregate.remaining) + moneyToMinorUnits(totals.remaining),
+    );
     totalsByCurrency.set(month.currency_code, aggregate);
   });
   return Array.from(totalsByCurrency, ([currency, totals]) => ({ currency, ...totals }));

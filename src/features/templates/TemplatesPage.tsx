@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   createTemplate,
   createTemplateItem,
+  moveTemplateItem,
   retrieveProfile,
   searchCategories,
   searchTemplates,
@@ -16,6 +17,8 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { Modal } from '../../shared/ui/Modal';
 import { parseMoney, toDatabaseMoney } from '../../shared/validation/schemas';
+import { useAuth } from '../../app/providers/AuthProvider';
+import { queryKeys } from '../../data/queryKeys';
 
 const TemplateItemRow = ({
   item,
@@ -61,7 +64,23 @@ const TemplateItemRow = ({
   };
   const archive = () => {
     if (!window.confirm(`Archive ${item.name}? It will remain in existing months.`)) return;
-    void updateTemplateItem(item.id, { archived_at: new Date().toISOString() }).then(onChanged);
+    void updateTemplateItem(item.id, { archived_at: new Date().toISOString() })
+      .then(() => {
+        setError(null);
+        onChanged();
+      })
+      .catch((caught: unknown) =>
+        setError(caught instanceof Error ? caught.message : 'Archive failed.'),
+      );
+  };
+  const move = async (direction: -1 | 1) => {
+    try {
+      await moveTemplateItem(item.id, direction);
+      setError(null);
+      onChanged();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Reorder failed.');
+    }
   };
   return (
     <div className="template-item">
@@ -100,20 +119,14 @@ const TemplateItemRow = ({
         <button
           className="icon-button"
           aria-label={`Move ${item.name} up`}
-          onClick={() =>
-            void updateTemplateItem(item.id, { sort_order: Math.max(0, item.sort_order - 1) }).then(
-              onChanged,
-            )
-          }
+          onClick={() => void move(-1)}
         >
           <ArrowUp size={16} />
         </button>
         <button
           className="icon-button"
           aria-label={`Move ${item.name} down`}
-          onClick={() =>
-            void updateTemplateItem(item.id, { sort_order: item.sort_order + 1 }).then(onChanged)
-          }
+          onClick={() => void move(1)}
         >
           <ArrowDown size={16} />
         </button>
@@ -131,10 +144,15 @@ const TemplateItemRow = ({
 };
 
 export const TemplatesPage = () => {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? '';
   const queryClient = useQueryClient();
-  const templates = useQuery({ queryKey: ['templates'], queryFn: searchTemplates });
-  const profile = useQuery({ queryKey: ['profile'], queryFn: retrieveProfile });
-  const categories = useQuery({ queryKey: ['categories'], queryFn: () => searchCategories() });
+  const templates = useQuery({ queryKey: queryKeys.templates(userId), queryFn: searchTemplates });
+  const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
+  const categories = useQuery({
+    queryKey: queryKeys.categories(userId),
+    queryFn: () => searchCategories(),
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -144,8 +162,8 @@ export const TemplatesPage = () => {
   const [categoryId, setCategoryId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['templates'] });
-    void queryClient.invalidateQueries({ queryKey: ['default-template'] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.templates(userId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.defaultTemplate(userId) });
   };
   const selected =
     templates.data?.find((template) => template.id === selectedId) ?? templates.data?.[0];
@@ -251,7 +269,20 @@ export const TemplatesPage = () => {
                   <Button
                     variant="secondary"
                     icon={<Star size={17} />}
-                    onClick={() => void setDefaultTemplate(selected.id).then(refresh)}
+                    onClick={() =>
+                      void setDefaultTemplate(selected.id)
+                        .then(() => {
+                          setFormError(null);
+                          refresh();
+                        })
+                        .catch((error: unknown) =>
+                          setFormError(
+                            error instanceof Error
+                              ? error.message
+                              : 'Could not change the default.',
+                          ),
+                        )
+                    }
                   >
                     Make default
                   </Button>
@@ -280,6 +311,7 @@ export const TemplatesPage = () => {
                   )}
                 </section>
               ))}
+              {formError && <div className="inline-alert inline-alert--error">{formError}</div>}
             </div>
           )}
         </div>

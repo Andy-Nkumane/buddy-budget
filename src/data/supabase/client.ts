@@ -24,7 +24,7 @@ const configurationResult = browserConfigurationSchema.safeParse({
 
 export const configurationError = configurationResult.success
   ? null
-  : 'BuddyBudget is not connected to Supabase. Copy .env.example to .env.local and add the project URL and browser-safe publishable key.';
+  : 'BuddyBudget is not connected to Supabase. Configure the project URL and browser-safe publishable key for this environment.';
 
 export const supabase = configurationResult.success
   ? createClient<Database>(configurationResult.data.url, configurationResult.data.publishableKey, {
