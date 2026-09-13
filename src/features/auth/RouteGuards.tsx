@@ -13,6 +13,13 @@ export const RequireAuthentication = () => {
   return <Outlet />;
 };
 
+export const RedirectAuthenticated = () => {
+  const { session, loading } = useAuth();
+  if (loading) return <LoadingState label="Restoring your session…" />;
+  if (session) return <Navigate replace to="/app" />;
+  return <Outlet />;
+};
+
 export const RequireOnboarding = () => {
   const { session } = useAuth();
   const preferences = useQuery({

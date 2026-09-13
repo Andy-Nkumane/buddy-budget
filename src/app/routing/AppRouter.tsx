@@ -1,7 +1,12 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../layout/AppLayout';
-import { AppHome, RequireAuthentication, RequireOnboarding } from '../../features/auth/RouteGuards';
+import {
+  AppHome,
+  RedirectAuthenticated,
+  RequireAuthentication,
+  RequireOnboarding,
+} from '../../features/auth/RouteGuards';
 import { AuthLayout } from '../../features/auth/AuthLayout';
 import { LandingPage } from '../../features/landing/LandingPage';
 import { LoadingState } from '../../shared/ui/AsyncState';
@@ -79,11 +84,15 @@ export const AppRouter = () => (
   <BrowserRouter basename={import.meta.env.BASE_URL}>
     <Suspense fallback={<LoadingState />}>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route element={<RedirectAuthenticated />}>
+          <Route path="/" element={<LandingPage />} />
+        </Route>
         <Route path="/auth" element={<AuthLayout />}>
           <Route index element={<Navigate replace to="sign-in" />} />
-          <Route path="sign-in" element={<SignInPage />} />
-          <Route path="register" element={<RegisterPage />} />
+          <Route element={<RedirectAuthenticated />}>
+            <Route path="sign-in" element={<SignInPage />} />
+            <Route path="register" element={<RegisterPage />} />
+          </Route>
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="callback" element={<AuthCallbackPage />} />
