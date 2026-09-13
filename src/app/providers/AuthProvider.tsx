@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         <div className="configuration-card">
           <BrandMark />
           <p className="eyebrow">Configuration needed</p>
-          <h1>Connect BuddyBudget to Supabase</h1>
+          <h1>Connect Buddy Budget to Supabase</h1>
           <p>{configurationError}</p>
           <pre>
             VITE_SUPABASE_URL={''}

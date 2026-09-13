@@ -7,7 +7,7 @@ export const LandingPage = () => (
     <header className="landing__header">
       <Link className="brand" to="/">
         <BrandMark />
-        <strong>BuddyBudget</strong>
+        <strong>Buddy Budget</strong>
       </Link>
       <div className="landing__actions">
         <Link className="button button--ghost" to="/auth/sign-in">

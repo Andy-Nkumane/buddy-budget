@@ -123,7 +123,7 @@ export const OnboardingPage = () => {
       <header className="onboarding__header">
         <span className="brand">
           <BrandMark />
-          <strong>BuddyBudget</strong>
+          <strong>Buddy Budget</strong>
         </span>
         <span>Step {step} of 3</span>
       </header>
@@ -306,7 +306,7 @@ export const OnboardingPage = () => {
               <p className="eyebrow">Ready to begin</p>
               <h1>Create your first month</h1>
               <p>
-                BuddyBudget will copy <strong>{values.items?.length ?? 0} recurring items</strong>{' '}
+                Buddy Budget will copy <strong>{values.items?.length ?? 0} recurring items</strong>{' '}
                 from <strong>{values.templateName}</strong> into the current month.
               </p>
               <div className="review-note">

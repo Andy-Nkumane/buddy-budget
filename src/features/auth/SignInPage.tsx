@@ -72,7 +72,7 @@ export const SignInPage = () => {
         </Button>
       </form>
       <p className="auth-card__footer">
-        New to BuddyBudget? <Link to="/auth/register">Create an account</Link>
+        New to Buddy Budget? <Link to="/auth/register">Create an account</Link>
       </p>
     </div>
   );

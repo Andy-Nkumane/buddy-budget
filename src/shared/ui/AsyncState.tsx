@@ -1,7 +1,7 @@
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from './Button';
 
-export const LoadingState = ({ label = 'Loading BuddyBudget…' }: { label?: string }) => (
+export const LoadingState = ({ label = 'Loading Buddy Budget…' }: { label?: string }) => (
   <div className="state-panel" role="status">
     <span className="spinner spinner--large" aria-hidden="true" />
     <p>{label}</p>

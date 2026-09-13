@@ -17,10 +17,10 @@ export const BudgetReportPreview = ({ months, profile, rangeLabel }: BudgetRepor
   return (
     <article className="report-preview">
       <header className="report-preview__header">
-        <p className="eyebrow">BuddyBudget report</p>
+        <p className="eyebrow">Buddy Budget report</p>
         <h2>{rangeLabel}</h2>
         <p>
-          Prepared for {profile.display_name || 'BuddyBudget user'} on{' '}
+          Prepared for {profile.display_name || 'Buddy Budget user'} on{' '}
           {new Intl.DateTimeFormat(profile.locale, { dateStyle: 'long' }).format(new Date())}.
         </p>
       </header>

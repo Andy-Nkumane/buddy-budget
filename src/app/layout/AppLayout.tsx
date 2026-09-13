@@ -84,10 +84,10 @@ export const AppLayout = () => {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <NavLink className="brand" to="/app/budget/current" aria-label="BuddyBudget home">
+        <NavLink className="brand" to="/app/budget/current" aria-label="Buddy Budget home">
           <BrandMark />
           <span>
-            <strong>BuddyBudget</strong>
+            <strong>Buddy Budget</strong>
             <small>Your month. Under control.</small>
           </span>
         </NavLink>
@@ -112,7 +112,7 @@ export const AppLayout = () => {
       <header className="mobile-header">
         <NavLink className="brand" to="/app/budget/current">
           <BrandMark />
-          <strong>BuddyBudget</strong>
+          <strong>Buddy Budget</strong>
         </NavLink>
         <div className="mobile-header__actions">
           <span className="avatar mobile-header__avatar" aria-label={`Signed in as ${accountName}`}>

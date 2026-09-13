@@ -25,7 +25,7 @@ const topics = [
   {
     icon: PencilLine,
     title: '3. Edit monthly values',
-    body: 'Select an amount and type the new value. BuddyBudget saves after a short pause and clearly shows saving, saved, or failed status.',
+    body: 'Select an amount and type the new value. Buddy Budget saves after a short pause and clearly shows saving, saved, or failed status.',
   },
   {
     icon: ListPlus,
@@ -74,7 +74,7 @@ export const HelpPage = () => (
     <div className="page-heading">
       <div>
         <p className="eyebrow">A quick guide</p>
-        <h1>How BuddyBudget works</h1>
+        <h1>How Buddy Budget works</h1>
         <p>Build the recurring plan once, create a snapshot, then adjust only what changed.</p>
       </div>
       <span className="page-heading__icon">

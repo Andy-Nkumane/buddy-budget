@@ -115,7 +115,7 @@ export const SettingsPage = () => {
         <div>
           <p className="eyebrow">Your preferences</p>
           <h1>Settings</h1>
-          <p>Control how BuddyBudget looks and formats your money.</p>
+          <p>Control how Buddy Budget looks and formats your money.</p>
         </div>
       </div>
       <div className="settings-grid">

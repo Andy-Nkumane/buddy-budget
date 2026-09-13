@@ -62,14 +62,14 @@ export default defineConfig(({ mode }) => {
               sizes: '390x844',
               type: 'image/png',
               form_factor: 'narrow',
-              label: 'BuddyBudget mobile preview',
+              label: 'Buddy Budget mobile preview',
             },
             {
               src: `${base}screenshots/desktop-budget.png`,
               sizes: '1440x1024',
               type: 'image/png',
               form_factor: 'wide',
-              label: 'BuddyBudget desktop preview',
+              label: 'Buddy Budget desktop preview',
             },
           ],
           shortcuts: [

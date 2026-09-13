@@ -6,7 +6,7 @@ export const AuthLayout = () => (
     <section className="auth-brand-panel">
       <Link className="brand brand--light" to="/">
         <BrandMark />
-        <strong>BuddyBudget</strong>
+        <strong>Buddy Budget</strong>
       </Link>
       <div className="auth-brand-panel__message">
         <p className="eyebrow">Simple monthly planning</p>

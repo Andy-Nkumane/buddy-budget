@@ -85,11 +85,11 @@ export const PwaStatus = () => {
         </div>
       )}
       {installPrompt && !installDismissed && !isStandalone() && (
-        <div className="install-card" role="region" aria-label="Install BuddyBudget">
+        <div className="install-card" role="region" aria-label="Install Buddy Budget">
           <Download aria-hidden="true" />
           <div>
             <strong>Keep your budget close</strong>
-            <span>Install BuddyBudget for quick access from your home screen.</span>
+            <span>Install Buddy Budget for quick access from your home screen.</span>
           </div>
           <Button onClick={() => void install()} variant="secondary">
             Install

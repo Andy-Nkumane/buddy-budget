@@ -87,7 +87,7 @@ export const downloadBudgetReportPdf = async (
   document.setTextColor(64, 84, 80);
   document.setFontSize(10);
   document.text(
-    `Prepared for ${profile.display_name || 'BuddyBudget user'} on ${new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date())}.`,
+    `Prepared for ${profile.display_name || 'Buddy Budget user'} on ${new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date())}.`,
     margin,
     cursorY,
   );
