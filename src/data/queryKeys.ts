@@ -12,6 +12,7 @@ export const queryKeys = {
   accounts: (userId: string) => [...userRoot(userId), 'accounts'] as const,
   transactions: (userId: string, page: number) =>
     [...userRoot(userId), 'transactions', page] as const,
+  transactionImports: (userId: string) => [...userRoot(userId), 'transaction-imports'] as const,
   month: (userId: string, monthStart: string) =>
     [...userRoot(userId), 'month', monthStart] as const,
 };

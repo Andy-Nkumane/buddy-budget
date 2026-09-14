@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Plus,
+  Upload,
   ReceiptText,
   RotateCcw,
   WalletCards,
@@ -20,20 +21,27 @@ import {
   searchBudgetTransactions,
   searchCategories,
   searchFinancialAccounts,
+  searchTransactionImportBatches,
   searchMonths,
   TRANSACTION_PAGE_SIZE,
   updateBudgetTransaction,
   updateFinancialAccount,
+  undoTransactionImportBatch,
   type BudgetTransactionInput,
 } from '../../data/repositories/budgetRepository';
 import { currentMonthStart, formatMoney, isMonthReadOnly } from '../../shared/formatting/money';
-import type { BudgetTransaction, FinancialAccountWithBalance } from '../../shared/types/domain';
+import type {
+  BudgetTransaction,
+  FinancialAccountWithBalance,
+  TransactionImportBatch,
+} from '../../shared/types/domain';
 import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { Button } from '../../shared/ui/Button';
 import { Modal } from '../../shared/ui/Modal';
 import { AccountForm } from './AccountForm';
 import { TransactionForm } from './TransactionForm';
 import { TransactionRow } from './TransactionRow';
+import { CsvImportFlow } from './import/CsvImportFlow';
 
 export const TransactionsPage = () => {
   const { session } = useAuth();
@@ -46,6 +54,8 @@ export const TransactionsPage = () => {
     () => searchParams.get('add') === 'transaction',
   );
   const [accountOpen, setAccountOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [undoTarget, setUndoTarget] = useState<TransactionImportBatch | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BudgetTransaction | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -63,6 +73,10 @@ export const TransactionsPage = () => {
   const transactions = useQuery({
     queryKey: queryKeys.transactions(userId, page),
     queryFn: () => searchBudgetTransactions(page),
+  });
+  const importBatches = useQuery({
+    queryKey: queryKeys.transactionImports(userId),
+    queryFn: searchTransactionImportBatches,
   });
   const current = currentMonthStart(profile.data?.timezone);
   const editableMonths = useMemo(
@@ -132,17 +146,40 @@ export const TransactionsPage = () => {
     }
   };
 
+  const undoImport = async () => {
+    if (!undoTarget) return;
+    setDeleting(true);
+    try {
+      await undoTransactionImportBatch(undoTarget.id);
+      notifyMonthChanged(undoTarget.budget_month_id);
+      setUndoTarget(null);
+      setActionMessage('CSV import undone.');
+      setActionError(null);
+      await refreshFinancialData();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'The import could not be undone.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (
     profile.isLoading ||
     months.isLoading ||
     categories.isLoading ||
     accounts.isLoading ||
-    transactions.isLoading
+    transactions.isLoading ||
+    importBatches.isLoading
   ) {
     return <LoadingState label="Loading your transactions…" />;
   }
   const queryError =
-    profile.error ?? months.error ?? categories.error ?? accounts.error ?? transactions.error;
+    profile.error ??
+    months.error ??
+    categories.error ??
+    accounts.error ??
+    transactions.error ??
+    importBatches.error;
   if (queryError) {
     return (
       <ErrorState
@@ -163,16 +200,26 @@ export const TransactionsPage = () => {
           <h1>Transactions</h1>
           <p>Record real income and spending, then compare it with your monthly plan.</p>
         </div>
-        <Button
-          icon={<Plus aria-hidden="true" size={18} />}
-          disabled={!initialMonth}
-          onClick={() => {
-            setEditing(null);
-            setTransactionOpen(true);
-          }}
-        >
-          Add transaction
-        </Button>
+        <div className="page-heading__actions">
+          <Button
+            variant="secondary"
+            icon={<Upload aria-hidden="true" size={18} />}
+            disabled={!initialMonth}
+            onClick={() => setImportOpen(true)}
+          >
+            Import CSV
+          </Button>
+          <Button
+            icon={<Plus aria-hidden="true" size={18} />}
+            disabled={!initialMonth}
+            onClick={() => {
+              setEditing(null);
+              setTransactionOpen(true);
+            }}
+          >
+            Add transaction
+          </Button>
+        </div>
       </header>
 
       {actionMessage && (
@@ -233,6 +280,45 @@ export const TransactionsPage = () => {
           </div>
         )}
       </section>
+
+      {(importBatches.data ?? []).length > 0 && (
+        <section
+          className="transaction-history import-history"
+          aria-labelledby="import-history-heading"
+        >
+          <header>
+            <div>
+              <h2 id="import-history-heading">Recent CSV imports</h2>
+              <p>Raw statement files are never retained.</p>
+            </div>
+          </header>
+          <div className="import-batch-list">
+            {importBatches.data?.map((batch) => {
+              const month = monthById.get(batch.budget_month_id);
+              const locked = !month || isMonthReadOnly(month.month_start, current);
+              return (
+                <article key={batch.id} className="import-batch">
+                  <div>
+                    <strong>{batch.file_name}</strong>
+                    <span>
+                      {month?.month_start.slice(0, 7) ?? 'Unknown month'} · {batch.accepted_count}{' '}
+                      imported · {batch.duplicate_count} duplicates
+                    </span>
+                  </div>
+                  <span className="status-pill">{batch.status}</span>
+                  <Button
+                    variant="ghost"
+                    disabled={batch.status === 'undone' || locked}
+                    onClick={() => setUndoTarget(batch)}
+                  >
+                    Undo
+                  </Button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="transaction-history" aria-labelledby="transaction-history-heading">
         <header>
@@ -300,6 +386,28 @@ export const TransactionsPage = () => {
       </section>
 
       <Modal
+        className="modal--wide"
+        open={importOpen}
+        title="Import bank statement"
+        description="Map and review every row before anything is saved."
+        onClose={() => setImportOpen(false)}
+      >
+        {importOpen && initialMonth && (
+          <CsvImportFlow
+            userId={userId}
+            months={editableMonths}
+            accounts={accounts.data ?? []}
+            onCancel={() => setImportOpen(false)}
+            onComplete={async (monthId, message) => {
+              notifyMonthChanged(monthId);
+              setImportOpen(false);
+              setActionMessage(message);
+              await refreshFinancialData();
+            }}
+          />
+        )}
+      </Modal>
+      <Modal
         open={transactionOpen}
         title={editing ? 'Edit transaction' : 'Add transaction'}
         description="Posted entries update actual totals immediately. Pending and void entries do not."
@@ -320,6 +428,21 @@ export const TransactionsPage = () => {
             userId={userId}
           />
         )}
+      </Modal>
+      <Modal
+        open={Boolean(undoTarget)}
+        title="Undo CSV import?"
+        description="All transactions created by this import will be removed. This is available only while its month remains editable."
+        onClose={() => setUndoTarget(null)}
+      >
+        <div className="modal-form modal-form__actions">
+          <Button variant="ghost" onClick={() => setUndoTarget(null)}>
+            Cancel
+          </Button>
+          <Button variant="danger" loading={deleting} onClick={() => void undoImport()}>
+            Undo import
+          </Button>
+        </div>
       </Modal>
       <Modal
         open={accountOpen}

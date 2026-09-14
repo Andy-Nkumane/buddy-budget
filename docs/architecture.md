@@ -20,7 +20,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `auth`: registration, verification callback, sign-in/out, recovery, session restoration.
 - `onboarding`: transactional first profile/template/current-month setup.
 - `budgets`: independent monthly plans, planned-versus-actual progress, temporary item pausing, inline drafts, debounced saves, one-offs.
-- `transactions`: manual actual income/expense ledger, optional account assignment, categorisation, pagination, and locked-history controls.
+- `transactions`: manual and browser-local CSV-imported actual income/expense ledger, optional account assignment, categorisation, pagination, duplicate protection, and locked-history controls.
 - `templates`: recurring plans used only when creating a future snapshot.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, export, deletion.
@@ -33,6 +33,10 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 `budget_transactions` records actual activity separately from the planned snapshot. Amounts and account opening balances use integer minor units. A non-negative refund/reversal record reverses its income or expense effect. Only posted transactions affect actual totals and derived account balances. Transactions linked to paused or later-archived items remain real activity.
 
 Financial accounts contain only a user label, type, currency, opening balance, and archived state. They contain no bank credentials. Current balances are derived from the opening balance and posted transactions by `retrieve_financial_accounts(boolean)` and are never stored as a second mutable total.
+
+CSV statements are decoded and parsed only in browser memory. The client sends normalized transaction fields, mapping metadata, counts, and scoped SHA-256 fingerprints to one secured PostgreSQL operation; it never sends the original file. The RPC serializes matching batch keys, validates the entire bounded request before writing, and inserts the batch plus accepted rows atomically. PostgreSQL's user/source/fingerprint unique index is the final duplicate boundary. Undo removes the batch's transactions only while every affected month remains editable.
+
+Supported imports are UTF-8 CSV files up to 2 MiB, 2,000 data rows, and 100 columns. Delimiters may be comma, semicolon, tab, or pipe; quoted and multiline fields are supported. Users choose YYYY-MM-DD, DD/MM/YYYY, or MM/DD/YYYY dates and automatic, dot, or comma decimals. A signed amount treats positive values as income and negative values as expenses; separate debit/credit columns require exactly one non-zero value. Zero-value and malformed rows are reported rather than silently discarded.
 
 ## Autosave
 

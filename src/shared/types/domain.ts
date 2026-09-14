@@ -3,7 +3,8 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 export type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 export type FinancialAccountType = 'cash' | 'checking' | 'savings' | 'credit';
 export type TransactionStatus = 'pending' | 'posted' | 'void';
-export type TransactionSource = 'manual';
+export type TransactionSource = 'manual' | 'csv_import';
+export type TransactionImportStatus = 'completed' | 'undone';
 
 export type Profile = {
   user_id: string;
@@ -126,10 +127,31 @@ export type BudgetTransaction = {
   source: TransactionSource;
   status: TransactionStatus;
   external_fingerprint: string | null;
+  external_reference: string | null;
+  import_batch_id: string | null;
   category_snapshot: string | null;
   budget_item_snapshot: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type TransactionImportBatch = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  account_id: string | null;
+  file_name: string;
+  batch_key: string;
+  mapping_metadata: Record<string, unknown>;
+  total_count: number;
+  accepted_count: number;
+  duplicate_count: number;
+  invalid_count: number;
+  excluded_count: number;
+  status: TransactionImportStatus;
+  created_at: string;
+  updated_at: string;
+  undone_at: string | null;
 };
 
 export type BudgetMonthWithItems = BudgetMonth & {

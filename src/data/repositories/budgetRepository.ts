@@ -17,6 +17,7 @@ import type {
   TemplateWithItems,
   ThemePreference,
   TransactionStatus,
+  TransactionImportBatch,
   UserPreferences,
 } from '../../shared/types/domain';
 import { requireSupabase } from '../supabase/client';
@@ -604,6 +605,90 @@ export const searchBudgetTransactions = async (
   return { records: data ?? [], total: count ?? 0 };
 };
 
+export type TransactionImportInput = {
+  budgetMonthId: string;
+  accountId: string | null;
+  fileName: string;
+  batchKey: string;
+  mappingMetadata: Record<string, unknown>;
+  rows: Array<{
+    transaction_date: string;
+    description: string;
+    amount_minor: number;
+    transaction_type: ItemType;
+    external_reference: string | null;
+    external_fingerprint: string;
+  }>;
+  invalidCount: number;
+  excludedCount: number;
+};
+
+export const searchExistingTransactionFingerprints = async (
+  fingerprints: string[],
+): Promise<Set<string>> => {
+  const matches = new Set<string>();
+  const chunks = Array.from({ length: Math.ceil(fingerprints.length / 75) }, (_, index) =>
+    fingerprints.slice(index * 75, index * 75 + 75),
+  );
+  for (let index = 0; index < chunks.length; index += 4) {
+    const pages = await Promise.all(
+      chunks
+        .slice(index, index + 4)
+        .map((chunk) =>
+          requireSupabase()
+            .from('budget_transactions')
+            .select('external_fingerprint')
+            .eq('source', 'csv_import')
+            .in('external_fingerprint', chunk),
+        ),
+    );
+    pages.forEach(({ data, error }) => {
+      throwWhenError(error);
+      data?.forEach((entry) => {
+        if (entry.external_fingerprint) matches.add(entry.external_fingerprint);
+      });
+    });
+  }
+  return matches;
+};
+
+export const importBudgetTransactions = async (input: TransactionImportInput) => {
+  const { data, error } = await requireSupabase().rpc('import_budget_transactions', {
+    requested_budget_month_id: input.budgetMonthId,
+    requested_account_id: input.accountId,
+    requested_file_name: input.fileName,
+    requested_batch_key: input.batchKey,
+    requested_mapping_metadata: input.mappingMetadata,
+    requested_rows: input.rows,
+    requested_invalid_count: input.invalidCount,
+    requested_excluded_count: input.excludedCount,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The CSV transactions could not be imported.');
+  return data[0];
+};
+
+export const searchTransactionImportBatches = async (): Promise<TransactionImportBatch[]> => {
+  const { data, error } = await requireSupabase()
+    .from('transaction_import_batches')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const undoTransactionImportBatch = async (
+  batchId: string,
+): Promise<TransactionImportBatch> => {
+  const { data, error } = await requireSupabase().rpc('undo_transaction_import_batch', {
+    requested_batch_id: batchId,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The CSV import could not be undone.');
+  return data[0];
+};
+
 export const exportAllData = async (range: MonthExportRange = {}) => {
   const client = requireSupabase();
   const [
@@ -615,6 +700,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     budgetMonths,
     financialAccounts,
     transactions,
+    transactionImportBatches,
   ] = await Promise.all([
     retrieveProfile(),
     retrievePreferences(),
@@ -648,6 +734,14 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
       if (range.toMonth) query = query.lt('transaction_date', adjacentMonthStart(range.toMonth, 1));
       return query;
     }),
+    retrieveAllPages<TransactionImportBatch>((from, to) =>
+      client
+        .from('transaction_import_batches')
+        .select('*')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
@@ -655,9 +749,10 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const itemsByTemplate = groupRecordsBy(templateItems, (item) => item.template_id);
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
   const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
+  const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 3,
+    schema_version: 4,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -666,6 +761,9 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     preferences,
     categories,
     financial_accounts: financialAccounts,
+    transaction_import_batches: transactionImportBatches.filter((batch) =>
+      exportedMonthIds.has(batch.budget_month_id),
+    ),
     templates: templates.map((template) => ({
       ...template,
       template_items: itemsByTemplate.get(template.id) ?? [],

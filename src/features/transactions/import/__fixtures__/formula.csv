@@ -1,0 +1,3 @@
+Date,Description,Amount,Reference
+2026-09-05,Safe description,-10,"=HYPERLINK(""https://example.invalid"")"
+2026-09-06,Formula amount,"=1+1",normal
