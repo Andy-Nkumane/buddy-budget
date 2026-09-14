@@ -1054,6 +1054,39 @@ p {
   font-size: clamp(1.25rem, 2vw, 1.65rem);
 }
 
+.actual-amount {
+  color: var(--success);
+  font-weight: 800;
+}
+
+.summary-card:nth-child(2) .actual-amount {
+  color: var(--danger);
+}
+
+.progress-values {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.75rem 0 0;
+}
+
+.progress-values div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.progress-values dt,
+.progress-values dd {
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 0.7rem;
+}
+
+.summary-card--remaining .progress-values dt,
+.summary-card--remaining .progress-values dd {
+  color: var(--accent-contrast);
+}
+
 .summary-card--remaining {
   color: var(--accent-contrast);
   border-color: var(--accent-fill);
@@ -1149,11 +1182,47 @@ p {
   position: relative;
   display: grid;
   min-height: 4.625rem;
-  grid-template-columns: minmax(11.25rem, 1fr) 13.75rem minmax(11.25rem, auto);
+  grid-template-columns: minmax(9rem, 1fr) minmax(27rem, 2fr) minmax(9rem, auto);
   align-items: center;
   gap: 1.125rem;
   padding: 0.75rem 1.125rem;
   border-bottom: 0.0625rem solid var(--line);
+}
+
+.budget-row__financials {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(15rem, 1.6fr);
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.budget-row__financials > label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.budget-row__financials small,
+.item-progress dt {
+  color: var(--ink-500);
+  font-size: 0.66rem;
+}
+
+.item-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.item-progress div {
+  min-width: 0;
+}
+
+.item-progress dd {
+  margin: 0.125rem 0 0;
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+  font-weight: 750;
 }
 
 .budget-row:last-child {
@@ -1435,6 +1504,168 @@ p {
 
 .modal-form {
   padding: 1.5rem;
+}
+
+.modal-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.transaction-form__notes {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+/* Transactions and accounts */
+.transactions-page .management-card {
+  margin-bottom: 1.5rem;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.account-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+}
+
+.account-card > svg {
+  color: var(--accent-text);
+}
+
+.account-card > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.account-card span {
+  color: var(--ink-500);
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+
+.account-card b {
+  overflow-wrap: anywhere;
+  font-size: 0.84rem;
+}
+
+.account-card--archived {
+  opacity: 0.68;
+}
+
+.transaction-history {
+  overflow: hidden;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.transaction-history > header {
+  padding: 1.125rem 1.375rem;
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.transaction-history > header h2,
+.transaction-history > header p {
+  margin: 0;
+}
+
+.transaction-history > header p {
+  margin-top: 0.25rem;
+  font-size: 0.76rem;
+}
+
+.transaction-row {
+  display: grid;
+  grid-template-columns: auto minmax(12rem, 1fr) minmax(12rem, auto) auto;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1.125rem;
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.transaction-row:last-child {
+  border-bottom: 0;
+}
+
+.transaction-row__icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+}
+
+.transaction-row__icon--income {
+  color: var(--success);
+  background: var(--accent-soft);
+}
+
+.transaction-row__icon--expense {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.transaction-row__identity,
+.transaction-row__meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.transaction-row__identity strong,
+.transaction-row__identity span,
+.transaction-row__meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-row__identity span,
+.transaction-row__meta span,
+.locked-label {
+  color: var(--ink-500);
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+
+.transaction-row__meta {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.transaction-row__actions {
+  display: flex;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-top: 0.0625rem solid var(--line);
+}
+
+.pagination span {
+  color: var(--ink-500);
+  font-size: 0.75rem;
+}
+
+.transaction-empty {
+  border: 0;
 }
 
 .check-row {
@@ -1881,6 +2112,17 @@ p {
   margin: 0 0 1rem;
 }
 
+.report-preview__totals--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.report-preview th small {
+  display: block;
+  margin-top: 0.125rem;
+  color: var(--ink-500);
+  font-weight: 400;
+}
+
 .report-preview__totals div {
   padding: 0.75rem;
   border: 0.0625rem solid var(--line);
@@ -2010,7 +2252,7 @@ p {
 
 @media (max-width: 65.625rem) {
   .budget-row {
-    grid-template-columns: minmax(10rem, 1fr) 11.875rem auto;
+    grid-template-columns: minmax(8rem, 1fr) minmax(22rem, 2fr) auto;
     gap: 0.625rem;
   }
   .save-state {
@@ -2021,7 +2263,7 @@ p {
   }
 }
 
-@media (max-width: 51.25rem) {
+@media (max-width: 67.5rem) {
   .app-shell {
     display: grid;
     height: 100dvh;
@@ -2078,7 +2320,7 @@ p {
     z-index: 30;
     display: grid;
     min-height: calc(4rem + env(safe-area-inset-bottom));
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     padding: 0.25rem 0.5rem env(safe-area-inset-bottom);
     border-top: 0.0625rem solid var(--line);
     background: color-mix(in srgb, var(--surface) 95%, transparent);
@@ -2154,6 +2396,98 @@ p {
   .install-card > .text-button {
     grid-column: 2 / -1;
     justify-self: start;
+  }
+}
+
+@media (min-width: 42.5625rem) and (max-width: 67.5rem) {
+  .summary-card--remaining {
+    min-height: 7rem;
+    align-items: center;
+  }
+  .summary-card--remaining > div {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.8fr) minmax(22rem, 1.2fr);
+    align-items: center;
+    column-gap: 2rem;
+  }
+  .summary-card--remaining > div > small,
+  .summary-card--remaining > div > strong {
+    grid-column: 1;
+  }
+  .summary-card--remaining .progress-values {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    margin-top: 0;
+  }
+  .budget-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.875rem;
+    padding: 1rem 1.25rem;
+  }
+  .budget-row__financials {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.5fr);
+  }
+  .budget-row__actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .budget-row__error {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .template-tabs {
+    display: flex;
+    gap: 0.5rem;
+    padding-bottom: 0.125rem;
+    overflow-x: auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .template-tabs button {
+    min-width: 12rem;
+    border: 0.0625rem solid var(--line);
+    border-radius: 0.875rem;
+    background: var(--surface);
+  }
+  .template-tabs button:last-child {
+    border-bottom: 0.0625rem solid var(--line);
+  }
+  .template-item {
+    grid-template-columns: minmax(0, 1fr) 12rem;
+    row-gap: 0.5rem;
+    padding: 0.75rem 0;
+  }
+  .template-item .reorder-buttons {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+  .template-item > .field__error {
+    grid-column: 1 / -1;
+  }
+  .month-row {
+    align-items: start;
+    row-gap: 0.875rem;
+    padding: 1rem 1.25rem;
+  }
+  .month-row__actions {
+    align-self: center;
+  }
+  .month-row dl {
+    gap: 0.75rem;
+  }
+  .month-row dl div {
+    min-width: 0;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: var(--canvas);
+  }
+  .month-row dd {
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -2276,9 +2610,13 @@ p {
     padding: 0.875rem;
   }
   .budget-row {
-    grid-template-columns: minmax(0, 1fr) 9.375rem;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.625rem;
     padding: 0.875rem;
+  }
+  .budget-row__financials {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(8rem, 0.8fr) minmax(13rem, 1.5fr);
   }
   .budget-row__actions {
     grid-column: 1 / -1;
@@ -2328,6 +2666,21 @@ p {
   .report-preview__totals {
     grid-template-columns: 1fr;
   }
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+  .transaction-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .transaction-row__meta {
+    grid-column: 2;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .transaction-row__actions {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
   .modal {
     width: calc(100% - 1rem);
     max-height: calc(100dvh - 1rem);
@@ -2352,6 +2705,9 @@ p {
     min-height: 6rem;
   }
   .budget-row {
+    grid-template-columns: 1fr;
+  }
+  .budget-row__financials {
     grid-template-columns: 1fr;
   }
   .budget-row__amount {
@@ -2380,6 +2736,12 @@ p {
   .month-row dl {
     grid-column: 1;
     grid-row: auto;
+  }
+  .account-card {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .account-card b {
+    grid-column: 2;
   }
 }
 

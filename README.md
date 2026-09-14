@@ -2,7 +2,7 @@
 
 > **Your month. Under control.**
 
-BuddyBudget is a responsive monthly budget companion. Define recurring income and expenses once, create an independent month snapshot, adjust that month, and always see what remains. Historical months are never rewritten when a template changes.
+BuddyBudget is a responsive monthly budget companion. Define recurring income and expenses once, create an independent month snapshot, record actual transactions, and compare the plan with what happened. Historical months are never rewritten when a template changes.
 
 ## 1. Product overview
 
@@ -41,7 +41,7 @@ Supabase Auth issues and rotates the session tokens. PostgreSQL RLS—not route 
 
 ```text
 src/app/                 providers, routing, responsive application shell
-src/features/            auth, onboarding, budgets, templates, categories, settings, help
+src/features/            auth, onboarding, budgets, transactions, templates, categories, settings, help
 src/shared/              UI, formatting, validation, types, utilities
 src/data/                Supabase client and repository boundary
 src/pwa/                 install, offline, and update lifecycle UI
@@ -134,7 +134,7 @@ Email verification uses the callback URL. Sign-in itself does not redirect away 
 
 ## 11. Database migrations and seed
 
-`npx supabase db reset` rebuilds the local database, applies all migrations, then loads `supabase/seed/development.sql`. The seed contains only a clearly marked local demo user, a default ZAR template, common categories, and two historical months. Production builds do not read seed SQL.
+`npx supabase db reset` rebuilds the local database, applies all migrations, then loads `supabase/seed/development.sql`. The seed contains only a clearly marked local demo user, a default ZAR template, common categories, two historical months, a sample account, and sample transactions. Production builds do not read seed SQL.
 
 Create future migrations with:
 
@@ -163,7 +163,7 @@ npm run test:db
 npm run build
 ```
 
-The browser tests cover money, totals, paused items, zero-income and negative-balance edges, validation, snapshot mapping, autosave transitions, row saving/errors, route guards, and accessible dialogs. Database tests use isolated users to prove RLS, ownership constraints, onboarding, and paused-state persistence.
+The browser tests cover money, planned-versus-actual totals, refunds, account balances, paused items, validation, autosave transitions, transaction entry, locked rows, route guards, and accessible dialogs. Database tests use isolated users to prove RLS, ownership constraints, secured transaction writes, historical locking, onboarding, and paused-state persistence.
 
 The critical Playwright flow needs a disposable Supabase user and is opt-in:
 

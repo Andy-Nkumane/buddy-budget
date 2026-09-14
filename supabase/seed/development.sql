@@ -73,6 +73,42 @@ and not exists (
   where existing.budget_month_id = month.id and existing.source_template_item_id = item.id
 );
 
+insert into public.financial_accounts (
+  id, user_id, name, account_type, currency_code, opening_balance_minor
+)
+values (
+  'de500000-0000-4000-8000-000000000001',
+  'de000000-0000-4000-8000-000000000001',
+  'Daily account', 'checking', 'ZAR', 5000000
+)
+on conflict (id) do nothing;
+
+insert into public.budget_transactions (
+  id, user_id, budget_month_id, budget_month_item_id, category_id, account_id,
+  transaction_date, description, amount_minor, transaction_type, status
+)
+select
+  entry.id,
+  month.user_id,
+  month.id,
+  item.id,
+  item.category_id,
+  'de500000-0000-4000-8000-000000000001',
+  month.month_start + entry.day_offset,
+  entry.description,
+  entry.amount_minor,
+  entry.transaction_type,
+  'posted'
+from public.budget_months month
+cross join (values
+  ('de600000-0000-4000-8000-000000000001'::uuid, 'Salary', 'Salary payment', 4200000::bigint, 'income', 0),
+  ('de600000-0000-4000-8000-000000000002'::uuid, 'Groceries', 'Weekly groceries', 123450::bigint, 'expense', 4)
+) as entry(id, item_name, description, amount_minor, transaction_type, day_offset)
+join public.budget_month_items item
+  on item.budget_month_id = month.id and item.name_snapshot = entry.item_name
+where month.id = 'de400000-0000-4000-8000-000000000002'
+on conflict (id) do nothing;
+
 update public.profiles set
   display_name = 'Demo User', currency_code = 'ZAR', locale = 'en-ZA', timezone = 'Africa/Johannesburg'
 where user_id = 'de000000-0000-4000-8000-000000000001';

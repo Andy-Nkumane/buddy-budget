@@ -24,7 +24,8 @@ import {
 } from '../../data/repositories/budgetRepository';
 import {
   adjacentMonthStart,
-  calculateTotals,
+  calculateBudgetProgress,
+  calculateItemProgress,
   currentMonthStart,
   formatMoney,
   formatMonth,
@@ -184,7 +185,7 @@ export const BudgetPage = () => {
   const visibleBudgetItems = budgetMonth.budget_month_items.filter(
     (item) => !archivingItemIds.has(item.id),
   );
-  const totals = calculateTotals(visibleBudgetItems);
+  const progress = calculateBudgetProgress(visibleBudgetItems, budgetMonth.budget_transactions);
   const locale = profile.data?.locale ?? 'en-ZA';
   const currency = budgetMonth.currency_code;
   const itemsByType = (type: ItemType) =>
@@ -334,8 +335,24 @@ export const BudgetPage = () => {
             <TrendingUp aria-hidden="true" />
           </span>
           <div>
-            <small>Total income</small>
-            <strong>{formatMoney(totals.income, currency, locale)}</strong>
+            <small>Income</small>
+            <strong className="actual-amount">
+              {formatMoney(progress.actual.income, currency, locale)} actual
+            </strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned</dt>
+                <dd>{formatMoney(progress.planned.income, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.incomeVariance, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd>{formatMoney(progress.incomeRemaining, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
         <article className="summary-card">
@@ -343,24 +360,49 @@ export const BudgetPage = () => {
             <TrendingDown aria-hidden="true" />
           </span>
           <div>
-            <small>Total expenses</small>
-            <strong>{formatMoney(totals.expenses, currency, locale)}</strong>
+            <small>Expenses</small>
+            <strong className="actual-amount">
+              {formatMoney(progress.actual.expenses, currency, locale)} actual
+            </strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned</dt>
+                <dd>{formatMoney(progress.planned.expenses, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.expenseVariance, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd>{formatMoney(progress.expenseRemaining, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
         <article
-          className={`summary-card summary-card--remaining ${totals.remaining < 0 ? 'summary-card--negative' : ''}`}
+          className={`summary-card summary-card--remaining ${progress.available < 0 ? 'summary-card--negative' : ''}`}
         >
           <span className="summary-icon">
             <WalletCards aria-hidden="true" />
           </span>
           <div>
-            <small>Remaining</small>
-            <strong>{formatMoney(totals.remaining, currency, locale)}</strong>
-            <span>
-              {totals.savingsRate === null
-                ? 'Savings rate unavailable with zero income'
-                : `${totals.savingsRate.toFixed(1)}% savings rate`}
-            </span>
+            <small>Available from your plan</small>
+            <strong>{formatMoney(progress.available, currency, locale)}</strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned balance</dt>
+                <dd>{formatMoney(progress.planned.remaining, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Actual balance</dt>
+                <dd>{formatMoney(progress.actual.remaining, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.balanceVariance, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
       </div>
@@ -394,7 +436,9 @@ export const BudgetPage = () => {
                   <BudgetRow
                     key={item.id}
                     item={item}
+                    progress={calculateItemProgress(item, budgetMonth.budget_transactions)}
                     currencyCode={currency}
+                    locale={locale}
                     readOnly={readOnly}
                     onArchive={(entry) => void archive(entry)}
                     onToggleDisabled={(entry) => void toggleDisabled(entry)}

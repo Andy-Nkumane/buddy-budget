@@ -1,7 +1,13 @@
-import { calculateTotals, formatMoney, formatMonth } from '../../shared/formatting/money';
+import {
+  calculateBudgetProgress,
+  calculateItemProgress,
+  formatMoney,
+  formatMonth,
+} from '../../shared/formatting/money';
 import {
   calculateReportTotalsByCurrency,
   formatSignedReportAmount,
+  formatSignedTransactionAmount,
 } from '../../shared/reporting/budgetReport';
 import type { BudgetMonthWithItems, Profile } from '../../shared/types/domain';
 
@@ -28,36 +34,42 @@ export const BudgetReportPreview = ({ months, profile, rangeLabel }: BudgetRepor
         <h3 id="report-summary-heading">Range summary</h3>
         <div className="report-preview__table-wrap">
           <table>
-            <caption className="visually-hidden">Totals for the selected date range</caption>
+            <caption className="visually-hidden">
+              Planned and actual totals for the selected date range
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Currency</th>
-                <th scope="col">Income</th>
-                <th scope="col">Expenses</th>
-                <th scope="col">Remaining</th>
+                <th scope="col">Planned income</th>
+                <th scope="col">Actual income</th>
+                <th scope="col">Planned expenses</th>
+                <th scope="col">Actual expenses</th>
+                <th scope="col">Available</th>
               </tr>
             </thead>
             <tbody>
               {totalsByCurrency.map((totals) => (
                 <tr key={totals.currency}>
                   <th scope="row">{totals.currency}</th>
+                  <td>{formatMoney(totals.plannedIncome, totals.currency, profile.locale)}</td>
                   <td className="report-amount report-amount--income">
                     {formatSignedReportAmount(
-                      totals.income,
+                      totals.actualIncome,
                       'income',
                       totals.currency,
                       profile.locale,
                     )}
                   </td>
+                  <td>{formatMoney(totals.plannedExpenses, totals.currency, profile.locale)}</td>
                   <td className="report-amount report-amount--expense">
                     {formatSignedReportAmount(
-                      totals.expenses,
+                      totals.actualExpenses,
                       'expense',
                       totals.currency,
                       profile.locale,
                     )}
                   </td>
-                  <td>{formatMoney(totals.remaining, totals.currency, profile.locale)}</td>
+                  <td>{formatMoney(totals.available, totals.currency, profile.locale)}</td>
                 </tr>
               ))}
             </tbody>
@@ -65,17 +77,24 @@ export const BudgetReportPreview = ({ months, profile, rangeLabel }: BudgetRepor
         </div>
       </section>
       {months.map((month) => {
-        const totals = calculateTotals(month.budget_month_items);
+        const progress = calculateBudgetProgress(
+          month.budget_month_items,
+          month.budget_transactions,
+        );
         const headingId = `report-month-${month.id}`;
         return (
           <section className="report-preview__section" aria-labelledby={headingId} key={month.id}>
             <h3 id={headingId}>{formatMonth(month.month_start, profile.locale)}</h3>
-            <dl className="report-preview__totals">
+            <dl className="report-preview__totals report-preview__totals--four">
               <div>
-                <dt>Income</dt>
+                <dt>Planned income</dt>
+                <dd>{formatMoney(progress.planned.income, month.currency_code, profile.locale)}</dd>
+              </div>
+              <div>
+                <dt>Actual income</dt>
                 <dd className="report-amount report-amount--income">
                   {formatSignedReportAmount(
-                    totals.income,
+                    progress.actual.income,
                     'income',
                     month.currency_code,
                     profile.locale,
@@ -83,58 +102,124 @@ export const BudgetReportPreview = ({ months, profile, rangeLabel }: BudgetRepor
                 </dd>
               </div>
               <div>
-                <dt>Expenses</dt>
+                <dt>Planned expenses</dt>
+                <dd>
+                  {formatMoney(progress.planned.expenses, month.currency_code, profile.locale)}
+                </dd>
+              </div>
+              <div>
+                <dt>Actual expenses</dt>
                 <dd className="report-amount report-amount--expense">
                   {formatSignedReportAmount(
-                    totals.expenses,
+                    progress.actual.expenses,
                     'expense',
                     month.currency_code,
                     profile.locale,
                   )}
                 </dd>
               </div>
-              <div>
-                <dt>Remaining</dt>
-                <dd>{formatMoney(totals.remaining, month.currency_code, profile.locale)}</dd>
-              </div>
             </dl>
+            <h4>Budget items</h4>
             <div className="report-preview__table-wrap">
               <table>
                 <caption className="visually-hidden">
-                  Items for {formatMonth(month.month_start, profile.locale)}
+                  Planned and actual items for {formatMonth(month.month_start, profile.locale)}
                 </caption>
                 <thead>
                   <tr>
                     <th scope="col">Item</th>
-                    <th scope="col">Category</th>
                     <th scope="col">Status</th>
-                    <th scope="col">Amount</th>
+                    <th scope="col">Planned</th>
+                    <th scope="col">Actual</th>
+                    <th scope="col">Variance</th>
+                    <th scope="col">Remaining</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {month.budget_month_items.map((item) => (
-                    <tr className={item.is_disabled ? 'report-preview__paused' : ''} key={item.id}>
-                      <th scope="row">{item.name_snapshot}</th>
-                      <td>{item.category_snapshot ?? 'Uncategorised'}</td>
-                      <td>{item.is_disabled ? 'Paused' : 'Active'}</td>
-                      <td className={`report-amount report-amount--${item.item_type}`}>
-                        {formatSignedReportAmount(
-                          Number(item.amount),
-                          item.item_type,
-                          month.currency_code,
-                          profile.locale,
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {month.budget_month_items.map((item) => {
+                    const itemProgress = calculateItemProgress(item, month.budget_transactions);
+                    return (
+                      <tr
+                        className={item.is_disabled ? 'report-preview__paused' : ''}
+                        key={item.id}
+                      >
+                        <th scope="row">
+                          {item.name_snapshot}
+                          <small>{item.category_snapshot ?? 'Uncategorised'}</small>
+                        </th>
+                        <td>{item.is_disabled ? 'Paused' : 'Active'}</td>
+                        <td>
+                          {formatMoney(itemProgress.planned, month.currency_code, profile.locale)}
+                        </td>
+                        <td className="actual-amount">
+                          {formatMoney(itemProgress.actual, month.currency_code, profile.locale)}
+                        </td>
+                        <td>
+                          {formatMoney(itemProgress.variance, month.currency_code, profile.locale)}
+                        </td>
+                        <td>
+                          {formatMoney(itemProgress.remaining, month.currency_code, profile.locale)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            <h4>Transactions</h4>
+            {month.budget_transactions.length ? (
+              <div className="report-preview__table-wrap">
+                <table>
+                  <caption className="visually-hidden">
+                    Transactions for {formatMonth(month.month_start, profile.locale)}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Description</th>
+                      <th scope="col">Assignment</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {month.budget_transactions.map((transaction) => (
+                      <tr key={transaction.id}>
+                        <td>{transaction.transaction_date}</td>
+                        <th scope="row">{transaction.description}</th>
+                        <td>
+                          {transaction.budget_item_snapshot ??
+                            transaction.category_snapshot ??
+                            'Unassigned'}
+                        </td>
+                        <td>
+                          {transaction.is_refund
+                            ? `${transaction.status} refund`
+                            : transaction.status}
+                        </td>
+                        <td
+                          className={`report-amount report-amount--${transaction.transaction_type}`}
+                        >
+                          {formatSignedTransactionAmount(
+                            transaction,
+                            month.currency_code,
+                            profile.locale,
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>No transactions recorded.</p>
+            )}
           </section>
         );
       })}
       <footer className="report-preview__footer">
-        Paused items are shown for context but excluded from all totals.
+        Paused items are excluded from planned totals. Their posted transactions still count as
+        actual activity.
       </footer>
     </article>
   );
