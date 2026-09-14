@@ -43,6 +43,11 @@ const topics = [
     body: 'Add real income and expenses in Transactions and optionally assign an account, category, and budget item. Use Expense refund or Income reversal instead of entering a negative amount.',
   },
   {
+    icon: Download,
+    title: 'Import a bank CSV',
+    body: 'In Transactions, choose Import CSV, map your statement columns, review every valid, invalid, duplicate, or excluded row, then confirm. Files must be UTF-8, no larger than 2 MiB or 2,000 rows. The raw file stays in browser memory and is never uploaded or retained.',
+  },
+  {
     icon: History,
     title: '7. Review previous months',
     body: 'Month history shows each independent snapshot. Reports two or more calendar months old are read-only, including their transactions.',

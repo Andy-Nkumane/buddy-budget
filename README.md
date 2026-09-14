@@ -12,7 +12,7 @@ The core workflow is:
 Create recurring template → create a monthly snapshot → adjust the month → see what remains
 ```
 
-V1 includes email/password authentication, onboarding, multiple templates, categories, month history, debounced autosave, pausable monthly items, one-off items, ranged JSON/CSV/PDF-report export, account deletion, responsive layouts, and an installable PWA. Bank connections, sharing, multi-currency months, native apps, and offline financial editing are intentionally excluded.
+V1 includes email/password authentication, onboarding, multiple templates, categories, month history, debounced autosave, pausable monthly items, one-off items, manual transactions, local CSV statement import, ranged JSON/CSV/PDF-report export, account deletion, responsive layouts, and an installable PWA. Bank connections, sharing, multi-currency months, native apps, and offline financial editing are intentionally excluded.
 
 ## 2. Screenshots and design
 
@@ -163,7 +163,7 @@ npm run test:db
 npm run build
 ```
 
-The browser tests cover money, planned-versus-actual totals, refunds, account balances, paused items, validation, autosave transitions, transaction entry, locked rows, route guards, and accessible dialogs. Database tests use isolated users to prove RLS, ownership constraints, secured transaction writes, historical locking, onboarding, and paused-state persistence.
+The browser tests cover money, planned-versus-actual totals, refunds, account balances, paused items, CSV parsing/mapping/preview, validation, autosave transitions, transaction entry, locked rows, route guards, and accessible dialogs. Database tests use isolated users to prove RLS, ownership constraints, atomic/idempotent CSV imports, secured transaction writes, historical locking, onboarding, and paused-state persistence.
 
 The critical Playwright flow needs a disposable Supabase user and is opt-in:
 
@@ -243,7 +243,7 @@ Start with [troubleshooting.md](docs/troubleshooting.md). Common causes are a mi
 - Financial data cannot be safely edited offline in V1.
 - Account deletion relies on the protected database function and must be validated against the target Supabase project’s operational policies.
 - GitHub Pages cannot set CSP, HSTS, Permissions-Policy, or anti-framing headers; the meta CSP cannot replace all headers.
-- The first release has no household sharing, imports, bank feeds, receipt scanning, billing, native packaging, or advanced analytics.
+- The first release has no household sharing, bank-credential feeds, receipt scanning, billing, native packaging, or advanced analytics. CSV statements can be imported manually without uploading the raw file.
 - Emailed Auth flows, real-device Android behavior, Lighthouse results, and final Figma node fidelity require owner-managed external environments.
 
 ## 21. Backup and recovery responsibilities

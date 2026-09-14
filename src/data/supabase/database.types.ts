@@ -8,6 +8,7 @@ import type {
   FinancialAccountWithBalance,
   Profile,
   TemplateItem,
+  TransactionImportBatch,
   UserPreferences,
 } from '../../shared/types/domain';
 
@@ -125,12 +126,33 @@ export interface Database {
           | 'source'
           | 'status'
           | 'external_fingerprint'
+          | 'external_reference'
+          | 'import_batch_id'
           | 'category_snapshot'
           | 'budget_item_snapshot'
           | 'created_at'
           | 'updated_at'
         >;
         Update: UpdateShape<BudgetTransaction>;
+        Relationships: [];
+      };
+      transaction_import_batches: {
+        Row: TransactionImportBatch;
+        Insert: OptionalInsert<
+          TransactionImportBatch,
+          | 'id'
+          | 'account_id'
+          | 'mapping_metadata'
+          | 'accepted_count'
+          | 'duplicate_count'
+          | 'invalid_count'
+          | 'excluded_count'
+          | 'status'
+          | 'created_at'
+          | 'updated_at'
+          | 'undone_at'
+        >;
+        Update: UpdateShape<TransactionImportBatch>;
         Relationships: [];
       };
     };
@@ -259,6 +281,37 @@ export interface Database {
       delete_budget_transaction: {
         Args: { requested_transaction_id: string };
         Returns: undefined;
+      };
+      import_budget_transactions: {
+        Args: {
+          requested_budget_month_id: string;
+          requested_account_id: string | null;
+          requested_file_name: string;
+          requested_batch_key: string;
+          requested_mapping_metadata: Record<string, unknown>;
+          requested_rows: Array<{
+            transaction_date: string;
+            description: string;
+            amount_minor: number;
+            transaction_type: string;
+            external_reference: string | null;
+            external_fingerprint: string;
+          }>;
+          requested_invalid_count: number;
+          requested_excluded_count: number;
+        };
+        Returns: Array<{
+          batch_id: string;
+          accepted_count: number;
+          duplicate_count: number;
+          invalid_count: number;
+          excluded_count: number;
+          was_existing: boolean;
+        }>;
+      };
+      undo_transaction_import_batch: {
+        Args: { requested_batch_id: string };
+        Returns: TransactionImportBatch[];
       };
       setup_first_budget: {
         Args: {

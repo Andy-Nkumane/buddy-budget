@@ -51,6 +51,8 @@ export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange:
       'status',
       'source',
       'refund_or_reversal',
+      'external_reference',
+      'import_batch_id',
     ],
     ...months.flatMap((month) => {
       const summary = calculateBudgetProgress(month.budget_month_items, month.budget_transactions);
@@ -71,6 +73,8 @@ export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange:
           '',
           '',
           '',
+          '',
+          '',
         ],
         [
           'month_summary',
@@ -84,6 +88,8 @@ export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange:
           summary.actual.expenses.toFixed(2),
           summary.expenseVariance.toFixed(2),
           summary.expenseRemaining.toFixed(2),
+          '',
+          '',
           '',
           '',
           '',
@@ -107,6 +113,8 @@ export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange:
             item.is_disabled ? 'paused' : 'active',
             item.source_template_item_id ? 'recurring' : 'one-off',
             '',
+            '',
+            '',
           ];
         }),
         ...month.budget_transactions.map((transaction) => [
@@ -114,7 +122,9 @@ export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange:
           month.month_start,
           month.currency_code,
           transaction.transaction_type,
-          transaction.description,
+          transaction.external_reference
+            ? `${transaction.description} · ${transaction.external_reference}`
+            : transaction.description,
           transaction.category_snapshot ?? '',
           transaction.budget_item_snapshot ?? '',
           '',
@@ -125,6 +135,8 @@ export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange:
           transaction.status,
           transaction.source,
           transaction.is_refund ? 'yes' : 'no',
+          transaction.external_reference ?? '',
+          transaction.import_batch_id ?? '',
         ]),
       ];
     }),
