@@ -19,7 +19,8 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 
 - `auth`: registration, verification callback, sign-in/out, recovery, session restoration.
 - `onboarding`: transactional first profile/template/current-month setup.
-- `budgets`: independent monthly snapshots, totals, temporary item pausing, inline drafts, debounced saves, one-offs.
+- `budgets`: independent monthly plans, planned-versus-actual progress, temporary item pausing, inline drafts, debounced saves, one-offs.
+- `transactions`: manual actual income/expense ledger, optional account assignment, categorisation, pagination, and locked-history controls.
 - `templates`: recurring plans used only when creating a future snapshot.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, export, deletion.
@@ -27,7 +28,11 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 
 ## Historical correctness
 
-`budget_month_items` copy template name, category name, default amount, item type, and order. They retain optional source IDs for lineage, but render and calculate from snapshot fields. A paused item retains its amount while being excluded from totals. No trigger propagates later template updates into a month.
+`budget_month_items` copy template name, category name, default amount, item type, and order. They retain optional source IDs for lineage, but render and calculate from snapshot fields. A paused item retains its amount while being excluded from planned totals. No trigger propagates later template updates into a month.
+
+`budget_transactions` records actual activity separately from the planned snapshot. Amounts and account opening balances use integer minor units. A non-negative refund/reversal record reverses its income or expense effect. Only posted transactions affect actual totals and derived account balances. Transactions linked to paused or later-archived items remain real activity.
+
+Financial accounts contain only a user label, type, currency, opening balance, and archived state. They contain no bank credentials. Current balances are derived from the opening balance and posted transactions by `retrieve_financial_accounts(boolean)` and are never stored as a second mutable total.
 
 ## Autosave
 

@@ -35,21 +35,26 @@ const topics = [
   {
     icon: WalletCards,
     title: '5. Understand totals',
-    body: 'Remaining equals total income minus total expenses. Savings rate is remaining divided by income and is hidden when income is zero.',
+    body: 'Planned values come from the month snapshot. Actual values come from posted transactions. Pending and void entries do not change actuals.',
+  },
+  {
+    icon: PencilLine,
+    title: '6. Record actual activity',
+    body: 'Add real income and expenses in Transactions and optionally assign an account, category, and budget item. Use Expense refund or Income reversal instead of entering a negative amount.',
   },
   {
     icon: History,
-    title: '6. Review previous months',
-    body: 'Month history shows each independent snapshot. Opening an older month never changes the current template.',
+    title: '7. Review previous months',
+    body: 'Month history shows each independent snapshot. Reports two or more calendar months old are read-only, including their transactions.',
   },
   {
     icon: Download,
-    title: '7. Export your data',
-    body: 'Choose a preset or custom month range in Settings, then export CSV, a portable JSON backup, or a printable PDF report. One-month CSV exports remain available in Month history.',
+    title: '8. Export your data',
+    body: 'Choose a preset or custom month range in Settings, then export planned and actual details as CSV, JSON, or a PDF report. One-month exports remain available in Month history.',
   },
   {
     icon: Smartphone,
-    title: '8. Install on Android or iOS',
+    title: '9. Install on Android or iOS',
     body: 'On Android Chrome, open the browser menu and choose Install app or Add to Home screen. On iPhone or iPad Safari, tap Share, then Add to Home Screen.',
   },
   {
@@ -59,12 +64,12 @@ const topics = [
   },
   {
     icon: WifiOff,
-    title: '9. What works offline',
+    title: '10. What works offline',
     body: 'The installed app can open its shell and public help while offline. Financial edits are not stored offline in V1; wait for a connection and retry.',
   },
   {
     icon: LockKeyhole,
-    title: '10. Protect your account',
+    title: '11. Protect your account',
     body: 'Use a unique password, protect your email account, sign out on shared devices, and never share password-reset links or exported data.',
   },
 ];

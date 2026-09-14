@@ -1,8 +1,11 @@
 import type {
+  BudgetTransaction,
   BudgetMonth,
   BudgetMonthItem,
   BudgetTemplate,
   Category,
+  FinancialAccount,
+  FinancialAccountWithBalance,
   Profile,
   TemplateItem,
   UserPreferences,
@@ -100,6 +103,36 @@ export interface Database {
         Update: UpdateShape<BudgetMonthItem>;
         Relationships: [];
       };
+      financial_accounts: {
+        Row: FinancialAccount;
+        Insert: OptionalInsert<
+          FinancialAccount,
+          'id' | 'opening_balance_minor' | 'archived_at' | 'created_at' | 'updated_at'
+        >;
+        Update: UpdateShape<FinancialAccount>;
+        Relationships: [];
+      };
+      budget_transactions: {
+        Row: BudgetTransaction;
+        Insert: OptionalInsert<
+          BudgetTransaction,
+          | 'id'
+          | 'budget_month_item_id'
+          | 'category_id'
+          | 'account_id'
+          | 'is_refund'
+          | 'notes'
+          | 'source'
+          | 'status'
+          | 'external_fingerprint'
+          | 'category_snapshot'
+          | 'budget_item_snapshot'
+          | 'created_at'
+          | 'updated_at'
+        >;
+        Update: UpdateShape<BudgetTransaction>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -152,6 +185,80 @@ export interface Database {
           requested_category_id: string | null;
         };
         Returns: BudgetMonthItem[];
+      };
+      create_financial_account: {
+        Args: {
+          requested_name: string;
+          requested_account_type: string;
+          requested_currency_code: string;
+          requested_opening_balance_minor: number;
+        };
+        Returns: FinancialAccount[];
+      };
+      retrieve_financial_accounts: {
+        Args: { requested_include_archived?: boolean };
+        Returns: FinancialAccountWithBalance[];
+      };
+      retrieve_budget_month_summaries: {
+        Args: Record<string, never>;
+        Returns: Array<
+          BudgetMonth & {
+            income: number;
+            expenses: number;
+            remaining: number;
+            actual_income: number;
+            actual_expenses: number;
+            actual_remaining: number;
+          }
+        >;
+      };
+      update_financial_account: {
+        Args: {
+          requested_account_id: string;
+          requested_name: string;
+          requested_account_type: string;
+          requested_currency_code: string;
+          requested_opening_balance_minor: number;
+          requested_archived: boolean;
+        };
+        Returns: FinancialAccount[];
+      };
+      create_budget_transaction: {
+        Args: {
+          requested_budget_month_id: string;
+          requested_transaction_date: string;
+          requested_description: string;
+          requested_amount_minor: number;
+          requested_transaction_type: string;
+          requested_is_refund: boolean;
+          requested_account_id: string | null;
+          requested_budget_month_item_id: string | null;
+          requested_category_id: string | null;
+          requested_notes: string;
+          requested_status: string;
+        };
+        Returns: BudgetTransaction[];
+      };
+      update_budget_transaction: {
+        Args: {
+          requested_transaction_id: string;
+          requested_budget_month_id: string;
+          requested_transaction_date: string;
+          requested_description: string;
+          requested_amount_minor: number;
+          requested_transaction_type: string;
+          requested_is_refund: boolean;
+          requested_account_id: string | null;
+          requested_budget_month_item_id: string | null;
+          requested_category_id: string | null;
+          requested_notes: string;
+          requested_status: string;
+        };
+        Returns: BudgetTransaction[];
+      };
+      delete_budget_transaction: {
+        Args: { requested_transaction_id: string };
+        Returns: undefined;
       };
       setup_first_budget: {
         Args: {

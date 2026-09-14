@@ -1,4 +1,4 @@
-import type { BudgetMonthItem } from '../types/domain';
+import type { BudgetMonthItem, BudgetTransaction } from '../types/domain';
 
 export const formatMoney = (value: number, currencyCode = 'ZAR', locale = 'en-ZA'): string =>
   new Intl.NumberFormat(locale, {
@@ -31,6 +31,69 @@ export const calculateTotals = (items: BudgetMonthItem[]) => {
   const remaining = minorUnitsToMoney(incomeMinorUnits - expenseMinorUnits);
   const savingsRate = income > 0 ? (remaining / income) * 100 : null;
   return { income, expenses, remaining, savingsRate };
+};
+
+export const getTransactionEffectMinor = (transaction: BudgetTransaction): number => {
+  if (transaction.status !== 'posted') return 0;
+  return transaction.is_refund ? -transaction.amount_minor : transaction.amount_minor;
+};
+
+export const calculateActualTotals = (transactions: BudgetTransaction[]) => {
+  const incomeMinorUnits = transactions
+    .filter((transaction) => transaction.transaction_type === 'income')
+    .reduce((total, transaction) => total + getTransactionEffectMinor(transaction), 0);
+  const expenseMinorUnits = transactions
+    .filter((transaction) => transaction.transaction_type === 'expense')
+    .reduce((total, transaction) => total + getTransactionEffectMinor(transaction), 0);
+  return {
+    income: minorUnitsToMoney(incomeMinorUnits),
+    expenses: minorUnitsToMoney(expenseMinorUnits),
+    remaining: minorUnitsToMoney(incomeMinorUnits - expenseMinorUnits),
+  };
+};
+
+export const calculateBudgetProgress = (
+  items: BudgetMonthItem[],
+  transactions: BudgetTransaction[],
+) => {
+  const planned = calculateTotals(items);
+  const actual = calculateActualTotals(transactions);
+  return {
+    planned,
+    actual,
+    incomeVariance: minorUnitsToMoney(
+      moneyToMinorUnits(actual.income) - moneyToMinorUnits(planned.income),
+    ),
+    expenseVariance: minorUnitsToMoney(
+      moneyToMinorUnits(actual.expenses) - moneyToMinorUnits(planned.expenses),
+    ),
+    balanceVariance: minorUnitsToMoney(
+      moneyToMinorUnits(actual.remaining) - moneyToMinorUnits(planned.remaining),
+    ),
+    incomeRemaining: minorUnitsToMoney(
+      moneyToMinorUnits(planned.income) - moneyToMinorUnits(actual.income),
+    ),
+    expenseRemaining: minorUnitsToMoney(
+      moneyToMinorUnits(planned.expenses) - moneyToMinorUnits(actual.expenses),
+    ),
+    available: minorUnitsToMoney(
+      moneyToMinorUnits(planned.income) - moneyToMinorUnits(actual.expenses),
+    ),
+  };
+};
+
+export const calculateItemProgress = (item: BudgetMonthItem, transactions: BudgetTransaction[]) => {
+  const plannedMinor =
+    item.archived_at === null && !item.is_disabled ? moneyToMinorUnits(item.amount) : 0;
+  const actualMinor = transactions
+    .filter((transaction) => transaction.budget_month_item_id === item.id)
+    .reduce((total, transaction) => total + getTransactionEffectMinor(transaction), 0);
+  return {
+    planned: minorUnitsToMoney(plannedMinor),
+    actual: minorUnitsToMoney(actualMinor),
+    variance: minorUnitsToMoney(actualMinor - plannedMinor),
+    remaining: minorUnitsToMoney(plannedMinor - actualMinor),
+  };
 };
 
 export const formatMonth = (monthStart: string, locale = 'en-ZA'): string =>
