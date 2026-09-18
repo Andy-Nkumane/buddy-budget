@@ -175,6 +175,7 @@ begin
     'date_column', requested_mapping_metadata->'date_column',
     'description_column', requested_mapping_metadata->'description_column',
     'reference_column', requested_mapping_metadata->'reference_column',
+    'category_column', requested_mapping_metadata->'category_column',
     'amount_column', requested_mapping_metadata->'amount_column',
     'debit_column', requested_mapping_metadata->'debit_column',
     'credit_column', requested_mapping_metadata->'credit_column'
@@ -201,6 +202,7 @@ begin
       amount_minor bigint,
       transaction_type text,
       external_reference text,
+      category_name text,
       external_fingerprint text
     )
     where row_value.transaction_date is null
@@ -210,6 +212,7 @@ begin
       or coalesce(row_value.transaction_type, '') not in ('income', 'expense')
       or coalesce(row_value.external_fingerprint, '') !~ '^[0-9a-f]{64}$'
       or char_length(coalesce(row_value.external_reference, '')) > 255
+      or char_length(coalesce(row_value.category_name, '')) > 60
   ) then
     raise exception 'One or more normalized import rows are invalid for the destination month'
       using errcode = '22023';
@@ -241,14 +244,38 @@ begin
     requested_excluded_count
   ) returning * into selected_batch;
 
+  insert into public.categories (user_id, item_type, name)
+  select distinct
+    current_user_id,
+    row_value.transaction_type,
+    btrim(row_value.category_name)
+  from jsonb_to_recordset(requested_rows) as row_value(
+    transaction_type text,
+    category_name text,
+    external_fingerprint text
+  )
+  where nullif(btrim(row_value.category_name), '') is not null
+    and not exists (
+      select 1 from public.budget_transactions existing
+      where existing.user_id = current_user_id
+        and existing.source = 'csv_import'
+        and existing.external_fingerprint = row_value.external_fingerprint
+    )
+  on conflict (user_id, item_type, (lower(name)))
+    where archived_at is null
+    do nothing;
+
   insert into public.budget_transactions (
     user_id,
     budget_month_id,
     account_id,
+    category_id,
+    budget_month_item_id,
     transaction_date,
     description,
     amount_minor,
     transaction_type,
+    category_snapshot,
     external_reference,
     external_fingerprint,
     import_batch_id,
@@ -259,10 +286,13 @@ begin
     current_user_id,
     requested_budget_month_id,
     requested_account_id,
+    category.id,
+    matched_item.id,
     row_value.transaction_date,
     btrim(row_value.description),
     row_value.amount_minor,
     row_value.transaction_type,
+    category.name,
     nullif(btrim(row_value.external_reference), ''),
     row_value.external_fingerprint,
     selected_batch.id,
@@ -274,8 +304,24 @@ begin
     amount_minor bigint,
     transaction_type text,
     external_reference text,
+    category_name text,
     external_fingerprint text
   )
+  left join public.categories category
+    on category.user_id = current_user_id
+    and category.item_type = row_value.transaction_type
+    and lower(category.name) = lower(btrim(row_value.category_name))
+    and category.archived_at is null
+  left join lateral (
+    select min(item.id::text)::uuid as id
+    from public.budget_month_items item
+    where item.budget_month_id = requested_budget_month_id
+      and item.user_id = current_user_id
+      and item.item_type = row_value.transaction_type
+      and item.category_id = category.id
+      and item.archived_at is null
+    having count(*) = 1
+  ) matched_item on true
   on conflict (user_id, source, external_fingerprint)
     where external_fingerprint is not null
     do nothing;

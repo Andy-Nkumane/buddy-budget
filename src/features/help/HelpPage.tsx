@@ -45,7 +45,7 @@ const topics = [
   {
     icon: Download,
     title: 'Import a bank CSV',
-    body: 'In Transactions, choose Import CSV, map your statement columns, review every valid, invalid, duplicate, or excluded row, then confirm. Files must be UTF-8, no larger than 2 MiB or 2,000 rows. The raw file stays in browser memory and is never uploaded or retained.',
+    body: 'In Transactions, choose Import CSV, map your statement columns including an optional category, review every valid, invalid, duplicate, or excluded row, then confirm. New category names are created automatically for the matching income or expense type. Files must be UTF-8, no larger than 2 MiB or 2,000 rows. The raw file stays in browser memory and is never uploaded or retained.',
   },
   {
     icon: History,

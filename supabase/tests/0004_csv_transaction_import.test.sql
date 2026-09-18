@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -22,6 +22,22 @@ insert into public.financial_accounts (id, user_id, name, account_type, currency
   ('a4000000-0000-4000-8000-000000000001', 'a1111111-1111-4111-8111-111111111111', 'Current', 'checking', 'ZAR'),
   ('b4000000-0000-4000-8000-000000000001', 'b2222222-2222-4222-8222-222222222222', 'Other', 'checking', 'ZAR');
 
+insert into public.categories (id, user_id, item_type, name) values (
+  'a2000000-0000-4000-8000-000000000001',
+  'a1111111-1111-4111-8111-111111111111',
+  'expense', 'Utilities'
+);
+
+insert into public.budget_month_items (
+  id, budget_month_id, user_id, category_id, item_type, name_snapshot, category_snapshot, amount
+) values (
+  'a3000000-0000-4000-8000-000000000001',
+  'a1000000-0000-4000-8000-000000000001',
+  'a1111111-1111-4111-8111-111111111111',
+  'a2000000-0000-4000-8000-000000000001',
+  'expense', 'Electricity', 'Utilities', 500
+);
+
 insert into public.transaction_import_batches (
   user_id, budget_month_id, file_name, batch_key,
   total_count, accepted_count, duplicate_count, invalid_count, excluded_count
@@ -40,8 +56,8 @@ select lives_ok(
     'a4000000-0000-4000-8000-000000000001', 'statement.csv', repeat('a', 64),
     '{"delimiter":"comma","date_format":"ymd","decimal_format":"dot","amount_mode":"signed","date_column":0,"description_column":1,"amount_column":2}',
     jsonb_build_array(
-      jsonb_build_object('transaction_date', date_trunc('month', now())::date, 'description', 'Coffee', 'amount_minor', 1000, 'transaction_type', 'expense', 'external_fingerprint', repeat('1', 64)),
-      jsonb_build_object('transaction_date', date_trunc('month', now())::date, 'description', 'Coffee', 'amount_minor', 1000, 'transaction_type', 'expense', 'external_fingerprint', repeat('2', 64))
+      jsonb_build_object('transaction_date', date_trunc('month', now())::date, 'description', 'Coffee', 'amount_minor', 1000, 'transaction_type', 'expense', 'category_name', 'Dining', 'external_fingerprint', repeat('1', 64)),
+      jsonb_build_object('transaction_date', date_trunc('month', now())::date, 'description', 'Electricity', 'amount_minor', 1000, 'transaction_type', 'expense', 'category_name', 'utilities', 'external_fingerprint', repeat('2', 64))
     ), 0, 0
   )$$,
   'An owned CSV batch imports through one secured operation'
@@ -51,6 +67,24 @@ select results_eq(
   $$select accepted_count, duplicate_count from public.transaction_import_batches where batch_key = repeat('a', 64)$$,
   $$values (2, 0)$$,
   'Same-date and same-amount transactions remain distinct when fingerprints differ'
+);
+
+select results_eq(
+  $$select count(*)::bigint from public.categories where item_type = 'expense' and lower(name) = 'dining'$$,
+  $$values (1::bigint)$$,
+  'CSV categories are created once using case-insensitive matching'
+);
+
+select results_eq(
+  $$select count(*)::bigint from public.budget_transactions where source = 'csv_import' and category_id is not null$$,
+  $$values (2::bigint)$$,
+  'Imported transactions are linked to new or existing categories'
+);
+
+select results_eq(
+  $$select count(*)::bigint from public.budget_transactions where source = 'csv_import' and description = 'Electricity' and budget_month_item_id = 'a3000000-0000-4000-8000-000000000001'$$,
+  $$values (1::bigint)$$,
+  'A category with exactly one matching budget item is assigned automatically'
 );
 
 select results_eq(

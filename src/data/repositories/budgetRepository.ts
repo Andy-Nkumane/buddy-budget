@@ -592,15 +592,17 @@ export const deleteBudgetTransaction = async (id: string): Promise<void> => {
 
 export const searchBudgetTransactions = async (
   page: number,
+  monthId?: string,
 ): Promise<{ records: BudgetTransaction[]; total: number }> => {
   const from = page * TRANSACTION_PAGE_SIZE;
-  const { data, error, count } = await requireSupabase()
+  let query = requireSupabase()
     .from('budget_transactions')
     .select('*', { count: 'exact' })
     .order('transaction_date', { ascending: false })
     .order('created_at', { ascending: false })
-    .order('id')
-    .range(from, from + TRANSACTION_PAGE_SIZE - 1);
+    .order('id');
+  if (monthId) query = query.eq('budget_month_id', monthId);
+  const { data, error, count } = await query.range(from, from + TRANSACTION_PAGE_SIZE - 1);
   throwWhenError(error);
   return { records: data ?? [], total: count ?? 0 };
 };
@@ -617,6 +619,7 @@ export type TransactionImportInput = {
     amount_minor: number;
     transaction_type: ItemType;
     external_reference: string | null;
+    category_name: string | null;
     external_fingerprint: string;
   }>;
   invalidCount: number;

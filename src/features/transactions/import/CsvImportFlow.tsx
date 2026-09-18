@@ -115,6 +115,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
           date_column: mapping.dateColumn,
           description_column: mapping.descriptionColumn,
           reference_column: mapping.referenceColumn,
+          category_column: mapping.categoryColumn,
           amount_column: mapping.amountColumn,
           debit_column: mapping.debitColumn,
           credit_column: mapping.creditColumn,
@@ -262,6 +263,19 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
                 value={columnValue(mapping.referenceColumn)}
                 onChange={(event) =>
                   setMapping({ ...mapping, referenceColumn: optionalColumn(event.target.value) })
+                }
+              >
+                <option value="">Not included</option>
+                {columnOptions}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field__label">Category (optional)</span>
+              <select
+                className="input"
+                value={columnValue(mapping.categoryColumn)}
+                onChange={(event) =>
+                  setMapping({ ...mapping, categoryColumn: optionalColumn(event.target.value) })
                 }
               >
                 <option value="">Not included</option>

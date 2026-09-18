@@ -19,6 +19,7 @@ export type CsvColumnMapping = {
   dateColumn: number;
   descriptionColumn: number;
   referenceColumn: number | null;
+  categoryColumn: number | null;
   amountMode: CsvAmountMode;
   amountColumn: number | null;
   debitColumn: number | null;
@@ -33,6 +34,7 @@ export type NormalizedImportRow = {
   amount_minor: number;
   transaction_type: ItemType;
   external_reference: string | null;
+  category_name: string | null;
   external_fingerprint: string;
 };
 
@@ -150,10 +152,12 @@ export const suggestCsvMapping = (table: CsvTable): CsvColumnMapping => {
   const creditColumn = findHeader(table.headers, [/^credit$/, /deposit/, /money in/, /^haben$/]);
   const amountColumn = findHeader(table.headers, [/^amount$/, /transaction.*amount/]);
   const referenceColumn = findHeader(table.headers, [/reference/, /^ref$/, /transaction.*id/]);
+  const categoryColumn = findHeader(table.headers, [/^category$/, /category.*name/, /^type$/]);
   return {
     dateColumn: Math.max(0, dateColumn),
     descriptionColumn: Math.max(0, descriptionColumn),
     referenceColumn: referenceColumn < 0 ? null : referenceColumn,
+    categoryColumn: categoryColumn < 0 ? null : categoryColumn,
     amountMode: debitColumn >= 0 && creditColumn >= 0 ? 'debit_credit' : 'signed',
     amountColumn: amountColumn < 0 ? null : amountColumn,
     debitColumn: debitColumn < 0 ? null : debitColumn,
@@ -268,8 +272,14 @@ export const normalizeCsvRows = async (
         mapping.referenceColumn === null
           ? null
           : normalizeText(row.values[mapping.referenceColumn] ?? '') || null;
+      const category =
+        mapping.categoryColumn === null
+          ? null
+          : normalizeText(row.values[mapping.categoryColumn] ?? '') || null;
       if (reference && reference.length > 255)
         errors.push('Reference must contain at most 255 characters.');
+      if (category && category.length > 60)
+        errors.push('Category must contain at most 60 characters.');
       if (errors.length || !date || signedAmount === null || signedAmount === 0) {
         return {
           id: `${row.line}-${index}`,
@@ -303,6 +313,7 @@ export const normalizeCsvRows = async (
           amount_minor: amountMinor,
           transaction_type: transactionType,
           external_reference: reference,
+          category_name: category,
           external_fingerprint: fingerprint,
         },
       };

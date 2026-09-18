@@ -10,8 +10,8 @@ export const queryKeys = {
   defaultTemplate: (userId: string) => [...userRoot(userId), 'default-template'] as const,
   months: (userId: string) => [...userRoot(userId), 'months'] as const,
   accounts: (userId: string) => [...userRoot(userId), 'accounts'] as const,
-  transactions: (userId: string, page: number) =>
-    [...userRoot(userId), 'transactions', page] as const,
+  transactions: (userId: string, page: number, monthId?: string) =>
+    [...userRoot(userId), 'transactions', monthId ?? 'all', page] as const,
   transactionImports: (userId: string) => [...userRoot(userId), 'transaction-imports'] as const,
   month: (userId: string, monthStart: string) =>
     [...userRoot(userId), 'month', monthStart] as const,

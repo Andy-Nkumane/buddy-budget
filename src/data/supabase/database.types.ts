@@ -295,6 +295,7 @@ export interface Database {
             amount_minor: number;
             transaction_type: string;
             external_reference: string | null;
+            category_name: string | null;
             external_fingerprint: string;
           }>;
           requested_invalid_count: number;

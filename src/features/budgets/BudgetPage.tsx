@@ -7,6 +7,7 @@ import {
   CircleAlert,
   LockKeyhole,
   Plus,
+  ReceiptText,
   TrendingDown,
   TrendingUp,
   WalletCards,
@@ -36,6 +37,7 @@ import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { Button } from '../../shared/ui/Button';
 import { Modal } from '../../shared/ui/Modal';
 import { parseMoney } from '../../shared/validation/schemas';
+import { formatSignedTransactionAmount } from '../../shared/reporting/budgetReport';
 import { hasActiveBudgetEditors } from '../../pwa/editState';
 import { AddMonthItemForm } from './AddMonthItemForm';
 import { BudgetRow } from './BudgetRow';
@@ -188,6 +190,9 @@ export const BudgetPage = () => {
   const progress = calculateBudgetProgress(visibleBudgetItems, budgetMonth.budget_transactions);
   const locale = profile.data?.locale ?? 'en-ZA';
   const currency = budgetMonth.currency_code;
+  const postedTransactionCount = budgetMonth.budget_transactions.filter(
+    (transaction) => transaction.status === 'posted',
+  ).length;
   const itemsByType = (type: ItemType) =>
     visibleBudgetItems.filter((item) => item.item_type === type && item.archived_at === null);
   const updateDraft = (id: string, amount: string) => {
@@ -406,6 +411,60 @@ export const BudgetPage = () => {
           </div>
         </article>
       </div>
+
+      <section className="budget-section budget-activity" aria-labelledby="budget-activity-heading">
+        <div className="budget-section__heading">
+          <div>
+            <h2 id="budget-activity-heading">Actual activity</h2>
+            <span>
+              {postedTransactionCount} posted transaction{postedTransactionCount === 1 ? '' : 's'}{' '}
+              affect totals
+              {budgetMonth.budget_transactions.length > postedTransactionCount
+                ? `; ${budgetMonth.budget_transactions.length - postedTransactionCount} pending or void`
+                : ''}
+            </span>
+          </div>
+          <Link
+            className="button button--secondary"
+            to={`/app/transactions?month=${budgetMonth.id}`}
+          >
+            View all transactions
+          </Link>
+        </div>
+        {budgetMonth.budget_transactions.length ? (
+          <div className="budget-activity__list">
+            {budgetMonth.budget_transactions.slice(0, 8).map((transaction) => (
+              <article className="budget-activity__row" key={transaction.id}>
+                <ReceiptText aria-hidden="true" />
+                <div>
+                  <strong>{transaction.description}</strong>
+                  <span>
+                    {transaction.category_snapshot ?? 'Uncategorised'} ·{' '}
+                    {transaction.budget_item_snapshot ?? 'Unassigned to a budget item'} ·{' '}
+                    {transaction.status}
+                  </span>
+                </div>
+                <span>{transaction.transaction_date}</span>
+                <strong
+                  className={`transaction-amount transaction-amount--${transaction.transaction_type}`}
+                >
+                  {formatSignedTransactionAmount(transaction, currency, locale)}
+                </strong>
+              </article>
+            ))}
+            {budgetMonth.budget_transactions.length > 8 && (
+              <p className="budget-activity__more">
+                {budgetMonth.budget_transactions.length - 8} more transactions are available in the
+                filtered transaction history.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="empty-row">
+            <p>No actual transactions have been recorded for this month.</p>
+          </div>
+        )}
+      </section>
 
       {(['income', 'expense'] as const).map((type) => {
         const sectionItems = itemsByType(type);

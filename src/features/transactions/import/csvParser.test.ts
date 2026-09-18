@@ -64,6 +64,14 @@ describe('CSV statement parsing', () => {
     );
   });
 
+  it('normalizes an optional category column', async () => {
+    const table = parseCsvText(
+      'Date,Description,Amount,Category\n2026-09-01,Coffee,-10,  Dining  ',
+    );
+    const rows = await normalizeCsvRows(table, suggestCsvMapping(table), '2026-09-01', userId);
+    expect(rows[0].normalized?.category_name).toBe('Dining');
+  });
+
   it('keeps reference formula text inert and rejects formula amounts', async () => {
     const table = parseCsvText(formula);
     const rows = await normalizeCsvRows(table, suggestCsvMapping(table), '2026-09-01', userId);

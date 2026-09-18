@@ -48,6 +48,7 @@ export const TransactionsPage = () => {
   const userId = session?.user.id ?? '';
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const filteredMonthId = searchParams.get('month') ?? undefined;
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<BudgetTransaction | null>(null);
   const [transactionOpen, setTransactionOpen] = useState(
@@ -71,8 +72,8 @@ export const TransactionsPage = () => {
     queryFn: () => searchFinancialAccounts(true),
   });
   const transactions = useQuery({
-    queryKey: queryKeys.transactions(userId, page),
-    queryFn: () => searchBudgetTransactions(page),
+    queryKey: queryKeys.transactions(userId, page, filteredMonthId),
+    queryFn: () => searchBudgetTransactions(page, filteredMonthId),
   });
   const importBatches = useQuery({
     queryKey: queryKeys.transactionImports(userId),
@@ -199,6 +200,14 @@ export const TransactionsPage = () => {
           <p className="eyebrow">What actually happened</p>
           <h1>Transactions</h1>
           <p>Record real income and spending, then compare it with your monthly plan.</p>
+          {filteredMonthId && monthById.has(filteredMonthId) && (
+            <p className="filter-context">
+              Showing {monthById.get(filteredMonthId)?.month_start.slice(0, 7)} only.{' '}
+              <Link to="/app/transactions" onClick={() => setPage(0)}>
+                Show every month
+              </Link>
+            </p>
+          )}
         </div>
         <div className="page-heading__actions">
           <Button
