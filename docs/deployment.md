@@ -2,15 +2,17 @@
 
 ## GitHub Pages
 
-1. Create/select the GitHub repository and push the project to `main`.
-2. Open Settings → Pages and choose **GitHub Actions**.
-3. Open Settings → Actions → General and allow the repository workflows.
-4. Add Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
-5. Run `Quality`; deployment starts only after it succeeds.
-6. Confirm `https://<owner>.github.io/<repo>/` loads.
-7. Refresh `/app/help`, `/auth/callback`, and `/auth/reset-password` directly.
-8. Inspect `manifest.webmanifest`, `sw.js`, and shortcut URLs under `/<repo>/`.
-9. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
+1. Link the intended Supabase project and run `npx supabase db push` before deploying the frontend. Confirm migrations `202609130002_add_transactions_and_accounts.sql` and `202609140001_add_csv_transaction_imports.sql` are applied successfully.
+2. Run `npm run test:db` against an isolated local Supabase stack, then smoke-test transaction creation, CSV import/reimport/undo, and historical locking in staging.
+3. Create/select the GitHub repository and push the project to `main`.
+4. Open Settings → Pages and choose **GitHub Actions**.
+5. Open Settings → Actions → General and allow the repository workflows.
+6. Add Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
+7. Run `Quality`; deployment starts only after it succeeds.
+8. Confirm `https://<owner>.github.io/<repo>/` loads.
+9. Refresh `/app/help`, `/app/transactions`, `/auth/callback`, and `/auth/reset-password` directly.
+10. Inspect `manifest.webmanifest`, `sw.js`, and shortcut URLs under `/<repo>/`.
+11. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
 
 The project URL and publishable key are browser-public even if GitHub variables are used for convenient management. Never add a secret/service-role key to a frontend workflow.
 

@@ -235,8 +235,8 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
         {format === 'pdf'
           ? 'Preview the formatted report, then download it directly as a PDF file.'
           : format === 'csv'
-            ? 'CSV includes each item and marks paused items so it can be analysed in a spreadsheet.'
-            : 'JSON includes your profile, preferences, templates, categories, and months in the selected range.'}
+            ? 'CSV includes planned items, actual transactions, assignments, and paused states for spreadsheet analysis.'
+            : 'JSON includes your profile, preferences, accounts, templates, categories, months, and transactions in the selected range.'}
       </p>
       {error && (
         <div className="inline-alert inline-alert--error" role="alert">

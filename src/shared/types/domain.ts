@@ -1,6 +1,10 @@
 export type ItemType = 'income' | 'expense';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
+export type FinancialAccountType = 'cash' | 'checking' | 'savings' | 'credit';
+export type TransactionStatus = 'pending' | 'posted' | 'void';
+export type TransactionSource = 'manual' | 'csv_import';
+export type TransactionImportStatus = 'completed' | 'undone';
 
 export type Profile = {
   user_id: string;
@@ -91,12 +95,75 @@ export type BudgetMonthItem = {
   updated_at: string;
 };
 
+export type FinancialAccount = {
+  id: string;
+  user_id: string;
+  name: string;
+  account_type: FinancialAccountType;
+  currency_code: string;
+  opening_balance_minor: number;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FinancialAccountWithBalance = FinancialAccount & {
+  balance_minor: number;
+};
+
+export type BudgetTransaction = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  budget_month_item_id: string | null;
+  category_id: string | null;
+  account_id: string | null;
+  transaction_date: string;
+  description: string;
+  amount_minor: number;
+  transaction_type: ItemType;
+  is_refund: boolean;
+  notes: string | null;
+  source: TransactionSource;
+  status: TransactionStatus;
+  external_fingerprint: string | null;
+  external_reference: string | null;
+  import_batch_id: string | null;
+  category_snapshot: string | null;
+  budget_item_snapshot: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TransactionImportBatch = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  account_id: string | null;
+  file_name: string;
+  batch_key: string;
+  mapping_metadata: Record<string, unknown>;
+  total_count: number;
+  accepted_count: number;
+  duplicate_count: number;
+  invalid_count: number;
+  excluded_count: number;
+  status: TransactionImportStatus;
+  created_at: string;
+  updated_at: string;
+  undone_at: string | null;
+};
+
 export type BudgetMonthWithItems = BudgetMonth & {
   budget_month_items: BudgetMonthItem[];
+  budget_transactions: BudgetTransaction[];
 };
 
 export type MonthSummary = BudgetMonth & {
   income: number;
   expenses: number;
   remaining: number;
+  actualIncome: number;
+  actualExpenses: number;
+  actualRemaining: number;
 };

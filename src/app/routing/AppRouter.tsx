@@ -61,6 +61,11 @@ const TemplatesPage = lazy(() =>
     default: module.TemplatesPage,
   })),
 );
+const TransactionsPage = lazy(() =>
+  import('../../features/transactions/TransactionsPage').then((module) => ({
+    default: module.TransactionsPage,
+  })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -103,6 +108,7 @@ export const AppRouter = () => (
           <Route element={<RequireOnboarding />}>
             <Route path="/app" element={<AppLayout />}>
               <Route path="budget/:monthStart" element={<BudgetPage />} />
+              <Route path="transactions" element={<TransactionsPage />} />
               <Route path="months" element={<MonthsPage />} />
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="categories" element={<CategoriesPage />} />

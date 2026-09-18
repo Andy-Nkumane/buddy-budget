@@ -1,17 +1,23 @@
 import type { User } from '@supabase/supabase-js';
-import { calculateTotals } from '../../shared/formatting/money';
+import { adjacentMonthStart, calculateBudgetProgress } from '../../shared/formatting/money';
 import type {
   BudgetMonth,
   BudgetMonthItem,
   BudgetMonthWithItems,
   BudgetTemplate,
+  BudgetTransaction,
   Category,
+  FinancialAccount,
+  FinancialAccountType,
+  FinancialAccountWithBalance,
   ItemType,
   MonthSummary,
   Profile,
   TemplateItem,
   TemplateWithItems,
   ThemePreference,
+  TransactionStatus,
+  TransactionImportBatch,
   UserPreferences,
 } from '../../shared/types/domain';
 import { requireSupabase } from '../supabase/client';
@@ -21,6 +27,7 @@ const throwWhenError = (error: { message: string } | null): void => {
 };
 
 const EXPORT_PAGE_SIZE = 1000;
+export const TRANSACTION_PAGE_SIZE = 50;
 type PageResult<T> = { data: T[] | null; error: { message: string } | null };
 
 const retrieveAllPages = async <T>(
@@ -320,10 +327,27 @@ const retrieveMonthItems = async (monthId: string): Promise<BudgetMonthItem[]> =
   );
 };
 
-const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => ({
-  ...month,
-  budget_month_items: await retrieveMonthItems(month.id),
-});
+const retrieveMonthTransactions = async (monthId: string): Promise<BudgetTransaction[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<BudgetTransaction>((from, to) =>
+    client
+      .from('budget_transactions')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => {
+  const [items, transactions] = await Promise.all([
+    retrieveMonthItems(month.id),
+    retrieveMonthTransactions(month.id),
+  ]);
+  return { ...month, budget_month_items: items, budget_transactions: transactions };
+};
 
 export const retrieveMonthByStart = async (
   monthStart: string,
@@ -348,24 +372,13 @@ export const retrieveMonthById = async (id: string): Promise<BudgetMonthWithItem
 };
 
 export const searchMonths = async (): Promise<MonthSummary[]> => {
-  const client = requireSupabase();
-  const [months, monthItems] = await Promise.all([
-    retrieveAllPages<BudgetMonth>((from, to) =>
-      client
-        .from('budget_months')
-        .select('*')
-        .order('month_start', { ascending: false })
-        .range(from, to),
-    ),
-    retrieveAllPages<BudgetMonthItem>((from, to) =>
-      client.from('budget_month_items').select('*').is('archived_at', null).range(from, to),
-    ),
-  ]);
-  if (!months.length) return [];
-  const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
-  return months.map((month) => ({
+  const { data, error } = await requireSupabase().rpc('retrieve_budget_month_summaries');
+  throwWhenError(error);
+  return (data ?? []).map(({ actual_income, actual_expenses, actual_remaining, ...month }) => ({
     ...month,
-    ...calculateTotals(itemsByMonth.get(month.id) ?? []),
+    actualIncome: actual_income,
+    actualExpenses: actual_expenses,
+    actualRemaining: actual_remaining,
   }));
 };
 
@@ -378,7 +391,7 @@ export const retrieveMonthsForExport = async (
   range: MonthExportRange = {},
 ): Promise<BudgetMonthWithItems[]> => {
   const client = requireSupabase();
-  const [months, monthItems] = await Promise.all([
+  const [months, monthItems, transactions] = await Promise.all([
     retrieveAllPages<BudgetMonth>((from, to) => {
       let query = client.from('budget_months').select('*').order('month_start').range(from, to);
       if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
@@ -396,12 +409,26 @@ export const retrieveMonthsForExport = async (
         .order('id')
         .range(from, to),
     ),
+    retrieveAllPages<BudgetTransaction>((from, to) => {
+      let query = client
+        .from('budget_transactions')
+        .select('*')
+        .order('transaction_date')
+        .order('created_at')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('transaction_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('transaction_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
   ]);
   if (!months.length) return [];
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
+  const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
   return months.map((month) => ({
     ...month,
     budget_month_items: itemsByMonth.get(month.id) ?? [],
+    budget_transactions: transactionsByMonth.get(month.id) ?? [],
   }));
 };
 
@@ -459,36 +486,276 @@ export const createMonthItem = async (input: {
   return data[0];
 };
 
+export const searchFinancialAccounts = async (
+  includeArchived = false,
+): Promise<FinancialAccountWithBalance[]> => {
+  const { data, error } = await requireSupabase().rpc('retrieve_financial_accounts', {
+    requested_include_archived: includeArchived,
+  });
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const createFinancialAccount = async (input: {
+  name: string;
+  accountType: FinancialAccountType;
+  currencyCode: string;
+  openingBalanceMinor: number;
+}): Promise<FinancialAccount> => {
+  const { data, error } = await requireSupabase().rpc('create_financial_account', {
+    requested_name: input.name,
+    requested_account_type: input.accountType,
+    requested_currency_code: input.currencyCode,
+    requested_opening_balance_minor: input.openingBalanceMinor,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The account could not be created.');
+  return data[0];
+};
+
+export const updateFinancialAccount = async (
+  account: FinancialAccount,
+  archived: boolean,
+): Promise<FinancialAccount> => {
+  const { data, error } = await requireSupabase().rpc('update_financial_account', {
+    requested_account_id: account.id,
+    requested_name: account.name,
+    requested_account_type: account.account_type,
+    requested_currency_code: account.currency_code,
+    requested_opening_balance_minor: account.opening_balance_minor,
+    requested_archived: archived,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The account could not be updated.');
+  return data[0];
+};
+
+export interface BudgetTransactionInput {
+  budgetMonthId: string;
+  transactionDate: string;
+  description: string;
+  amountMinor: number;
+  transactionType: ItemType;
+  isRefund: boolean;
+  accountId: string | null;
+  budgetMonthItemId: string | null;
+  categoryId: string | null;
+  notes: string;
+  status: TransactionStatus;
+}
+
+const transactionRpcArguments = (input: BudgetTransactionInput) => ({
+  requested_budget_month_id: input.budgetMonthId,
+  requested_transaction_date: input.transactionDate,
+  requested_description: input.description,
+  requested_amount_minor: input.amountMinor,
+  requested_transaction_type: input.transactionType,
+  requested_is_refund: input.isRefund,
+  requested_account_id: input.accountId,
+  requested_budget_month_item_id: input.budgetMonthItemId,
+  requested_category_id: input.categoryId,
+  requested_notes: input.notes,
+  requested_status: input.status,
+});
+
+export const createBudgetTransaction = async (
+  input: BudgetTransactionInput,
+): Promise<BudgetTransaction> => {
+  const { data, error } = await requireSupabase().rpc(
+    'create_budget_transaction',
+    transactionRpcArguments(input),
+  );
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The transaction could not be created.');
+  return data[0];
+};
+
+export const updateBudgetTransaction = async (
+  id: string,
+  input: BudgetTransactionInput,
+): Promise<BudgetTransaction> => {
+  const { data, error } = await requireSupabase().rpc('update_budget_transaction', {
+    requested_transaction_id: id,
+    ...transactionRpcArguments(input),
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The transaction could not be updated.');
+  return data[0];
+};
+
+export const deleteBudgetTransaction = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('delete_budget_transaction', {
+    requested_transaction_id: id,
+  });
+  throwWhenError(error);
+};
+
+export const searchBudgetTransactions = async (
+  page: number,
+  monthId?: string,
+): Promise<{ records: BudgetTransaction[]; total: number }> => {
+  const from = page * TRANSACTION_PAGE_SIZE;
+  let query = requireSupabase()
+    .from('budget_transactions')
+    .select('*', { count: 'exact' })
+    .order('transaction_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id');
+  if (monthId) query = query.eq('budget_month_id', monthId);
+  const { data, error, count } = await query.range(from, from + TRANSACTION_PAGE_SIZE - 1);
+  throwWhenError(error);
+  return { records: data ?? [], total: count ?? 0 };
+};
+
+export type TransactionImportInput = {
+  budgetMonthId: string;
+  accountId: string | null;
+  fileName: string;
+  batchKey: string;
+  mappingMetadata: Record<string, unknown>;
+  rows: Array<{
+    transaction_date: string;
+    description: string;
+    amount_minor: number;
+    transaction_type: ItemType;
+    external_reference: string | null;
+    category_name: string | null;
+    external_fingerprint: string;
+  }>;
+  invalidCount: number;
+  excludedCount: number;
+};
+
+export const searchExistingTransactionFingerprints = async (
+  fingerprints: string[],
+): Promise<Set<string>> => {
+  const matches = new Set<string>();
+  const chunks = Array.from({ length: Math.ceil(fingerprints.length / 75) }, (_, index) =>
+    fingerprints.slice(index * 75, index * 75 + 75),
+  );
+  for (let index = 0; index < chunks.length; index += 4) {
+    const pages = await Promise.all(
+      chunks
+        .slice(index, index + 4)
+        .map((chunk) =>
+          requireSupabase()
+            .from('budget_transactions')
+            .select('external_fingerprint')
+            .eq('source', 'csv_import')
+            .in('external_fingerprint', chunk),
+        ),
+    );
+    pages.forEach(({ data, error }) => {
+      throwWhenError(error);
+      data?.forEach((entry) => {
+        if (entry.external_fingerprint) matches.add(entry.external_fingerprint);
+      });
+    });
+  }
+  return matches;
+};
+
+export const importBudgetTransactions = async (input: TransactionImportInput) => {
+  const { data, error } = await requireSupabase().rpc('import_budget_transactions', {
+    requested_budget_month_id: input.budgetMonthId,
+    requested_account_id: input.accountId,
+    requested_file_name: input.fileName,
+    requested_batch_key: input.batchKey,
+    requested_mapping_metadata: input.mappingMetadata,
+    requested_rows: input.rows,
+    requested_invalid_count: input.invalidCount,
+    requested_excluded_count: input.excludedCount,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The CSV transactions could not be imported.');
+  return data[0];
+};
+
+export const searchTransactionImportBatches = async (): Promise<TransactionImportBatch[]> => {
+  const { data, error } = await requireSupabase()
+    .from('transaction_import_batches')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const undoTransactionImportBatch = async (
+  batchId: string,
+): Promise<TransactionImportBatch> => {
+  const { data, error } = await requireSupabase().rpc('undo_transaction_import_batch', {
+    requested_batch_id: batchId,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The CSV import could not be undone.');
+  return data[0];
+};
+
 export const exportAllData = async (range: MonthExportRange = {}) => {
   const client = requireSupabase();
-  const [profile, preferences, categories, templates, templateItems, budgetMonths] =
-    await Promise.all([
-      retrieveProfile(),
-      retrievePreferences(),
-      retrieveAllPages<Category>((from, to) =>
-        client.from('categories').select('*').order('created_at').order('id').range(from, to),
-      ),
-      retrieveAllPages<BudgetTemplate>((from, to) =>
-        client.from('budget_templates').select('*').order('created_at').order('id').range(from, to),
-      ),
-      retrieveAllPages<TemplateItem>((from, to) =>
-        client.from('template_items').select('*').order('created_at').order('id').range(from, to),
-      ),
-      retrieveAllPages<BudgetMonth>((from, to) => {
-        let query = client.from('budget_months').select('*').order('month_start').range(from, to);
-        if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
-        if (range.toMonth) query = query.lte('month_start', range.toMonth);
-        return query;
-      }),
-    ]);
+  const [
+    profile,
+    preferences,
+    categories,
+    templates,
+    templateItems,
+    budgetMonths,
+    financialAccounts,
+    transactions,
+    transactionImportBatches,
+  ] = await Promise.all([
+    retrieveProfile(),
+    retrievePreferences(),
+    retrieveAllPages<Category>((from, to) =>
+      client.from('categories').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<BudgetTemplate>((from, to) =>
+      client.from('budget_templates').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<TemplateItem>((from, to) =>
+      client.from('template_items').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<BudgetMonth>((from, to) => {
+      let query = client.from('budget_months').select('*').order('month_start').range(from, to);
+      if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
+      if (range.toMonth) query = query.lte('month_start', range.toMonth);
+      return query;
+    }),
+    retrieveAllPages<FinancialAccount>((from, to) =>
+      client.from('financial_accounts').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<BudgetTransaction>((from, to) => {
+      let query = client
+        .from('budget_transactions')
+        .select('*')
+        .order('transaction_date')
+        .order('created_at')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('transaction_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('transaction_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
+    retrieveAllPages<TransactionImportBatch>((from, to) =>
+      client
+        .from('transaction_import_batches')
+        .select('*')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
+  ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
   );
   const itemsByTemplate = groupRecordsBy(templateItems, (item) => item.template_id);
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
+  const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
+  const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 2,
+    schema_version: 4,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -496,14 +763,24 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     profile,
     preferences,
     categories,
+    financial_accounts: financialAccounts,
+    transaction_import_batches: transactionImportBatches.filter((batch) =>
+      exportedMonthIds.has(batch.budget_month_id),
+    ),
     templates: templates.map((template) => ({
       ...template,
       template_items: itemsByTemplate.get(template.id) ?? [],
     })),
-    budget_months: budgetMonths.map((month) => ({
-      ...month,
-      budget_month_items: itemsByMonth.get(month.id) ?? [],
-    })),
+    budget_months: budgetMonths.map((month) => {
+      const budgetMonthItems = itemsByMonth.get(month.id) ?? [];
+      const budgetTransactions = transactionsByMonth.get(month.id) ?? [];
+      return {
+        ...month,
+        budget_month_items: budgetMonthItems,
+        budget_transactions: budgetTransactions,
+        planned_versus_actual: calculateBudgetProgress(budgetMonthItems, budgetTransactions),
+      };
+    }),
   };
 };
 

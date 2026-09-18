@@ -7,6 +7,7 @@ import {
   CircleAlert,
   LockKeyhole,
   Plus,
+  ReceiptText,
   TrendingDown,
   TrendingUp,
   WalletCards,
@@ -24,7 +25,8 @@ import {
 } from '../../data/repositories/budgetRepository';
 import {
   adjacentMonthStart,
-  calculateTotals,
+  calculateBudgetProgress,
+  calculateItemProgress,
   currentMonthStart,
   formatMoney,
   formatMonth,
@@ -35,6 +37,7 @@ import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { Button } from '../../shared/ui/Button';
 import { Modal } from '../../shared/ui/Modal';
 import { parseMoney } from '../../shared/validation/schemas';
+import { formatSignedTransactionAmount } from '../../shared/reporting/budgetReport';
 import { hasActiveBudgetEditors } from '../../pwa/editState';
 import { AddMonthItemForm } from './AddMonthItemForm';
 import { BudgetRow } from './BudgetRow';
@@ -184,9 +187,12 @@ export const BudgetPage = () => {
   const visibleBudgetItems = budgetMonth.budget_month_items.filter(
     (item) => !archivingItemIds.has(item.id),
   );
-  const totals = calculateTotals(visibleBudgetItems);
+  const progress = calculateBudgetProgress(visibleBudgetItems, budgetMonth.budget_transactions);
   const locale = profile.data?.locale ?? 'en-ZA';
   const currency = budgetMonth.currency_code;
+  const postedTransactionCount = budgetMonth.budget_transactions.filter(
+    (transaction) => transaction.status === 'posted',
+  ).length;
   const itemsByType = (type: ItemType) =>
     visibleBudgetItems.filter((item) => item.item_type === type && item.archived_at === null);
   const updateDraft = (id: string, amount: string) => {
@@ -334,8 +340,24 @@ export const BudgetPage = () => {
             <TrendingUp aria-hidden="true" />
           </span>
           <div>
-            <small>Total income</small>
-            <strong>{formatMoney(totals.income, currency, locale)}</strong>
+            <small>Income</small>
+            <strong className="actual-amount">
+              {formatMoney(progress.actual.income, currency, locale)} actual
+            </strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned</dt>
+                <dd>{formatMoney(progress.planned.income, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.incomeVariance, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd>{formatMoney(progress.incomeRemaining, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
         <article className="summary-card">
@@ -343,27 +365,106 @@ export const BudgetPage = () => {
             <TrendingDown aria-hidden="true" />
           </span>
           <div>
-            <small>Total expenses</small>
-            <strong>{formatMoney(totals.expenses, currency, locale)}</strong>
+            <small>Expenses</small>
+            <strong className="actual-amount">
+              {formatMoney(progress.actual.expenses, currency, locale)} actual
+            </strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned</dt>
+                <dd>{formatMoney(progress.planned.expenses, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.expenseVariance, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd>{formatMoney(progress.expenseRemaining, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
         <article
-          className={`summary-card summary-card--remaining ${totals.remaining < 0 ? 'summary-card--negative' : ''}`}
+          className={`summary-card summary-card--remaining ${progress.available < 0 ? 'summary-card--negative' : ''}`}
         >
           <span className="summary-icon">
             <WalletCards aria-hidden="true" />
           </span>
           <div>
-            <small>Remaining</small>
-            <strong>{formatMoney(totals.remaining, currency, locale)}</strong>
-            <span>
-              {totals.savingsRate === null
-                ? 'Savings rate unavailable with zero income'
-                : `${totals.savingsRate.toFixed(1)}% savings rate`}
-            </span>
+            <small>Available from your plan</small>
+            <strong>{formatMoney(progress.available, currency, locale)}</strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned balance</dt>
+                <dd>{formatMoney(progress.planned.remaining, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Actual balance</dt>
+                <dd>{formatMoney(progress.actual.remaining, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.balanceVariance, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
       </div>
+
+      <section className="budget-section budget-activity" aria-labelledby="budget-activity-heading">
+        <div className="budget-section__heading">
+          <div>
+            <h2 id="budget-activity-heading">Actual activity</h2>
+            <span>
+              {postedTransactionCount} posted transaction{postedTransactionCount === 1 ? '' : 's'}{' '}
+              affect totals
+              {budgetMonth.budget_transactions.length > postedTransactionCount
+                ? `; ${budgetMonth.budget_transactions.length - postedTransactionCount} pending or void`
+                : ''}
+            </span>
+          </div>
+          <Link
+            className="button button--secondary"
+            to={`/app/transactions?month=${budgetMonth.id}`}
+          >
+            View all transactions
+          </Link>
+        </div>
+        {budgetMonth.budget_transactions.length ? (
+          <div className="budget-activity__list">
+            {budgetMonth.budget_transactions.slice(0, 8).map((transaction) => (
+              <article className="budget-activity__row" key={transaction.id}>
+                <ReceiptText aria-hidden="true" />
+                <div>
+                  <strong>{transaction.description}</strong>
+                  <span>
+                    {transaction.category_snapshot ?? 'Uncategorised'} ·{' '}
+                    {transaction.budget_item_snapshot ?? 'Unassigned to a budget item'} ·{' '}
+                    {transaction.status}
+                  </span>
+                </div>
+                <span>{transaction.transaction_date}</span>
+                <strong
+                  className={`transaction-amount transaction-amount--${transaction.transaction_type}`}
+                >
+                  {formatSignedTransactionAmount(transaction, currency, locale)}
+                </strong>
+              </article>
+            ))}
+            {budgetMonth.budget_transactions.length > 8 && (
+              <p className="budget-activity__more">
+                {budgetMonth.budget_transactions.length - 8} more transactions are available in the
+                filtered transaction history.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="empty-row">
+            <p>No actual transactions have been recorded for this month.</p>
+          </div>
+        )}
+      </section>
 
       {(['income', 'expense'] as const).map((type) => {
         const sectionItems = itemsByType(type);
@@ -394,7 +495,9 @@ export const BudgetPage = () => {
                   <BudgetRow
                     key={item.id}
                     item={item}
+                    progress={calculateItemProgress(item, budgetMonth.budget_transactions)}
                     currencyCode={currency}
+                    locale={locale}
                     readOnly={readOnly}
                     onArchive={(entry) => void archive(entry)}
                     onToggleDisabled={(entry) => void toggleDisabled(entry)}

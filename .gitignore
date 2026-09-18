@@ -37,4 +37,4 @@ Desktop.ini
 *~
 *.local
 
-/BuddyBudget-*.md
+exclude/
