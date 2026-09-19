@@ -12,7 +12,7 @@ The core workflow is:
 Create recurring template → create a monthly snapshot → adjust the month → see what remains
 ```
 
-V1 includes email/password authentication, onboarding, multiple templates, categories, month history, debounced autosave, pausable monthly items, one-off items, manual transactions, local CSV statement import, ranged JSON/CSV/PDF-report export, account deletion, responsive layouts, and an installable PWA. Bank connections, sharing, multi-currency months, native apps, and offline financial editing are intentionally excluded.
+V1 includes email/password authentication, onboarding, multiple templates, categories, month history, debounced autosave, pausable monthly items, one-off items, manual transactions, local CSV statement import, transparent categorisation rules, ranged JSON/CSV/PDF-report export, account deletion, responsive layouts, and an installable PWA. Bank connections, sharing, multi-currency months, native apps, and offline financial editing are intentionally excluded.
 
 ## 2. Screenshots and design
 

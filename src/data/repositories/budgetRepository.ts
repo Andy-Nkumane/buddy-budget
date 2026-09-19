@@ -6,6 +6,8 @@ import type {
   BudgetMonthWithItems,
   BudgetTemplate,
   BudgetTransaction,
+  CategorisationRule,
+  CategorisationRuleSuggestion,
   Category,
   FinancialAccount,
   FinancialAccountType,
@@ -653,7 +655,7 @@ export const searchExistingTransactionFingerprints = async (
 };
 
 export const importBudgetTransactions = async (input: TransactionImportInput) => {
-  const { data, error } = await requireSupabase().rpc('import_budget_transactions', {
+  const { data, error } = await requireSupabase().rpc('import_budget_transactions_with_rules', {
     requested_budget_month_id: input.budgetMonthId,
     requested_account_id: input.accountId,
     requested_file_name: input.fileName,
@@ -689,6 +691,103 @@ export const undoTransactionImportBatch = async (
   return data[0];
 };
 
+export const searchCategorisationRules = async (): Promise<CategorisationRule[]> => {
+  const { data, error } = await requireSupabase()
+    .from('transaction_categorisation_rules')
+    .select('*')
+    .order('sort_order')
+    .order('id');
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const upsertCategorisationRule = async (
+  rule: Partial<CategorisationRule>,
+): Promise<CategorisationRule> => {
+  const requestedRule = {
+    id: rule.id,
+    name: rule.name,
+    enabled: rule.enabled,
+    description_match: rule.description_match,
+    description_value: rule.description_value,
+    amount_min_minor: rule.amount_min_minor,
+    amount_max_minor: rule.amount_max_minor,
+    transaction_type: rule.transaction_type,
+    date_from: rule.date_from,
+    date_to: rule.date_to,
+    days_of_week: rule.days_of_week,
+    action_category_id: rule.action_category_id,
+    action_budget_item_name: rule.action_budget_item_name,
+    action_description: rule.action_description,
+    action_notes: rule.action_notes,
+    action_recurring_candidate: rule.action_recurring_candidate,
+  };
+  const { data, error } = await requireSupabase().rpc('upsert_categorisation_rule', {
+    requested_rule: requestedRule,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The rule could not be saved.');
+  return data[0];
+};
+
+export const moveCategorisationRule = async (id: string, direction: -1 | 1): Promise<void> => {
+  const { error } = await requireSupabase().rpc('move_categorisation_rule', {
+    requested_rule_id: id,
+    requested_direction: direction,
+  });
+  throwWhenError(error);
+};
+
+export const deleteCategorisationRule = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('delete_categorisation_rule', {
+    requested_rule_id: id,
+  });
+  throwWhenError(error);
+};
+
+export type CategorisationProcessResult = {
+  dry_run: boolean;
+  selected_count: number;
+  changed_count: number;
+  changes: Array<{
+    transaction_id: string;
+    winning_rules: string[];
+    [field: string]: unknown;
+  }>;
+};
+
+export const processCategorisationRules = async (
+  transactionIds: string[],
+  dryRun = true,
+): Promise<CategorisationProcessResult> => {
+  const { data, error } = await requireSupabase().rpc('process_categorisation_rules', {
+    requested_transaction_ids: transactionIds,
+    requested_dry_run: dryRun,
+  });
+  throwWhenError(error);
+  return data as unknown as CategorisationProcessResult;
+};
+
+export const retrieveCategorisationSuggestions = async (): Promise<
+  CategorisationRuleSuggestion[]
+> => {
+  const { data, error } = await requireSupabase().rpc('retrieve_categorisation_suggestions', {});
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const dismissCategorisationSuggestion = async (
+  suggestion: CategorisationRuleSuggestion,
+): Promise<void> => {
+  const { error } = await requireSupabase().rpc('dismiss_categorisation_suggestion', {
+    requested_description: suggestion.normalized_description,
+    requested_transaction_type: suggestion.transaction_type,
+    requested_category_id: suggestion.category_id,
+    requested_budget_item_name: suggestion.budget_item_name,
+  });
+  throwWhenError(error);
+};
+
 export const exportAllData = async (range: MonthExportRange = {}) => {
   const client = requireSupabase();
   const [
@@ -701,6 +800,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     financialAccounts,
     transactions,
     transactionImportBatches,
+    categorisationRules,
   ] = await Promise.all([
     retrieveProfile(),
     retrievePreferences(),
@@ -742,6 +842,14 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         .order('id')
         .range(from, to),
     ),
+    retrieveAllPages<CategorisationRule>((from, to) =>
+      client
+        .from('transaction_categorisation_rules')
+        .select('*')
+        .order('sort_order')
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
@@ -752,7 +860,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 4,
+    schema_version: 5,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -764,6 +872,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     transaction_import_batches: transactionImportBatches.filter((batch) =>
       exportedMonthIds.has(batch.budget_month_id),
     ),
+    transaction_categorisation_rules: categorisationRules,
     templates: templates.map((template) => ({
       ...template,
       template_items: itemsByTemplate.get(template.id) ?? [],

@@ -45,6 +45,8 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 - `financial_accounts`: optional user-owned cash/current, savings, and credit labels with integer-minor-unit opening balances and no bank credentials.
 - `budget_transactions`: user-owned manual or CSV-imported actual activity tied to a month and optionally to an item, category, account, and import batch.
 - `transaction_import_batches`: user-owned import metadata and authoritative row counts; stores no original file contents.
+- `transaction_categorisation_rules`: user-owned deterministic conditions and actions, ordered by `(user_id, sort_order)` with server-maintained match counters.
+- `categorisation_suggestion_dismissals`: permanent user decisions to hide conservative learned-rule suggestions.
 - Composite `(parent_id, user_id)` foreign keys prevent cross-owner child records.
 - Category triggers verify owner and item type.
 - Money is `numeric(14,2)` and constrained to `0..999999999999.99`.
@@ -67,6 +69,10 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 
 `import_budget_transactions(...)` accepts at most 2,000 already-normalized rows, checks ownership, account currency, mapping metadata, month dates, minor-unit limits, and stable fingerprints before any insert. An advisory lock and active batch-key unique index make retries idempotent; the transaction unique index prevents duplicates across different batches. `undo_transaction_import_batch(uuid)` deletes only that owned batch's imported rows and refuses locked months. Direct import-batch writes are denied.
 
+The browser calls `import_budget_transactions_with_rules(...)`, which imports first and then evaluates enabled rules in bounded groups of 200 within the same database transaction. Rules use ascending `sort_order`, then UUID as a stable tie-breaker. For each mutable field, the first matching rule with an action wins; later actions for that field are conflicts and are ignored. Other fields may still be supplied by later rules. `process_categorisation_rules(uuid[], boolean)` uses the same evaluator for dry runs and manual application, accepts at most 200 transaction IDs, checks every owner, locks selected rows, and invokes the profile-timezone historical lock before any mutation. Applying the same result twice produces no further data changes.
+
+Suggestions require at least three transactions with the same normalized description, transaction type, category, and budget-item assignment. They are read-only proposals: users must review and create a rule explicitly, and a dismissal is stored permanently. Rules and dismissal records use RLS; authenticated table mutations are revoked and routed through narrowly granted security-definer functions.
+
 All security-definer functions use `search_path = ''`, qualify objects, reject unauthenticated access, accept no caller-supplied owner ID, revoke public/anonymous execution, and grant only the intended authenticated operation.
 
 ## Auth configuration
@@ -87,4 +93,4 @@ The PKCE and password flow choices follow the current [Supabase PKCE guide](http
 
 The owner must choose provider backup/PITR retention appropriate to the data and plan, restrict restore access, and run periodic restore drills in a non-production project. Record RPO/RTO, escalation contacts, and the last successful drill. JSON user exports are not a replacement for database backups.
 
-User JSON exports use schema version 4. They include financial accounts, import-batch metadata, each selected month's transaction ledger, and a derived `planned_versus_actual` summary. Any future restore implementation must ignore and recompute that summary, validate batch/transaction ownership and fingerprints, integer minor-unit bounds, composite references, and historical locks, and never treat mapping metadata as original statement content; no restore path currently writes this export back into the database.
+User JSON exports use schema version 5. They include financial accounts, import-batch metadata, categorisation rules, each selected month's transaction ledger, and a derived `planned_versus_actual` summary. Any future restore implementation must ignore and recompute that summary and rule match counters, validate batch/transaction/rule ownership, fingerprints, integer minor-unit bounds, composite references, and historical locks, and never treat mapping metadata as original statement content; no restore path currently writes this export back into the database.

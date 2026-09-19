@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { BudgetMonth } from '../../../shared/types/domain';
 import { CsvImportFlow } from './CsvImportFlow';
@@ -35,7 +36,27 @@ const { searchExistingTransactionFingerprints, importBudgetTransactions } = vi.h
 vi.mock('../../../data/repositories/budgetRepository', () => ({
   searchExistingTransactionFingerprints,
   importBudgetTransactions,
+  searchCategorisationRules: vi.fn(() => Promise.resolve([])),
+  retrieveMonthById: vi.fn(() =>
+    Promise.resolve({ ...month, budget_month_items: [], budget_transactions: [] }),
+  ),
 }));
+
+const renderFlow = (onComplete = vi.fn(() => Promise.resolve())) => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <CsvImportFlow
+        userId="user-id"
+        months={[month]}
+        accounts={[]}
+        onComplete={onComplete}
+        onCancel={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+  return onComplete;
+};
 
 const month: BudgetMonth = {
   id: 'month-id',
@@ -53,15 +74,7 @@ const month: BudgetMonth = {
 describe('CsvImportFlow', () => {
   it('maps, previews, and explicitly confirms valid local rows', async () => {
     const onComplete = vi.fn(() => Promise.resolve());
-    render(
-      <CsvImportFlow
-        userId="user-id"
-        months={[month]}
-        accounts={[]}
-        onComplete={onComplete}
-        onCancel={vi.fn()}
-      />,
-    );
+    renderFlow(onComplete);
     expect(screen.getByText('Your statement stays on this device.')).toBeInTheDocument();
     fireEvent.change(document.getElementById('csv-statement')!, {
       target: {
@@ -73,6 +86,21 @@ describe('CsvImportFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review transactions' }));
     await screen.findByText('1 ready');
     expect(screen.getByText('Coffee')).toBeInTheDocument();
+    const previewTable = screen.getByRole('table');
+    expect([...previewTable.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual([
+      'Include',
+      'Line',
+      'Date',
+      'Description',
+      'Amount',
+      'Status',
+      'Rules',
+    ]);
+    expect(
+      [...previewTable.querySelectorAll('tbody tr:first-child td')].map((cell) =>
+        cell.textContent?.trim(),
+      ),
+    ).toEqual(['', '2', '2026-09-02', 'Coffee', '−25.50', 'valid', 'No change']);
     expect(importBudgetTransactions).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Import 1 transactions' }));
     await waitFor(() => expect(importBudgetTransactions).toHaveBeenCalledTimes(1));
@@ -80,15 +108,7 @@ describe('CsvImportFlow', () => {
   });
 
   it('shows invalid rows and prevents confirmation', async () => {
-    render(
-      <CsvImportFlow
-        userId="user-id"
-        months={[month]}
-        accounts={[]}
-        onComplete={vi.fn()}
-        onCancel={vi.fn()}
-      />,
-    );
+    renderFlow();
     fireEvent.change(document.getElementById('csv-statement')!, {
       target: { files: [new File(['Date,Description,Amount\nnot-a-date,Coffee,-25'], 'bad.csv')] },
     });

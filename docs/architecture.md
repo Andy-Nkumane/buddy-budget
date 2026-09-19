@@ -21,6 +21,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `onboarding`: transactional first profile/template/current-month setup.
 - `budgets`: independent monthly plans, planned-versus-actual progress, temporary item pausing, inline drafts, debounced saves, one-offs.
 - `transactions`: manual and browser-local CSV-imported actual income/expense ledger, optional account assignment, categorisation, pagination, duplicate protection, and locked-history controls.
+- `rules`: explicit ordered transaction conditions, per-field winning actions, dry-run explanations, conservative suggestions, and bounded reprocessing.
 - `templates`: recurring plans used only when creating a future snapshot.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, export, deletion.
@@ -37,6 +38,10 @@ Financial accounts contain only a user label, type, currency, opening balance, a
 CSV statements are decoded and parsed only in browser memory. The client sends normalized transaction fields, mapping metadata, counts, and scoped SHA-256 fingerprints to one secured PostgreSQL operation; it never sends the original file. The RPC serializes matching batch keys, validates the entire bounded request before writing, and inserts the batch plus accepted rows atomically. PostgreSQL's user/source/fingerprint unique index is the final duplicate boundary. Undo removes the batch's transactions only while every affected month remains editable.
 
 Supported imports are UTF-8 CSV files up to 2 MiB, 2,000 data rows, and 100 columns. Delimiters may be comma, semicolon, tab, or pipe; quoted and multiline fields are supported. Users choose YYYY-MM-DD, DD/MM/YYYY, or MM/DD/YYYY dates and automatic, dot, or comma decimals. A signed amount treats positive values as income and negative values as expenses; separate debit/credit columns require exactly one non-zero value. Zero-value and malformed rows are reported rather than silently discarded.
+
+Categorisation rules are deterministic: enabled rules are evaluated by ascending user-controlled order with UUID as the stable tie-breaker. Conditions within one rule are combined with AND. The first matching action for each field wins, while later rules may still win untouched fields. CSV preview uses the same normalization and ordering contract, and confirmed imports apply rules in bounded groups inside the import transaction. Manual dry-run and apply use the same PostgreSQL evaluator. Rule application never mutates a report that the shared profile-timezone lock marks read-only.
+
+Rule suggestions are derived only after at least three transactions share the same normalized description, type, category, and budget-item assignment. Suggestions do not create rules or change data. Users must review them, and permanent dismissals are user-owned records.
 
 ## Autosave
 

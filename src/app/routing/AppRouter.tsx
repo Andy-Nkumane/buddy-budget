@@ -66,6 +66,9 @@ const TransactionsPage = lazy(() =>
     default: module.TransactionsPage,
   })),
 );
+const RulesPage = lazy(() =>
+  import('../../features/rules/RulesPage').then((module) => ({ default: module.RulesPage })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -113,6 +116,7 @@ export const AppRouter = () => (
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="categories" element={<CategoriesPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/rules" element={<RulesPage />} />
               <Route path="help" element={<HelpPage />} />
             </Route>
           </Route>

@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react';
-import type { BudgetMonth, FinancialAccountWithBalance } from '../../../shared/types/domain';
+import { useQuery } from '@tanstack/react-query';
+import type {
+  BudgetMonth,
+  BudgetMonthItem,
+  FinancialAccountWithBalance,
+} from '../../../shared/types/domain';
 import { Button } from '../../../shared/ui/Button';
 import {
   importBudgetTransactions,
+  retrieveMonthById,
+  searchCategorisationRules,
   searchExistingTransactionFingerprints,
 } from '../../../data/repositories/budgetRepository';
 import {
@@ -15,6 +22,8 @@ import {
   type CsvPreviewRow,
   type CsvTable,
 } from './csvParser';
+import { queryKeys } from '../../../data/queryKeys';
+import { evaluateCategorisationRules } from '../../rules/rulesEngine';
 
 type Props = {
   userId: string;
@@ -36,6 +45,11 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
   const [preview, setPreview] = useState<CsvPreviewRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewItems, setPreviewItems] = useState<BudgetMonthItem[]>([]);
+  const rules = useQuery({
+    queryKey: queryKeys.categorisationRules(userId),
+    queryFn: searchCategorisationRules,
+  });
   const selectedMonth = months.find((month) => month.id === monthId);
   const eligibleAccounts = accounts.filter(
     (account) =>
@@ -48,6 +62,71 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
         { valid: 0, invalid: 0, duplicate: 0, excluded: 0 },
       ),
     [preview],
+  );
+  const ruleEvaluations = useMemo(
+    () =>
+      new Map(
+        (preview ?? []).flatMap((row) => {
+          if (!row.normalized) return [];
+          const evaluation = evaluateCategorisationRules(
+            {
+              id: row.id,
+              description: row.normalized.description,
+              amount_minor: row.normalized.amount_minor,
+              transaction_type: row.normalized.transaction_type,
+              transaction_date: row.normalized.transaction_date,
+              category_id: null,
+              budget_month_item_id: null,
+              notes: null,
+              is_recurring_candidate: false,
+            },
+            rules.data ?? [],
+          );
+          evaluation.changes = evaluation.changes.flatMap((change) => {
+            if (change.field !== 'budget_month_item_id') return [change];
+            const match = previewItems.find(
+              (item) =>
+                item.archived_at === null &&
+                item.item_type === row.normalized?.transaction_type &&
+                item.name_snapshot.toLocaleLowerCase('en') ===
+                  String(change.after).toLocaleLowerCase('en'),
+            );
+            return match ? [{ ...change, after: match.id }] : [];
+          });
+          const categoryChange = evaluation.changes.find(
+            (change) => change.field === 'category_id',
+          );
+          if (
+            categoryChange &&
+            !evaluation.changes.some((change) => change.field === 'budget_month_item_id')
+          ) {
+            const categoryItem = previewItems
+              .filter(
+                (item) =>
+                  item.archived_at === null &&
+                  item.item_type === row.normalized?.transaction_type &&
+                  item.category_id === categoryChange.after,
+              )
+              .sort(
+                (left, right) =>
+                  Number(left.is_disabled) - Number(right.is_disabled) ||
+                  left.sort_order - right.sort_order ||
+                  left.id.localeCompare(right.id),
+              )[0];
+            if (categoryItem) {
+              evaluation.changes.push({
+                field: 'budget_month_item_id',
+                before: null,
+                after: categoryItem.id,
+                ruleId: categoryChange.ruleId,
+                ruleName: categoryChange.ruleName,
+              });
+            }
+          }
+          return [[row.id, evaluation] as const];
+        }),
+      ),
+    [preview, previewItems, rules.data],
   );
 
   const chooseFile = async (selected: File | undefined) => {
@@ -72,6 +151,11 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
     setBusy(true);
     setError(null);
     try {
+      const ruleResult = rules.data ? rules : await rules.refetch();
+      if (ruleResult.error) throw ruleResult.error;
+      const monthDetails = await retrieveMonthById(selectedMonth.id);
+      if (!monthDetails) throw new Error('The destination month could not be loaded.');
+      setPreviewItems(monthDetails.budget_month_items);
       const normalized = await normalizeCsvRows(table, mapping, selectedMonth.month_start, userId);
       const fingerprints = normalized.flatMap((row) => row.normalized?.external_fingerprint ?? []);
       const duplicates = await searchExistingTransactionFingerprints(fingerprints);
@@ -411,6 +495,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
               <th scope="col">Description</th>
               <th scope="col">Amount</th>
               <th scope="col">Status</th>
+              <th scope="col">Rules</th>
             </tr>
           </thead>
           <tbody>
@@ -445,6 +530,24 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
                 <td>
                   <strong>{row.status}</strong>
                   {row.errors.length > 0 && <small>{row.errors.join(' ')}</small>}
+                </td>
+                <td>
+                  {(ruleEvaluations.get(row.id)?.changes.length ?? 0) > 0 ? (
+                    <span
+                      title={ruleEvaluations
+                        .get(row.id)
+                        ?.changes.map(
+                          (change) =>
+                            `${change.field}: ${String(change.after)} (${change.ruleName})`,
+                        )
+                        .join('\n')}
+                    >
+                      {ruleEvaluations.get(row.id)?.changes.length} field change
+                      {ruleEvaluations.get(row.id)?.changes.length === 1 ? '' : 's'}
+                    </span>
+                  ) : (
+                    'No change'
+                  )}
                 </td>
               </tr>
             ))}
