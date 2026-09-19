@@ -2884,12 +2884,298 @@ p {
     transition-duration: 0.01ms !important;
   }
 }
+
+.cash-flow-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.budget-forecast-callout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 0.0625rem solid var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+
+.budget-forecast-callout div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.budget-forecast-callout span {
+  color: var(--ink-700);
+}
+
+.cash-flow-summary article,
+.forecast-panel,
+.schedule-list {
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.cash-flow-summary article {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.25rem;
+}
+
+.cash-flow-summary small,
+.cash-flow-summary span,
+.schedule-list article span,
+.occurrence-row span {
+  color: var(--ink-500);
+}
+
+.cash-flow-summary strong {
+  font-size: 1.35rem;
+}
+
+.cash-flow-summary__risk strong {
+  color: var(--danger);
+}
+
+.forecast-panel,
+.schedule-list {
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.forecast-panel > header,
+.schedule-list > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.forecast-panel header h2,
+.forecast-panel header p,
+.schedule-list header h2,
+.schedule-list header p {
+  margin-bottom: 0;
+}
+
+.segmented-control {
+  display: flex;
+  padding: 0.25rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.segmented-control button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.45rem;
+  color: var(--ink-700);
+  background: transparent;
+  cursor: pointer;
+}
+
+.segmented-control button[aria-pressed='true'] {
+  color: var(--accent-text);
+  background: var(--accent-selected);
+}
+
+.occurrence-row,
+.schedule-list article {
+  display: grid;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.occurrence-row {
+  grid-template-columns: 7rem minmax(0, 1fr) auto;
+  border-left: 0.25rem solid var(--amber-500);
+}
+
+.occurrence-row--income {
+  border-left-color: var(--success);
+}
+
+.occurrence-row > div,
+.schedule-list article > div:first-child {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.occurrence-row__actions {
+  display: flex !important;
+  grid-auto-flow: column;
+  gap: 0.5rem !important;
+}
+
+.schedule-list article {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.schedule-list article:last-child,
+.occurrence-row:last-child {
+  border-bottom: 0;
+}
+
+.cash-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: 12rem;
+}
+
+.cash-calendar > article {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-right: 0.0625rem solid var(--line);
+}
+
+.cash-calendar > article > footer {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: auto;
+  padding-top: 0.65rem;
+  border-top: 0.0625rem solid var(--line);
+}
+
+.cash-calendar > article > footer small {
+  color: var(--text-muted);
+}
+
+.cash-calendar > article:last-child {
+  border-right: 0;
+}
+
+.calendar-event {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem;
+  overflow-wrap: anywhere;
+  border-radius: 0.5rem;
+  background: var(--amber-100);
+}
+
+.calendar-event--income {
+  background: var(--accent-soft);
+}
+
+.weekday-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.weekday-picker label,
+.check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 1.5rem;
+}
+
+@media (max-width: 48rem) {
+  .cash-flow-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-forecast-callout {
+    grid-template-columns: auto 1fr;
+  }
+
+  .budget-forecast-callout a {
+    grid-column: 2;
+  }
+
+  .forecast-panel > header,
+  .schedule-list > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .occurrence-row,
+  .schedule-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .occurrence-row__actions {
+    display: flex !important;
+    grid-auto-flow: initial;
+    flex-wrap: wrap;
+  }
+
+  .cash-calendar {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-calendar > article {
+    min-height: 4rem;
+    border-right: 0;
+    border-bottom: 0.0625rem solid var(--line);
+  }
+}
 .rule-list {
   display: grid;
   gap: 0.75rem;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.modal--rule {
+  width: min(48rem, calc(100% - 2rem));
+}
+
+.rule-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.rule-form > fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 1.25rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.rule-form > fieldset > legend {
+  padding: 0 0.375rem;
+  color: var(--ink-700);
+  font-weight: 800;
+}
+
+.rule-form .form-grid > .field {
+  min-width: 0;
+  align-self: start;
+}
+
+.rule-form textarea.input {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.rule-form .modal-form__actions {
+  padding-top: 0.25rem;
 }
 
 .rule-empty-state {
@@ -2947,5 +3233,17 @@ p {
   .rule-card {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .modal--rule {
+    width: calc(100% - 1rem);
+  }
+
+  .rule-form {
+    padding: 1rem;
+  }
+
+  .rule-form > fieldset {
+    padding: 1rem;
   }
 }

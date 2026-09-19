@@ -6,6 +6,8 @@ export type TransactionStatus = 'pending' | 'posted' | 'void';
 export type TransactionSource = 'manual' | 'csv_import';
 export type TransactionImportStatus = 'completed' | 'undone';
 export type RuleDescriptionMatch = 'contains' | 'exact';
+export type ScheduleRecurrence = 'weekly' | 'fortnightly' | 'monthly' | 'selected_days';
+export type ScheduleOccurrenceStatus = 'expected' | 'paid' | 'received' | 'skipped';
 
 export type Profile = {
   user_id: string;
@@ -170,6 +172,47 @@ export type CategorisationRuleSuggestion = {
   occurrence_count: number;
 };
 
+export type PaymentSchedule = {
+  id: string;
+  user_id: string;
+  name: string;
+  item_type: ItemType;
+  amount_minor: number;
+  amount_is_approximate: boolean;
+  start_date: string;
+  end_date: string | null;
+  recurrence: ScheduleRecurrence;
+  selected_days: number[];
+  timezone: string;
+  next_occurrence: string | null;
+  enabled: boolean;
+  template_id: string | null;
+  template_item_id: string | null;
+  category_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PaymentScheduleOccurrence = {
+  id: string;
+  user_id: string;
+  schedule_id: string;
+  budget_month_id: string;
+  budget_month_item_id: string | null;
+  category_id: string | null;
+  due_date: string;
+  name_snapshot: string;
+  item_type: ItemType;
+  amount_minor: number;
+  amount_is_approximate: boolean;
+  status: ScheduleOccurrenceStatus;
+  matched_transaction_id: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type TransactionImportBatch = {
   id: string;
   user_id: string;
@@ -192,6 +235,7 @@ export type TransactionImportBatch = {
 export type BudgetMonthWithItems = BudgetMonth & {
   budget_month_items: BudgetMonthItem[];
   budget_transactions: BudgetTransaction[];
+  payment_schedule_occurrences?: PaymentScheduleOccurrence[];
 };
 
 export type MonthSummary = BudgetMonth & {

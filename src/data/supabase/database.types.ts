@@ -8,6 +8,8 @@ import type {
   Category,
   FinancialAccount,
   FinancialAccountWithBalance,
+  PaymentSchedule,
+  PaymentScheduleOccurrence,
   Profile,
   TemplateItem,
   TransactionImportBatch,
@@ -172,6 +174,43 @@ export interface Database {
           | 'updated_at'
         >;
         Update: UpdateShape<CategorisationRule>;
+        Relationships: [];
+      };
+      payment_schedules: {
+        Row: PaymentSchedule;
+        Insert: OptionalInsert<
+          PaymentSchedule,
+          | 'id'
+          | 'amount_is_approximate'
+          | 'end_date'
+          | 'selected_days'
+          | 'next_occurrence'
+          | 'enabled'
+          | 'template_id'
+          | 'template_item_id'
+          | 'category_id'
+          | 'notes'
+          | 'created_at'
+          | 'updated_at'
+        >;
+        Update: UpdateShape<PaymentSchedule>;
+        Relationships: [];
+      };
+      payment_schedule_occurrences: {
+        Row: PaymentScheduleOccurrence;
+        Insert: OptionalInsert<
+          PaymentScheduleOccurrence,
+          | 'id'
+          | 'budget_month_item_id'
+          | 'category_id'
+          | 'amount_is_approximate'
+          | 'status'
+          | 'matched_transaction_id'
+          | 'confirmed_at'
+          | 'created_at'
+          | 'updated_at'
+        >;
+        Update: UpdateShape<PaymentScheduleOccurrence>;
         Relationships: [];
       };
     };
@@ -361,6 +400,26 @@ export interface Database {
           requested_budget_item_name: string | null;
         };
         Returns: undefined;
+      };
+      create_payment_schedule: {
+        Args: { requested_schedule: Record<string, unknown> };
+        Returns: PaymentSchedule[];
+      };
+      update_payment_schedule: {
+        Args: { requested_schedule_id: string; requested_schedule: Record<string, unknown> };
+        Returns: PaymentSchedule[];
+      };
+      refresh_payment_schedule_occurrences: {
+        Args: { requested_schedule_id: string; requested_through?: string };
+        Returns: number;
+      };
+      confirm_payment_occurrence: {
+        Args: {
+          requested_occurrence_id: string;
+          requested_status: string;
+          requested_transaction_id?: string | null;
+        };
+        Returns: PaymentScheduleOccurrence[];
       };
       setup_first_budget: {
         Args: {

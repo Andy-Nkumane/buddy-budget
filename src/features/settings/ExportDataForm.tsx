@@ -30,6 +30,7 @@ interface ReportPreview {
   months: BudgetMonthWithItems[];
   rangeLabel: string;
   filenameRange: string;
+  includeForecast: boolean;
 }
 
 const resolveRange = (
@@ -88,6 +89,7 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportPreview, setReportPreview] = useState<ReportPreview | null>(null);
+  const [includeForecast, setIncludeForecast] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -112,12 +114,13 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
         const months = await retrieveMonthsForExport(range);
         if (!months.length) throw new Error('There are no budget months in this date range.');
         if (format === 'csv') {
-          downloadMonthsCsv(months, rangeDescription.filename);
+          downloadMonthsCsv(months, rangeDescription.filename, includeForecast);
         } else {
           setReportPreview({
             months,
             rangeLabel: rangeDescription.label,
             filenameRange: rangeDescription.filename,
+            includeForecast,
           });
           return;
         }
@@ -142,6 +145,7 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
         profile,
         reportPreview.rangeLabel,
         reportPreview.filenameRange,
+        reportPreview.includeForecast,
       );
       onComplete();
     } catch (exportError) {
@@ -160,6 +164,7 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
           months={reportPreview.months}
           profile={profile}
           rangeLabel={reportPreview.rangeLabel}
+          includeForecast={reportPreview.includeForecast}
         />
         {error && (
           <div className="inline-alert inline-alert--error" role="alert">
@@ -230,6 +235,16 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
             onChange={(event) => setCustomEnd(event.target.value)}
           />
         </div>
+      )}
+      {format !== 'json' && (
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={includeForecast}
+            onChange={(event) => setIncludeForecast(event.target.checked)}
+          />
+          Include payment schedules and forecasts
+        </label>
       )}
       <p className="export-form__hint">
         {format === 'pdf'

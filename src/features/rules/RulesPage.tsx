@@ -305,10 +305,11 @@ export const RulesPage = () => {
         title={editing?.id ? 'Edit rule' : 'Create rule'}
         description="Choose at least one condition and one action."
         onClose={() => setEditing(null)}
+        className="modal--rule"
       >
         {editing && (
           <form
-            className="modal-form"
+            className="modal-form rule-form"
             onSubmit={(event) => {
               event.preventDefault();
               void act(async () => {

@@ -47,6 +47,8 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 - `transaction_import_batches`: user-owned import metadata and authoritative row counts; stores no original file contents.
 - `transaction_categorisation_rules`: user-owned deterministic conditions and actions, ordered by `(user_id, sort_order)` with server-maintained match counters.
 - `categorisation_suggestion_dismissals`: permanent user decisions to hide conservative learned-rule suggestions.
+- `payment_schedules`: user-owned recurring income/expense definitions with timezone, recurrence, associations, and enabled state.
+- `payment_schedule_occurrences`: immutable month-linked due/expected snapshots with optional unique confirmed transaction matches.
 - Composite `(parent_id, user_id)` foreign keys prevent cross-owner child records.
 - Category triggers verify owner and item type.
 - Money is `numeric(14,2)` and constrained to `0..999999999999.99`.
@@ -73,6 +75,10 @@ The browser calls `import_budget_transactions_with_rules(...)`, which imports fi
 
 Suggestions require at least three transactions with the same normalized description, transaction type, category, and budget-item assignment. They are read-only proposals: users must review and create a rule explicitly, and a dismissal is stored permanently. Rules and dismissal records use RLS; authenticated table mutations are revoked and routed through narrowly granted security-definer functions.
 
+`create_payment_schedule(jsonb)` and `update_payment_schedule(uuid, jsonb)` derive ownership from `auth.uid()`, validate IANA timezones and owned category/template associations, and materialize at most one year of occurrences only for months that already exist. Monthly recurrence clamps to month-end; weekly and fortnightly recurrence use exact calendar-day intervals; selected days use ISO weekday numbers. Updating or disabling a schedule removes only unconfirmed occurrences from editable current/future months and never changes locked or confirmed history.
+
+`confirm_payment_occurrence(uuid, text, uuid)` applies the shared profile-timezone historical lock and accepts only an owned posted transaction of the same income/expense type. The unique matched-transaction constraint prevents one actual transaction from satisfying multiple forecasts. Authenticated users have RLS-scoped reads but no direct schedule or occurrence writes.
+
 All security-definer functions use `search_path = ''`, qualify objects, reject unauthenticated access, accept no caller-supplied owner ID, revoke public/anonymous execution, and grant only the intended authenticated operation.
 
 ## Auth configuration
@@ -93,4 +99,4 @@ The PKCE and password flow choices follow the current [Supabase PKCE guide](http
 
 The owner must choose provider backup/PITR retention appropriate to the data and plan, restrict restore access, and run periodic restore drills in a non-production project. Record RPO/RTO, escalation contacts, and the last successful drill. JSON user exports are not a replacement for database backups.
 
-User JSON exports use schema version 5. They include financial accounts, import-batch metadata, categorisation rules, each selected month's transaction ledger, and a derived `planned_versus_actual` summary. Any future restore implementation must ignore and recompute that summary and rule match counters, validate batch/transaction/rule ownership, fingerprints, integer minor-unit bounds, composite references, and historical locks, and never treat mapping metadata as original statement content; no restore path currently writes this export back into the database.
+User JSON exports use schema version 6. They include financial accounts, import-batch metadata, categorisation rules, payment schedules, selected schedule occurrences, each selected month's transaction ledger, and a derived `planned_versus_actual` summary. Any future restore implementation must ignore and recompute that summary, schedule `next_occurrence`, and rule match counters; validate batch/transaction/rule/schedule ownership, fingerprints, integer minor-unit bounds, composite references, and historical locks; and never treat mapping metadata as original statement content. No restore path currently writes this export back into the database.

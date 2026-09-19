@@ -22,6 +22,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `budgets`: independent monthly plans, planned-versus-actual progress, temporary item pausing, inline drafts, debounced saves, one-offs.
 - `transactions`: manual and browser-local CSV-imported actual income/expense ledger, optional account assignment, categorisation, pagination, duplicate protection, and locked-history controls.
 - `rules`: explicit ordered transaction conditions, per-field winning actions, dry-run explanations, conservative suggestions, and bounded reprocessing.
+- `schedules`: recurring expected income and expenses, immutable month occurrences, explicit transaction matching, and minor-unit cash-flow projections.
 - `templates`: recurring plans used only when creating a future snapshot.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, export, deletion.
@@ -42,6 +43,10 @@ Supported imports are UTF-8 CSV files up to 2 MiB, 2,000 data rows, and 100 colu
 Categorisation rules are deterministic: enabled rules are evaluated by ascending user-controlled order with UUID as the stable tie-breaker. Conditions within one rule are combined with AND. The first matching action for each field wins, while later rules may still win untouched fields. CSV preview uses the same normalization and ordering contract, and confirmed imports apply rules in bounded groups inside the import transaction. Manual dry-run and apply use the same PostgreSQL evaluator. Rule application never mutates a report that the shared profile-timezone lock marks read-only.
 
 Rule suggestions are derived only after at least three transactions share the same normalized description, type, category, and budget-item assignment. Suggestions do not create rules or change data. Users must review them, and permanent dismissals are user-owned records.
+
+Payment schedules are editable definitions; `payment_schedule_occurrences` are the monthly snapshot layer. Generation uses calendar dates in the schedule/profile IANA timezone, clamps a monthly day to the destination month end, and supports exact 7/14-day intervals or ISO weekdays. Schedule edits regenerate only unconfirmed occurrences in editable current/future snapshots. Disabling a schedule removes future expectations while confirmed and locked history remains intact.
+
+Forecasts never mutate or masquerade as actual transactions. Daily projections add posted actual cash effects and unmatched expected occurrences once, using integer minor units throughout. A matched occurrence has a unique transaction reference and is excluded from forecast effects. Candidate matches use type, amount, and a narrow date window, but the user must confirm the link.
 
 ## Autosave
 

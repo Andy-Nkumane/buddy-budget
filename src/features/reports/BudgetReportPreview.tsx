@@ -15,9 +15,15 @@ interface BudgetReportPreviewProps {
   months: BudgetMonthWithItems[];
   profile: Profile;
   rangeLabel: string;
+  includeForecast?: boolean;
 }
 
-export const BudgetReportPreview = ({ months, profile, rangeLabel }: BudgetReportPreviewProps) => {
+export const BudgetReportPreview = ({
+  months,
+  profile,
+  rangeLabel,
+  includeForecast = false,
+}: BudgetReportPreviewProps) => {
   const totalsByCurrency = calculateReportTotalsByCurrency(months);
 
   return (
@@ -213,6 +219,54 @@ export const BudgetReportPreview = ({ months, profile, rangeLabel }: BudgetRepor
               </div>
             ) : (
               <p>No transactions recorded.</p>
+            )}
+            {includeForecast && (
+              <>
+                <h4>Schedule forecast</h4>
+                {(month.payment_schedule_occurrences?.length ?? 0) > 0 ? (
+                  <div className="report-preview__table-wrap">
+                    <table>
+                      <caption className="visually-hidden">
+                        Schedule forecast for {formatMonth(month.month_start, profile.locale)}
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Due</th>
+                          <th scope="col">Item</th>
+                          <th scope="col">State</th>
+                          <th scope="col">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {month.payment_schedule_occurrences?.map((occurrence) => (
+                          <tr key={occurrence.id}>
+                            <td>{occurrence.due_date}</td>
+                            <th scope="row">
+                              {occurrence.name_snapshot}
+                              {occurrence.amount_is_approximate ? ' (approx.)' : ''}
+                            </th>
+                            <td>
+                              {occurrence.matched_transaction_id
+                                ? `${occurrence.status} · matched`
+                                : occurrence.status}
+                            </td>
+                            <td className={`report-amount report-amount--${occurrence.item_type}`}>
+                              {formatSignedReportAmount(
+                                occurrence.amount_minor / 100,
+                                occurrence.item_type,
+                                month.currency_code,
+                                profile.locale,
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p>No scheduled items.</p>
+                )}
+              </>
             )}
           </section>
         );
