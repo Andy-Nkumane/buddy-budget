@@ -3,15 +3,12 @@ import { useState } from 'react';
 import type { BudgetMonthItem } from '../../shared/types/domain';
 import { Button } from '../../shared/ui/Button';
 import { updateMonthItem, updateMonthItemAmount } from '../../data/repositories/budgetRepository';
-import { formatMoney } from '../../shared/formatting/money';
 import { useDebouncedAutosave } from './useDebouncedAutosave';
 
 interface BudgetRowProps {
   item: BudgetMonthItem;
   currencyCode: string;
-  locale: string;
   readOnly: boolean;
-  progress: { planned: number; actual: number; variance: number; remaining: number };
   onDraft: (id: string, amount: string) => void;
   onArchive: (item: BudgetMonthItem) => void;
   onToggleDisabled: (item: BudgetMonthItem) => void;
@@ -21,9 +18,7 @@ interface BudgetRowProps {
 export const BudgetRow = ({
   item,
   currencyCode,
-  locale,
   readOnly,
-  progress,
   onDraft,
   onArchive,
   onToggleDisabled,
@@ -98,36 +93,17 @@ export const BudgetRow = ({
           )}
         </div>
       </div>
-      <div className="budget-row__financials">
-        <label>
-          <small>Planned</small>
-          <span className="budget-row__amount">
-            <span aria-hidden="true">{currencyCode}</span>
-            <input
-              aria-label={`${item.name_snapshot} planned amount`}
-              className="money-input"
-              disabled={readOnly || item.is_disabled}
-              inputMode="decimal"
-              onChange={(event) => autosave.setValue(event.target.value)}
-              onFocus={(event) => event.currentTarget.select()}
-              value={autosave.value}
-            />
-          </span>
-        </label>
-        <dl className="item-progress">
-          <div>
-            <dt>Actual</dt>
-            <dd className="actual-amount">{formatMoney(progress.actual, currencyCode, locale)}</dd>
-          </div>
-          <div>
-            <dt>Variance</dt>
-            <dd>{formatMoney(progress.variance, currencyCode, locale)}</dd>
-          </div>
-          <div>
-            <dt>Remaining</dt>
-            <dd>{formatMoney(progress.remaining, currencyCode, locale)}</dd>
-          </div>
-        </dl>
+      <div className="budget-row__amount">
+        <span aria-hidden="true">{currencyCode}</span>
+        <input
+          aria-label={`${item.name_snapshot} amount`}
+          className="money-input"
+          disabled={readOnly || item.is_disabled}
+          inputMode="decimal"
+          onChange={(event) => autosave.setValue(event.target.value)}
+          onFocus={(event) => event.currentTarget.select()}
+          value={autosave.value}
+        />
       </div>
       {!readOnly && (
         <div className="budget-row__actions">

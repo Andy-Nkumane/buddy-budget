@@ -5,7 +5,6 @@ import {
   LayoutTemplate,
   LogOut,
   Menu,
-  ReceiptText,
   Settings,
   Tags,
   X,
@@ -27,7 +26,6 @@ import { queryKeys } from '../../data/queryKeys';
 
 const navigation = [
   { to: '/app/budget/current', label: 'Budget', icon: CircleDollarSign },
-  { to: '/app/transactions', label: 'Transactions', icon: ReceiptText },
   { to: '/app/months', label: 'Months', icon: CalendarDays },
   { to: '/app/templates', label: 'Templates', icon: LayoutTemplate },
   { to: '/app/categories', label: 'Categories', icon: Tags },
@@ -154,7 +152,7 @@ export const AppLayout = () => {
       </main>
 
       <nav className="bottom-nav" aria-label="Mobile navigation">
-        {navigation.slice(0, 5).map(({ to, label, icon: Icon }) => (
+        {navigation.slice(0, 4).map(({ to, label, icon: Icon }) => (
           <NavLink
             className={({ isActive }) =>
               `bottom-nav__link ${isActive ? 'bottom-nav__link--active' : ''}`

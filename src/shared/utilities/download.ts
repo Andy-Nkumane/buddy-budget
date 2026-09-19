@@ -1,13 +1,7 @@
-import {
-  calculateBudgetProgress,
-  calculateItemProgress,
-  formatMoney,
-  formatMonth,
-} from '../formatting/money';
+import { calculateTotals, formatMoney, formatMonth } from '../formatting/money';
 import {
   calculateReportTotalsByCurrency,
   formatSignedReportAmount,
-  formatSignedTransactionAmount,
 } from '../reporting/budgetReport';
 import type { BudgetMonthWithItems, Profile } from '../types/domain';
 
@@ -35,111 +29,19 @@ export const escapeCsv = (value: string | number): string => {
 
 export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange: string): void => {
   const rows = [
-    [
-      'record_type',
-      'month',
-      'currency',
-      'type',
-      'name',
-      'category',
-      'budget_item',
-      'planned_amount',
-      'actual_amount',
-      'variance',
-      'remaining',
-      'transaction_date',
-      'status',
-      'source',
-      'refund_or_reversal',
-      'external_reference',
-      'import_batch_id',
-    ],
-    ...months.flatMap((month) => {
-      const summary = calculateBudgetProgress(month.budget_month_items, month.budget_transactions);
-      return [
-        [
-          'month_summary',
-          month.month_start,
-          month.currency_code,
-          'income',
-          'Month income summary',
-          '',
-          '',
-          summary.planned.income.toFixed(2),
-          summary.actual.income.toFixed(2),
-          summary.incomeVariance.toFixed(2),
-          summary.incomeRemaining.toFixed(2),
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-        ],
-        [
-          'month_summary',
-          month.month_start,
-          month.currency_code,
-          'expense',
-          'Month expense summary',
-          '',
-          '',
-          summary.planned.expenses.toFixed(2),
-          summary.actual.expenses.toFixed(2),
-          summary.expenseVariance.toFixed(2),
-          summary.expenseRemaining.toFixed(2),
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-        ],
-        ...month.budget_month_items.map((item) => {
-          const progress = calculateItemProgress(item, month.budget_transactions);
-          return [
-            'budget_item',
-            month.month_start,
-            month.currency_code,
-            item.item_type,
-            item.name_snapshot,
-            item.category_snapshot ?? '',
-            item.name_snapshot,
-            progress.planned.toFixed(2),
-            progress.actual.toFixed(2),
-            progress.variance.toFixed(2),
-            progress.remaining.toFixed(2),
-            '',
-            item.is_disabled ? 'paused' : 'active',
-            item.source_template_item_id ? 'recurring' : 'one-off',
-            '',
-            '',
-            '',
-          ];
-        }),
-        ...month.budget_transactions.map((transaction) => [
-          'transaction',
-          month.month_start,
-          month.currency_code,
-          transaction.transaction_type,
-          transaction.external_reference
-            ? `${transaction.description} · ${transaction.external_reference}`
-            : transaction.description,
-          transaction.category_snapshot ?? '',
-          transaction.budget_item_snapshot ?? '',
-          '',
-          (transaction.amount_minor / 100).toFixed(2),
-          '',
-          '',
-          transaction.transaction_date,
-          transaction.status,
-          transaction.source,
-          transaction.is_refund ? 'yes' : 'no',
-          transaction.external_reference ?? '',
-          transaction.import_batch_id ?? '',
-        ]),
-      ];
-    }),
+    ['month', 'currency', 'type', 'name', 'category', 'amount', 'status', 'recurring'],
+    ...months.flatMap((month) =>
+      month.budget_month_items.map((item) => [
+        month.month_start,
+        month.currency_code,
+        item.item_type,
+        item.name_snapshot,
+        item.category_snapshot ?? '',
+        item.amount,
+        item.is_disabled ? 'paused' : 'active',
+        item.source_template_item_id ? 'yes' : 'no',
+      ]),
+    ),
   ];
   saveBlob(
     `buddybudget-${filenameRange}.csv`,
@@ -176,7 +78,7 @@ export const downloadBudgetReportPdf = async (
 
   document.setTextColor(25, 79, 71);
   document.setFontSize(10);
-  document.text('BUDDY BUDGET REPORT', margin, cursorY);
+  document.text('BUDDYBUDGET REPORT', margin, cursorY);
   cursorY += 24;
   document.setTextColor(23, 37, 34);
   document.setFontSize(22);
@@ -194,13 +96,12 @@ export const downloadBudgetReportPdf = async (
   const summaryTotals = calculateReportTotalsByCurrency(months);
   autoTable(document, {
     startY: cursorY,
-    head: [['Currency', 'Planned income', 'Actual income', 'Planned expenses', 'Actual expenses']],
+    head: [['Currency', 'Income', 'Expenses', 'Remaining']],
     body: summaryTotals.map((totals) => [
       totals.currency,
-      formatMoney(totals.plannedIncome, totals.currency, locale),
-      formatSignedReportAmount(totals.actualIncome, 'income', totals.currency, locale),
-      formatMoney(totals.plannedExpenses, totals.currency, locale),
-      formatSignedReportAmount(totals.actualExpenses, 'expense', totals.currency, locale),
+      formatSignedReportAmount(totals.income, 'income', totals.currency, locale),
+      formatSignedReportAmount(totals.expenses, 'expense', totals.currency, locale),
+      formatMoney(totals.remaining, totals.currency, locale),
     ]),
     theme: 'grid',
     headStyles: { fillColor: [25, 79, 71], textColor: [255, 255, 255] },
@@ -208,8 +109,12 @@ export const downloadBudgetReportPdf = async (
     didParseCell: (cell) => {
       if (cell.section !== 'body' || cell.column.index === 0) return;
       cell.cell.styles.fontStyle = 'bold';
-      if (cell.column.index === 2) cell.cell.styles.textColor = incomeColor;
-      if (cell.column.index === 4) cell.cell.styles.textColor = expenseColor;
+      if (cell.column.index === 1) cell.cell.styles.textColor = incomeColor;
+      if (cell.column.index === 2) cell.cell.styles.textColor = expenseColor;
+      if (cell.column.index === 3) {
+        cell.cell.styles.textColor =
+          summaryTotals[cell.row.index].remaining < 0 ? expenseColor : incomeColor;
+      }
     },
   });
   cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
@@ -219,7 +124,7 @@ export const downloadBudgetReportPdf = async (
       document.addPage();
       cursorY = 44;
     }
-    const progress = calculateBudgetProgress(month.budget_month_items, month.budget_transactions);
+    const totals = calculateTotals(month.budget_month_items);
     document.setTextColor(23, 37, 34);
     document.setFontSize(15);
     document.text(formatMonth(month.month_start, locale), margin, cursorY);
@@ -238,34 +143,30 @@ export const downloadBudgetReportPdf = async (
     };
     drawTotal(
       'Income',
-      `${formatMoney(progress.planned.income, month.currency_code, locale)} planned / ${formatSignedReportAmount(progress.actual.income, 'income', month.currency_code, locale)} actual`,
+      formatSignedReportAmount(totals.income, 'income', month.currency_code, locale),
       incomeColor,
     );
     drawTotal(
       'Expenses',
-      `${formatMoney(progress.planned.expenses, month.currency_code, locale)} planned / ${formatSignedReportAmount(progress.actual.expenses, 'expense', month.currency_code, locale)} actual`,
+      formatSignedReportAmount(totals.expenses, 'expense', month.currency_code, locale),
       expenseColor,
     );
     drawTotal(
-      'Available',
-      formatMoney(progress.available, month.currency_code, locale),
-      progress.available < 0 ? expenseColor : incomeColor,
+      'Remaining',
+      formatMoney(totals.remaining, month.currency_code, locale),
+      totals.remaining < 0 ? expenseColor : incomeColor,
     );
     document.setFont('helvetica', 'normal');
     cursorY += 10;
     autoTable(document, {
       startY: cursorY,
-      head: [['Item', 'Status', 'Planned', 'Actual', 'Remaining']],
-      body: month.budget_month_items.map((item) => {
-        const itemProgress = calculateItemProgress(item, month.budget_transactions);
-        return [
-          `${item.name_snapshot} · ${item.category_snapshot ?? 'Uncategorised'}`,
-          item.is_disabled ? 'Paused' : 'Active',
-          formatMoney(itemProgress.planned, month.currency_code, locale),
-          formatMoney(itemProgress.actual, month.currency_code, locale),
-          formatMoney(itemProgress.remaining, month.currency_code, locale),
-        ];
-      }),
+      head: [['Item', 'Category', 'Status', 'Amount']],
+      body: month.budget_month_items.map((item) => [
+        item.name_snapshot,
+        item.category_snapshot ?? 'Uncategorised',
+        item.is_disabled ? 'Paused' : 'Active',
+        formatSignedReportAmount(Number(item.amount), item.item_type, month.currency_code, locale),
+      ]),
       theme: 'striped',
       headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
       styles: { fontSize: 8.5, cellPadding: 5 },
@@ -280,33 +181,6 @@ export const downloadBudgetReportPdf = async (
       },
     });
     cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
-    if (month.budget_transactions.length) {
-      autoTable(document, {
-        startY: cursorY,
-        head: [['Date', 'Transaction', 'Assignment', 'Status', 'Amount']],
-        body: month.budget_transactions.map((transaction) => [
-          transaction.transaction_date,
-          transaction.description,
-          transaction.budget_item_snapshot ?? transaction.category_snapshot ?? 'Unassigned',
-          transaction.is_refund ? `${transaction.status} refund` : transaction.status,
-          formatSignedTransactionAmount(transaction, month.currency_code, locale),
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
-        styles: { fontSize: 8.5, cellPadding: 5 },
-        columnStyles: { 4: { halign: 'right' } },
-        didParseCell: (cell) => {
-          if (cell.section !== 'body' || cell.column.index !== 4) return;
-          const transaction = month.budget_transactions[cell.row.index];
-          const positiveCashFlow =
-            (transaction.transaction_type === 'income' && !transaction.is_refund) ||
-            (transaction.transaction_type === 'expense' && transaction.is_refund);
-          cell.cell.styles.fontStyle = 'bold';
-          cell.cell.styles.textColor = positiveCashFlow ? incomeColor : expenseColor;
-        },
-      });
-      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
-    }
   });
 
   const pageCount = document.getNumberOfPages();
@@ -315,7 +189,7 @@ export const downloadBudgetReportPdf = async (
     document.setFontSize(8);
     document.setTextColor(109, 125, 121);
     document.text(
-      `Paused items are excluded from plans; posted transactions remain actual.  Page ${page} of ${pageCount}`,
+      `Paused items are shown for context but excluded from totals.  Page ${page} of ${pageCount}`,
       margin,
       pageHeight - 24,
     );

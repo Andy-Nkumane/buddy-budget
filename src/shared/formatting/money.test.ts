@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { BudgetMonthItem, BudgetTransaction } from '../types/domain';
-import {
-  calculateActualTotals,
-  calculateBudgetProgress,
-  calculateItemProgress,
-  calculateTotals,
-  currentMonthStart,
-  formatMoney,
-  isMonthReadOnly,
-} from './money';
+import type { BudgetMonthItem } from '../types/domain';
+import { calculateTotals, currentMonthStart, formatMoney, isMonthReadOnly } from './money';
 
 const item = (item_type: 'income' | 'expense', amount: string): BudgetMonthItem => ({
   id: crypto.randomUUID(),
@@ -26,35 +18,6 @@ const item = (item_type: 'income' | 'expense', amount: string): BudgetMonthItem 
   archived_at: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-});
-
-const transaction = (
-  transaction_type: 'income' | 'expense',
-  amount_minor: number,
-  overrides: Partial<BudgetTransaction> = {},
-): BudgetTransaction => ({
-  id: crypto.randomUUID(),
-  user_id: 'user-id',
-  budget_month_id: 'month-id',
-  budget_month_item_id: null,
-  category_id: null,
-  account_id: null,
-  transaction_date: '2026-01-01',
-  description: 'Entry',
-  amount_minor,
-  transaction_type,
-  is_refund: false,
-  notes: null,
-  source: 'manual',
-  status: 'posted',
-  external_fingerprint: null,
-  external_reference: null,
-  import_batch_id: null,
-  category_snapshot: null,
-  budget_item_snapshot: null,
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-  ...overrides,
 });
 
 describe('money calculations', () => {
@@ -92,52 +55,6 @@ describe('money calculations', () => {
   it('adds decimal amounts without floating-point drift', () => {
     const amounts = Array.from({ length: 10 }, () => item('income', '0.10'));
     expect(calculateTotals(amounts).income).toBe(1);
-  });
-});
-
-describe('planned and actual calculations', () => {
-  it('counts posted activity exactly and ignores pending or void entries', () => {
-    expect(
-      calculateActualTotals([
-        transaction('income', 100_00),
-        transaction('expense', 20_10),
-        transaction('expense', 5_00, { status: 'pending' }),
-        transaction('income', 1_00, { status: 'void' }),
-      ]),
-    ).toEqual({ income: 100, expenses: 20.1, remaining: 79.9 });
-  });
-
-  it('uses non-negative refund records to reverse expense or income actuals', () => {
-    expect(
-      calculateActualTotals([
-        transaction('expense', 50_00),
-        transaction('expense', 10_00, { is_refund: true }),
-        transaction('income', 100_00),
-        transaction('income', 5_00, { is_refund: true }),
-      ]),
-    ).toEqual({ income: 95, expenses: 40, remaining: 55 });
-  });
-
-  it('keeps actual activity linked to a paused item while removing its plan', () => {
-    const paused = { ...item('expense', '100.00'), id: 'paused', is_disabled: true };
-    const entry = transaction('expense', 25_00, { budget_month_item_id: paused.id });
-    expect(calculateItemProgress(paused, [entry])).toEqual({
-      planned: 0,
-      actual: 25,
-      variance: 25,
-      remaining: -25,
-    });
-    expect(calculateBudgetProgress([paused], [entry]).actual.expenses).toBe(25);
-  });
-
-  it('handles zero plans and overspending without floating-point drift', () => {
-    const progress = calculateBudgetProgress(
-      [item('income', '0.00'), item('expense', '10.00')],
-      [transaction('expense', 10_01)],
-    );
-    expect(progress.expenseVariance).toBe(0.01);
-    expect(progress.expenseRemaining).toBe(-0.01);
-    expect(progress.available).toBe(-10.01);
   });
 });
 
