@@ -13,6 +13,9 @@ export const queryKeys = {
   transactions: (userId: string, page: number) =>
     [...userRoot(userId), 'transactions', page] as const,
   transactionImports: (userId: string) => [...userRoot(userId), 'transaction-imports'] as const,
+  categorisationRules: (userId: string) => [...userRoot(userId), 'categorisation-rules'] as const,
+  categorisationSuggestions: (userId: string) =>
+    [...userRoot(userId), 'categorisation-rule-suggestions'] as const,
   month: (userId: string, monthStart: string) =>
     [...userRoot(userId), 'month', monthStart] as const,
 };

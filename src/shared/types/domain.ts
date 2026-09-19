@@ -5,6 +5,7 @@ export type FinancialAccountType = 'cash' | 'checking' | 'savings' | 'credit';
 export type TransactionStatus = 'pending' | 'posted' | 'void';
 export type TransactionSource = 'manual' | 'csv_import';
 export type TransactionImportStatus = 'completed' | 'undone';
+export type RuleDescriptionMatch = 'contains' | 'exact';
 
 export type Profile = {
   user_id: string;
@@ -131,8 +132,42 @@ export type BudgetTransaction = {
   import_batch_id: string | null;
   category_snapshot: string | null;
   budget_item_snapshot: string | null;
+  is_recurring_candidate: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type CategorisationRule = {
+  id: string;
+  user_id: string;
+  name: string;
+  sort_order: number;
+  enabled: boolean;
+  description_match: RuleDescriptionMatch | null;
+  description_value: string | null;
+  amount_min_minor: number | null;
+  amount_max_minor: number | null;
+  transaction_type: ItemType | null;
+  date_from: string | null;
+  date_to: string | null;
+  days_of_week: number[];
+  action_category_id: string | null;
+  action_budget_item_name: string | null;
+  action_description: string | null;
+  action_notes: string | null;
+  action_recurring_candidate: boolean | null;
+  match_count: number;
+  last_matched_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CategorisationRuleSuggestion = {
+  normalized_description: string;
+  transaction_type: ItemType;
+  category_id: string | null;
+  budget_item_name: string | null;
+  occurrence_count: number;
 };
 
 export type TransactionImportBatch = {

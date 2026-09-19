@@ -2125,8 +2125,12 @@ p {
   padding: 1.5rem;
 }
 
-.settings-card:first-child {
+.settings-card--profile {
   grid-row: span 2;
+}
+
+.settings-card--account {
+  grid-column: 1 / -1;
 }
 
 .settings-card__actions {
@@ -2503,8 +2507,11 @@ p {
   .settings-grid {
     grid-template-columns: 1fr;
   }
-  .settings-card:first-child {
+  .settings-card--profile {
     grid-row: auto;
+  }
+  .settings-card--account {
+    grid-column: auto;
   }
   .status-banner,
   .install-card {
@@ -2875,5 +2882,70 @@ p {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+.rule-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rule-empty-state {
+  align-items: center;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  margin: 1.25rem;
+  padding: 2rem 1.25rem;
+  text-align: center;
+}
+
+.rule-empty-state h3,
+.rule-empty-state p {
+  margin: 0;
+}
+
+.rule-empty-state > svg {
+  color: var(--primary);
+}
+
+.rule-card {
+  align-items: center;
+  border: 0.0625rem solid var(--line);
+  border-radius: 0.875rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+.rule-card > div:first-child,
+.rule-preview-list li {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.rule-card__actions,
+.weekday-fieldset {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rule-preview-list {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 24rem;
+  overflow: auto;
+  padding-inline-start: 1.25rem;
+}
+
+@media (max-width: 48rem) {
+  .rule-card {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

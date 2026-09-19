@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, LogOut, ShieldAlert, Trash2 } from 'lucide-react';
+import { Download, ListChecks, LogOut, ShieldAlert, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import {
   requestAccountDeletion,
@@ -119,7 +120,7 @@ export const SettingsPage = () => {
         </div>
       </div>
       <div className="settings-grid">
-        <section className="settings-card">
+        <section className="settings-card settings-card--profile">
           <h2>Profile and display</h2>
           <form onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
             <div className="form-grid">
@@ -188,6 +189,13 @@ export const SettingsPage = () => {
           </form>
         </section>
         <section className="settings-card">
+          <h2>Categorisation rules</h2>
+          <p>Review and control the rules that clean up repeated transactions.</p>
+          <Link className="button button--secondary" to="/app/settings/rules">
+            <ListChecks size={18} /> Manage rules
+          </Link>
+        </section>
+        <section className="settings-card settings-card--account">
           <h2>Your data</h2>
           <p>
             Choose a date range and create a PDF report, CSV spreadsheet, or portable JSON backup.

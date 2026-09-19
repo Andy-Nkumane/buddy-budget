@@ -3,6 +3,8 @@ import type {
   BudgetMonth,
   BudgetMonthItem,
   BudgetTemplate,
+  CategorisationRule,
+  CategorisationRuleSuggestion,
   Category,
   FinancialAccount,
   FinancialAccountWithBalance,
@@ -130,6 +132,7 @@ export interface Database {
           | 'import_batch_id'
           | 'category_snapshot'
           | 'budget_item_snapshot'
+          | 'is_recurring_candidate'
           | 'created_at'
           | 'updated_at'
         >;
@@ -153,6 +156,22 @@ export interface Database {
           | 'undone_at'
         >;
         Update: UpdateShape<TransactionImportBatch>;
+        Relationships: [];
+      };
+      transaction_categorisation_rules: {
+        Row: CategorisationRule;
+        Insert: OptionalInsert<
+          CategorisationRule,
+          | 'id'
+          | 'sort_order'
+          | 'enabled'
+          | 'days_of_week'
+          | 'match_count'
+          | 'last_matched_at'
+          | 'created_at'
+          | 'updated_at'
+        >;
+        Update: UpdateShape<CategorisationRule>;
         Relationships: [];
       };
     };
@@ -312,6 +331,36 @@ export interface Database {
       undo_transaction_import_batch: {
         Args: { requested_batch_id: string };
         Returns: TransactionImportBatch[];
+      };
+      import_budget_transactions_with_rules: Database['public']['Functions']['import_budget_transactions'];
+      upsert_categorisation_rule: {
+        Args: { requested_rule: Record<string, unknown> };
+        Returns: CategorisationRule[];
+      };
+      move_categorisation_rule: {
+        Args: { requested_rule_id: string; requested_direction: number };
+        Returns: undefined;
+      };
+      delete_categorisation_rule: {
+        Args: { requested_rule_id: string };
+        Returns: undefined;
+      };
+      process_categorisation_rules: {
+        Args: { requested_transaction_ids: string[]; requested_dry_run?: boolean };
+        Returns: Record<string, unknown>;
+      };
+      retrieve_categorisation_suggestions: {
+        Args: Record<string, never>;
+        Returns: CategorisationRuleSuggestion[];
+      };
+      dismiss_categorisation_suggestion: {
+        Args: {
+          requested_description: string;
+          requested_transaction_type: string;
+          requested_category_id: string | null;
+          requested_budget_item_name: string | null;
+        };
+        Returns: undefined;
       };
       setup_first_budget: {
         Args: {

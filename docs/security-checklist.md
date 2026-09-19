@@ -8,6 +8,8 @@
 - [ ] RLS remains enabled on every exposed user-owned table and policies cover SELECT/INSERT/UPDATE/DELETE with `USING`/`WITH CHECK` as appropriate.
 - [ ] Alice/Bob/anonymous RLS and cross-parent tests pass.
 - [ ] New security-definer functions derive `auth.uid()`, use fixed `search_path`, qualify objects, validate ownership, revoke default execution, and grant minimally.
+- [ ] Categorisation dry-run and apply return the same winners; bulk requests remain capped at 200, CSV chunks remain transactional, and locked-month rule writes fail at the database boundary.
+- [ ] Rule category actions require an active same-owner category whose income/expense type matches the rule, and ordering remains unique per user.
 - [ ] Destructive operations require explicit confirmation or a recoverable undo.
 - [ ] Redirect destinations are fixed or allowlisted; no query parameter can produce an open redirect.
 - [ ] CSP/connect origins match only deployment needs; no new third-party scripts or `dangerouslySetInnerHTML`.

@@ -5,6 +5,7 @@ import {
   Laptop,
   ListPlus,
   LockKeyhole,
+  ListChecks,
   PencilLine,
   Smartphone,
   WalletCards,
@@ -12,6 +13,11 @@ import {
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: ListChecks,
+    title: 'Use categorisation rules',
+    body: 'Create and reorder transparent rules in Settings. Test them first to see each proposed field change and winning rule. Suggestions appear only after three consistently categorised transactions and are never created automatically.',
+  },
   {
     icon: ListPlus,
     title: '1. Create a template',
