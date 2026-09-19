@@ -14,6 +14,22 @@
 10. Inspect `manifest.webmanifest`, `sw.js`, and shortcut URLs under `/<repo>/`.
 11. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
 
+## Required pull-request checks
+
+The `Quality` workflow runs the formatting, lint, type, unit, dependency-audit, production-build, secret-scan, migration, and database/RLS checks for every pull request. Its final `Quality gate` job succeeds only when both the web and database jobs succeed.
+
+To prevent a failed or pending check from being merged into `main`, configure a repository ruleset once:
+
+1. Push `.github/workflows/quality.yml` and let the `Quality` workflow complete at least once so GitHub registers its check name.
+2. Open **Settings → Rules → Rulesets → New ruleset → New branch ruleset**.
+3. Name it `Protect main`, set enforcement to **Active**, and target the default branch (`main`).
+4. Enable **Require a pull request before merging**.
+5. Enable **Require status checks to pass**, search for and select `Quality gate`, and enable **Require branches to be up to date before merging**.
+6. Enable **Block force pushes** and **Restrict deletions**. Do not add bypass actors unless an emergency process explicitly requires them.
+7. Save the ruleset, then confirm a pull request cannot merge while `Quality gate` is pending or failed.
+
+If the repository does not offer rulesets, configure the equivalent under **Settings → Branches → Add branch protection rule** for `main`. Repository administrators must configure this in GitHub; a workflow file cannot enforce its own required-check status.
+
 The project URL and publishable key are browser-public even if GitHub variables are used for convenient management. Never add a secret/service-role key to a frontend workflow.
 
 ## Routing strategy
