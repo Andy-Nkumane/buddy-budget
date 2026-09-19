@@ -2175,6 +2175,10 @@ p {
   border-top: 0.0625rem solid var(--line);
 }
 
+.report-preview-shell__forecast-option {
+  margin: 1rem 1.25rem 0;
+}
+
 .report-preview {
   overflow: hidden;
   border: 0.0625rem solid var(--line);

@@ -345,12 +345,33 @@ const retrieveMonthTransactions = async (monthId: string): Promise<BudgetTransac
   );
 };
 
+const retrieveMonthScheduleOccurrences = async (
+  monthId: string,
+): Promise<PaymentScheduleOccurrence[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<PaymentScheduleOccurrence>((from, to) =>
+    client
+      .from('payment_schedule_occurrences')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('due_date')
+      .order('id')
+      .range(from, to),
+  );
+};
+
 const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => {
-  const [items, transactions] = await Promise.all([
+  const [items, transactions, scheduleOccurrences] = await Promise.all([
     retrieveMonthItems(month.id),
     retrieveMonthTransactions(month.id),
+    retrieveMonthScheduleOccurrences(month.id),
   ]);
-  return { ...month, budget_month_items: items, budget_transactions: transactions };
+  return {
+    ...month,
+    budget_month_items: items,
+    budget_transactions: transactions,
+    payment_schedule_occurrences: scheduleOccurrences,
+  };
 };
 
 export const retrieveMonthByStart = async (

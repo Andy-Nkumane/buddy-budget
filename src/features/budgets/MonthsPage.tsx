@@ -35,6 +35,7 @@ export const MonthsPage = () => {
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const [exportFormats, setExportFormats] = useState<Record<string, MonthExportFormat>>({});
   const [reportMonth, setReportMonth] = useState<BudgetMonthWithItems | null>(null);
+  const [includeForecast, setIncludeForecast] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   if (months.isLoading || profile.isLoading) return <LoadingState label="Gathering your months…" />;
@@ -59,6 +60,7 @@ export const MonthsPage = () => {
       } else if (format === 'json') {
         downloadJson(`buddybudget-${month.month_start.slice(0, 7)}.json`, month);
       } else {
+        setIncludeForecast(false);
         setReportMonth(month);
       }
     } catch (error) {
@@ -78,6 +80,7 @@ export const MonthsPage = () => {
         profile.data,
         formatMonth(reportMonth.month_start, locale),
         reportMonth.month_start.slice(0, 7),
+        includeForecast,
       );
       setReportMonth(null);
     } catch (error) {
@@ -193,10 +196,22 @@ export const MonthsPage = () => {
       >
         {reportMonth && profile.data && (
           <section className="report-preview-shell" aria-label="PDF report preview">
+            <label className="check-row report-preview-shell__forecast-option">
+              <input
+                type="checkbox"
+                checked={includeForecast}
+                onChange={(event) => setIncludeForecast(event.target.checked)}
+              />
+              <span>
+                <strong>Include payment schedules and forecasts</strong>
+                <small>Add expected dates, statuses, and forecast amounts to this report.</small>
+              </span>
+            </label>
             <BudgetReportPreview
               months={[reportMonth]}
               profile={profile.data}
               rangeLabel={formatMonth(reportMonth.month_start, locale)}
+              includeForecast={includeForecast}
             />
             {exportError && (
               <div className="inline-alert inline-alert--error" role="alert">
