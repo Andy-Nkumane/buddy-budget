@@ -26,36 +26,11 @@ test.describe('critical monthly budget flow', () => {
 
     const itemName = `E2E one-off ${Date.now()}`;
     await page.getByRole('button', { name: 'Add expense' }).first().click();
-    const itemDialog = page.getByRole('dialog', { name: 'Add one-off expense' });
-    await itemDialog.getByRole('textbox', { name: 'Name', exact: true }).fill(itemName);
-    await itemDialog.getByLabel('Amount', { exact: true }).fill('42.00');
-    await itemDialog.getByRole('button', { name: 'Add expense' }).click();
+    await page.getByLabel('Name').fill(itemName);
+    await page.getByLabel('Amount').fill('42.00');
+    await page.getByRole('button', { name: 'Add expense' }).last().click();
     const createdRow = page.locator('.budget-row').filter({ hasText: itemName });
     await expect(createdRow).toBeVisible();
-
-    const transactionName = `E2E transaction ${Date.now()}`;
-    await page.getByRole('link', { name: 'Transactions' }).first().click();
-    await page.getByRole('button', { name: 'Add transaction' }).first().click();
-    const transactionDialog = page.getByRole('dialog', { name: 'Add transaction' });
-    await transactionDialog.getByRole('textbox', { name: 'Amount', exact: true }).fill('42.00');
-    await transactionDialog.getByLabel('Description or merchant').fill(transactionName);
-    await transactionDialog.getByLabel('Budget item').selectOption({ label: itemName });
-    await transactionDialog.getByRole('button', { name: 'Add transaction' }).click();
-    const transactionRow = page.locator('.transaction-row').filter({ hasText: transactionName });
-    await expect(transactionRow).toBeVisible();
-
-    await page.getByRole('link', { name: 'Budget' }).first().click();
-    await expect(createdRow.locator('.actual-amount')).toContainText('42');
-
-    await page.getByRole('link', { name: 'Transactions' }).first().click();
-    await transactionRow.getByRole('button', { name: `Delete ${transactionName}` }).click();
-    await page
-      .getByRole('dialog', { name: 'Delete transaction?' })
-      .getByRole('button', { name: 'Delete transaction' })
-      .click();
-    await expect(transactionRow).toBeHidden();
-
-    await page.getByRole('link', { name: 'Budget' }).first().click();
 
     await firstAmount.fill(original);
     await expect(page.getByText('Saved').first()).toBeVisible();

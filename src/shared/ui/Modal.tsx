@@ -7,17 +7,9 @@ interface ModalProps {
   description?: string;
   onClose: () => void;
   children: ReactNode;
-  className?: string;
 }
 
-export const Modal = ({
-  open,
-  title,
-  description,
-  onClose,
-  children,
-  className = '',
-}: ModalProps) => {
+export const Modal = ({ open, title, description, onClose, children }: ModalProps) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -32,7 +24,7 @@ export const Modal = ({
   return (
     <dialog
       ref={dialogRef}
-      className={`modal ${className}`}
+      className="modal"
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       onCancel={(event) => {

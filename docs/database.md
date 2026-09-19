@@ -42,14 +42,9 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 - `budget_templates` and `template_items`: recurring plans; one active default per user.
 - `budget_months`: unique per `(user_id, month_start)`.
 - `budget_month_items`: independent, fixed-precision snapshots with a persisted `is_disabled` flag for temporary exclusion from totals.
-- `financial_accounts`: optional user-owned cash/current, savings, and credit labels with integer-minor-unit opening balances and no bank credentials.
-- `budget_transactions`: user-owned manual or CSV-imported actual activity tied to a month and optionally to an item, category, account, and import batch.
-- `transaction_import_batches`: user-owned import metadata and authoritative row counts; stores no original file contents.
 - Composite `(parent_id, user_id)` foreign keys prevent cross-owner child records.
 - Category triggers verify owner and item type.
 - Money is `numeric(14,2)` and constrained to `0..999999999999.99`.
-- Transaction amounts are non-negative `bigint` minor units. Refunds and income reversals use `is_refund`; pending and void entries are retained but excluded from actual totals and account balances.
-- Account balances are derived by `retrieve_financial_accounts(boolean)` from opening balance plus posted transaction effects; no duplicate balance column is stored.
 
 ## Transactional functions
 
@@ -60,12 +55,6 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 `set_default_template(uuid)` serializes the switch and respects the partial unique index.
 
 `delete_own_account()` derives `auth.uid()` and deletes only that Auth user; cascading foreign keys remove owned data. Test this in staging and confirm backup/retention policy before enabling production use.
-
-`create_budget_transaction(...)`, `update_budget_transaction(...)`, and `delete_budget_transaction(uuid)` derive ownership from `auth.uid()`. Composite foreign keys and validation triggers keep month, item, category, account, type, currency, and transaction date aligned. The historical-month trigger calls the same profile-timezone-aware lock as budget item mutations.
-
-`create_financial_account(...)` and `update_financial_account(...)` own account mutations. Direct account and transaction table writes are not granted to authenticated clients; authenticated users receive RLS-scoped reads and the explicit RPC operations only.
-
-`import_budget_transactions(...)` accepts at most 2,000 already-normalized rows, checks ownership, account currency, mapping metadata, month dates, category-name bounds, minor-unit limits, and stable fingerprints before any insert. Active categories are reused case-insensitively; missing income and expense categories are created and linked inside the same transaction. A category assigns the transaction to a budget item only when exactly one active item in the destination month has that category and transaction type; ambiguous matches remain unassigned. An advisory lock and active batch-key unique index make retries idempotent; the transaction unique index prevents duplicates across different batches. `undo_transaction_import_batch(uuid)` deletes only that owned batch's imported rows and refuses locked months. Imported categories remain available after undo. Direct import-batch writes are denied.
 
 All security-definer functions use `search_path = ''`, qualify objects, reject unauthenticated access, accept no caller-supplied owner ID, revoke public/anonymous execution, and grant only the intended authenticated operation.
 
@@ -86,5 +75,3 @@ The PKCE and password flow choices follow the current [Supabase PKCE guide](http
 ## Backup and recovery
 
 The owner must choose provider backup/PITR retention appropriate to the data and plan, restrict restore access, and run periodic restore drills in a non-production project. Record RPO/RTO, escalation contacts, and the last successful drill. JSON user exports are not a replacement for database backups.
-
-User JSON exports use schema version 4. They include financial accounts, import-batch metadata, each selected month's transaction ledger, and a derived `planned_versus_actual` summary. Any future restore implementation must ignore and recompute that summary, validate batch/transaction ownership and fingerprints, integer minor-unit bounds, composite references, and historical locks, and never treat mapping metadata as original statement content; no restore path currently writes this export back into the database.

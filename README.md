@@ -2,7 +2,7 @@
 
 > **Your month. Under control.**
 
-BuddyBudget is a responsive monthly budget companion. Define recurring income and expenses once, create an independent month snapshot, record actual transactions, and compare the plan with what happened. Historical months are never rewritten when a template changes.
+BuddyBudget is a responsive monthly budget companion. Define recurring income and expenses once, create an independent month snapshot, adjust that month, and always see what remains. Historical months are never rewritten when a template changes.
 
 ## 1. Product overview
 
@@ -12,7 +12,7 @@ The core workflow is:
 Create recurring template → create a monthly snapshot → adjust the month → see what remains
 ```
 
-V1 includes email/password authentication, onboarding, multiple templates, categories, month history, debounced autosave, pausable monthly items, one-off items, manual transactions, local CSV statement import, ranged JSON/CSV/PDF-report export, account deletion, responsive layouts, and an installable PWA. Bank connections, sharing, multi-currency months, native apps, and offline financial editing are intentionally excluded.
+V1 includes email/password authentication, onboarding, multiple templates, categories, month history, debounced autosave, pausable monthly items, one-off items, ranged JSON/CSV/PDF-report export, account deletion, responsive layouts, and an installable PWA. Bank connections, sharing, multi-currency months, native apps, and offline financial editing are intentionally excluded.
 
 ## 2. Screenshots and design
 
@@ -41,7 +41,7 @@ Supabase Auth issues and rotates the session tokens. PostgreSQL RLS—not route 
 
 ```text
 src/app/                 providers, routing, responsive application shell
-src/features/            auth, onboarding, budgets, transactions, templates, categories, settings, help
+src/features/            auth, onboarding, budgets, templates, categories, settings, help
 src/shared/              UI, formatting, validation, types, utilities
 src/data/                Supabase client and repository boundary
 src/pwa/                 install, offline, and update lifecycle UI
@@ -134,7 +134,7 @@ Email verification uses the callback URL. Sign-in itself does not redirect away 
 
 ## 11. Database migrations and seed
 
-`npx supabase db reset` rebuilds the local database, applies all migrations, then loads `supabase/seed/development.sql`. The seed contains only a clearly marked local demo user, a default ZAR template, common categories, two historical months, a sample account, and sample transactions. Production builds do not read seed SQL.
+`npx supabase db reset` rebuilds the local database, applies all migrations, then loads `supabase/seed/development.sql`. The seed contains only a clearly marked local demo user, a default ZAR template, common categories, and two historical months. Production builds do not read seed SQL.
 
 Create future migrations with:
 
@@ -163,7 +163,7 @@ npm run test:db
 npm run build
 ```
 
-The browser tests cover money, planned-versus-actual totals, refunds, account balances, paused items, CSV parsing/mapping/preview, validation, autosave transitions, transaction entry, locked rows, route guards, and accessible dialogs. Database tests use isolated users to prove RLS, ownership constraints, atomic/idempotent CSV imports, secured transaction writes, historical locking, onboarding, and paused-state persistence.
+The browser tests cover money, totals, paused items, zero-income and negative-balance edges, validation, snapshot mapping, autosave transitions, row saving/errors, route guards, and accessible dialogs. Database tests use isolated users to prove RLS, ownership constraints, onboarding, and paused-state persistence.
 
 The critical Playwright flow needs a disposable Supabase user and is opt-in:
 
@@ -243,7 +243,7 @@ Start with [troubleshooting.md](docs/troubleshooting.md). Common causes are a mi
 - Financial data cannot be safely edited offline in V1.
 - Account deletion relies on the protected database function and must be validated against the target Supabase project’s operational policies.
 - GitHub Pages cannot set CSP, HSTS, Permissions-Policy, or anti-framing headers; the meta CSP cannot replace all headers.
-- The first release has no household sharing, bank-credential feeds, receipt scanning, billing, native packaging, or advanced analytics. CSV statements can be imported manually without uploading the raw file.
+- The first release has no household sharing, imports, bank feeds, receipt scanning, billing, native packaging, or advanced analytics.
 - Emailed Auth flows, real-device Android behavior, Lighthouse results, and final Figma node fidelity require owner-managed external environments.
 
 ## 21. Backup and recovery responsibilities

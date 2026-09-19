@@ -124,7 +124,7 @@ export const CategoriesPage = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const refresh = () =>
-    void queryClient.invalidateQueries({ queryKey: queryKeys.categoryRoot(userId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.categories(userId) });
   const add = async () => {
     if (!name.trim() || !addType) {
       setError('Enter a category name.');
