@@ -70,7 +70,9 @@ describe('categorisation rules', () => {
 
   it('supports exact, amount, type, date, and weekday mismatches', () => {
     expect(
-      evaluateCategorisationRules(transaction, [rule({ description_match: 'exact' })]).changes,
+      evaluateCategorisationRules(transaction, [
+        rule({ description_match: 'exact', description_value: 'another shop' }),
+      ]).changes,
     ).toHaveLength(0);
     expect(
       evaluateCategorisationRules(transaction, [rule({ amount_min_minor: 1300 })]).changes,
