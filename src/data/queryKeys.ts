@@ -16,6 +16,9 @@ export const queryKeys = {
   categorisationRules: (userId: string) => [...userRoot(userId), 'categorisation-rules'] as const,
   categorisationSuggestions: (userId: string) =>
     [...userRoot(userId), 'categorisation-rule-suggestions'] as const,
+  schedules: (userId: string) => [...userRoot(userId), 'payment-schedules'] as const,
+  scheduleOccurrences: (userId: string, fromDate: string, toDate: string) =>
+    [...userRoot(userId), 'payment-schedule-occurrences', fromDate, toDate] as const,
   month: (userId: string, monthStart: string) =>
     [...userRoot(userId), 'month', monthStart] as const,
 };

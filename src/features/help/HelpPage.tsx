@@ -2,6 +2,7 @@ import {
   BookOpen,
   Download,
   History,
+  CalendarClock,
   Laptop,
   ListPlus,
   LockKeyhole,
@@ -13,6 +14,11 @@ import {
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: CalendarClock,
+    title: 'Forecast upcoming cash flow',
+    body: 'Add income and expense schedules in Cash flow. The seven-day list and calendar show what is expected before your next income and the lowest projected balance. Forecasts become paid or received only when you confirm them, and transaction matches always require your confirmation.',
+  },
   {
     icon: ListChecks,
     title: 'Use categorisation rules',

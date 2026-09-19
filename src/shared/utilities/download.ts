@@ -33,7 +33,11 @@ export const escapeCsv = (value: string | number): string => {
   return `"${safeValue.replace(/"/g, '""')}"`;
 };
 
-export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange: string): void => {
+export const downloadMonthsCsv = (
+  months: BudgetMonthWithItems[],
+  filenameRange: string,
+  includeForecast = false,
+): void => {
   const rows = [
     [
       'record_type',
@@ -138,6 +142,27 @@ export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange:
           transaction.external_reference ?? '',
           transaction.import_batch_id ?? '',
         ]),
+        ...(includeForecast
+          ? (month.payment_schedule_occurrences ?? []).map((occurrence) => [
+              'schedule_occurrence',
+              month.month_start,
+              month.currency_code,
+              occurrence.item_type,
+              occurrence.name_snapshot,
+              '',
+              '',
+              (occurrence.amount_minor / 100).toFixed(2),
+              '',
+              '',
+              '',
+              occurrence.due_date,
+              occurrence.status,
+              occurrence.matched_transaction_id ? 'matched forecast' : 'forecast',
+              '',
+              occurrence.matched_transaction_id ?? '',
+              occurrence.schedule_id,
+            ])
+          : []),
       ];
     }),
   ];
@@ -157,6 +182,7 @@ export const downloadBudgetReportPdf = async (
   profile: Profile,
   rangeLabel: string,
   filenameRange: string,
+  includeForecast = false,
 ): Promise<void> => {
   const [{ jsPDF }, { autoTable }] = await Promise.all([
     import('jspdf'),
@@ -303,6 +329,35 @@ export const downloadBudgetReportPdf = async (
             (transaction.transaction_type === 'expense' && transaction.is_refund);
           cell.cell.styles.fontStyle = 'bold';
           cell.cell.styles.textColor = positiveCashFlow ? incomeColor : expenseColor;
+        },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
+    if (includeForecast && (month.payment_schedule_occurrences?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Due', 'Forecast item', 'State', 'Amount']],
+        body: (month.payment_schedule_occurrences ?? []).map((occurrence) => [
+          occurrence.due_date,
+          `${occurrence.name_snapshot}${occurrence.amount_is_approximate ? ' (approx.)' : ''}`,
+          occurrence.matched_transaction_id ? `${occurrence.status} · matched` : occurrence.status,
+          formatSignedReportAmount(
+            occurrence.amount_minor / 100,
+            occurrence.item_type,
+            month.currency_code,
+            locale,
+          ),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+        columnStyles: { 3: { halign: 'right' } },
+        didParseCell: (cell) => {
+          if (cell.section !== 'body' || cell.column.index !== 3) return;
+          const occurrence = month.payment_schedule_occurrences?.[cell.row.index];
+          cell.cell.styles.fontStyle = 'bold';
+          cell.cell.styles.textColor =
+            occurrence?.item_type === 'income' ? incomeColor : expenseColor;
         },
       });
       cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;

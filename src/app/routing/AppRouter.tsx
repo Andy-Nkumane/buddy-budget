@@ -69,6 +69,11 @@ const TransactionsPage = lazy(() =>
 const RulesPage = lazy(() =>
   import('../../features/rules/RulesPage').then((module) => ({ default: module.RulesPage })),
 );
+const CashFlowPage = lazy(() =>
+  import('../../features/schedules/CashFlowPage').then((module) => ({
+    default: module.CashFlowPage,
+  })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -112,6 +117,7 @@ export const AppRouter = () => (
             <Route path="/app" element={<AppLayout />}>
               <Route path="budget/:monthStart" element={<BudgetPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
+              <Route path="cash-flow" element={<CashFlowPage />} />
               <Route path="months" element={<MonthsPage />} />
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="categories" element={<CategoriesPage />} />

@@ -14,6 +14,8 @@ import type {
   FinancialAccountWithBalance,
   ItemType,
   MonthSummary,
+  PaymentSchedule,
+  PaymentScheduleOccurrence,
   Profile,
   TemplateItem,
   TemplateWithItems,
@@ -343,12 +345,33 @@ const retrieveMonthTransactions = async (monthId: string): Promise<BudgetTransac
   );
 };
 
+const retrieveMonthScheduleOccurrences = async (
+  monthId: string,
+): Promise<PaymentScheduleOccurrence[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<PaymentScheduleOccurrence>((from, to) =>
+    client
+      .from('payment_schedule_occurrences')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('due_date')
+      .order('id')
+      .range(from, to),
+  );
+};
+
 const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => {
-  const [items, transactions] = await Promise.all([
+  const [items, transactions, scheduleOccurrences] = await Promise.all([
     retrieveMonthItems(month.id),
     retrieveMonthTransactions(month.id),
+    retrieveMonthScheduleOccurrences(month.id),
   ]);
-  return { ...month, budget_month_items: items, budget_transactions: transactions };
+  return {
+    ...month,
+    budget_month_items: items,
+    budget_transactions: transactions,
+    payment_schedule_occurrences: scheduleOccurrences,
+  };
 };
 
 export const retrieveMonthByStart = async (
@@ -393,7 +416,7 @@ export const retrieveMonthsForExport = async (
   range: MonthExportRange = {},
 ): Promise<BudgetMonthWithItems[]> => {
   const client = requireSupabase();
-  const [months, monthItems, transactions] = await Promise.all([
+  const [months, monthItems, transactions, scheduleOccurrences] = await Promise.all([
     retrieveAllPages<BudgetMonth>((from, to) => {
       let query = client.from('budget_months').select('*').order('month_start').range(from, to);
       if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
@@ -423,14 +446,27 @@ export const retrieveMonthsForExport = async (
       if (range.toMonth) query = query.lt('transaction_date', adjacentMonthStart(range.toMonth, 1));
       return query;
     }),
+    retrieveAllPages<PaymentScheduleOccurrence>((from, to) => {
+      let query = client
+        .from('payment_schedule_occurrences')
+        .select('*')
+        .order('due_date')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('due_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('due_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
   ]);
   if (!months.length) return [];
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
   const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
+  const occurrencesByMonth = groupRecordsBy(scheduleOccurrences, (entry) => entry.budget_month_id);
   return months.map((month) => ({
     ...month,
     budget_month_items: itemsByMonth.get(month.id) ?? [],
     budget_transactions: transactionsByMonth.get(month.id) ?? [],
+    payment_schedule_occurrences: occurrencesByMonth.get(month.id) ?? [],
   }));
 };
 
@@ -788,6 +824,91 @@ export const dismissCategorisationSuggestion = async (
   throwWhenError(error);
 };
 
+export type PaymentScheduleInput = Pick<
+  PaymentSchedule,
+  | 'name'
+  | 'item_type'
+  | 'amount_minor'
+  | 'amount_is_approximate'
+  | 'start_date'
+  | 'end_date'
+  | 'recurrence'
+  | 'selected_days'
+  | 'timezone'
+  | 'enabled'
+  | 'template_id'
+  | 'template_item_id'
+  | 'category_id'
+  | 'notes'
+>;
+
+export const searchPaymentSchedules = async (): Promise<PaymentSchedule[]> => {
+  const { data, error } = await requireSupabase()
+    .from('payment_schedules')
+    .select('*')
+    .order('enabled', { ascending: false })
+    .order('next_occurrence', { nullsFirst: false })
+    .order('id');
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const searchPaymentScheduleOccurrences = async (
+  fromDate: string,
+  toDate: string,
+): Promise<PaymentScheduleOccurrence[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<PaymentScheduleOccurrence>((from, to) =>
+    client
+      .from('payment_schedule_occurrences')
+      .select('*')
+      .gte('due_date', fromDate)
+      .lte('due_date', toDate)
+      .order('due_date')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+export const createPaymentSchedule = async (
+  input: PaymentScheduleInput,
+): Promise<PaymentSchedule> => {
+  const { data, error } = await requireSupabase().rpc('create_payment_schedule', {
+    requested_schedule: input,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The payment schedule could not be created.');
+  return data[0];
+};
+
+export const updatePaymentSchedule = async (
+  id: string,
+  input: PaymentScheduleInput,
+): Promise<PaymentSchedule> => {
+  const { data, error } = await requireSupabase().rpc('update_payment_schedule', {
+    requested_schedule_id: id,
+    requested_schedule: input,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The payment schedule could not be updated.');
+  return data[0];
+};
+
+export const confirmPaymentOccurrence = async (
+  id: string,
+  status: PaymentScheduleOccurrence['status'],
+  transactionId: string | null = null,
+): Promise<PaymentScheduleOccurrence> => {
+  const { data, error } = await requireSupabase().rpc('confirm_payment_occurrence', {
+    requested_occurrence_id: id,
+    requested_status: status,
+    requested_transaction_id: transactionId,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The scheduled payment could not be updated.');
+  return data[0];
+};
+
 export const exportAllData = async (range: MonthExportRange = {}) => {
   const client = requireSupabase();
   const [
@@ -801,6 +922,8 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     transactions,
     transactionImportBatches,
     categorisationRules,
+    paymentSchedules,
+    paymentScheduleOccurrences,
   ] = await Promise.all([
     retrieveProfile(),
     retrievePreferences(),
@@ -850,6 +973,20 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         .order('id')
         .range(from, to),
     ),
+    retrieveAllPages<PaymentSchedule>((from, to) =>
+      client.from('payment_schedules').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<PaymentScheduleOccurrence>((from, to) => {
+      let query = client
+        .from('payment_schedule_occurrences')
+        .select('*')
+        .order('due_date')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('due_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('due_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
   ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
@@ -860,7 +997,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 5,
+    schema_version: 6,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -873,6 +1010,10 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
       exportedMonthIds.has(batch.budget_month_id),
     ),
     transaction_categorisation_rules: categorisationRules,
+    payment_schedules: paymentSchedules,
+    payment_schedule_occurrences: paymentScheduleOccurrences.filter((occurrence) =>
+      exportedMonthIds.has(occurrence.budget_month_id),
+    ),
     templates: templates.map((template) => ({
       ...template,
       template_items: itemsByTemplate.get(template.id) ?? [],

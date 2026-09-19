@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarPlus,
+  CalendarClock,
   CheckCircle2,
   CircleAlert,
   LockKeyhole,
@@ -19,6 +20,7 @@ import {
   retrieveMonthByStart,
   retrieveProfile,
   searchCategories,
+  searchPaymentScheduleOccurrences,
   updateLastLocation,
   updateMonthItem,
 } from '../../data/repositories/budgetRepository';
@@ -80,6 +82,14 @@ export const BudgetPage = () => {
     queryFn: () => retrieveMonthByStart(monthStart),
     enabled: validMonth.test(monthStart) && profile.isSuccess,
   });
+  const monthEndDate = new Date(`${adjacentMonthStart(monthStart, 1)}T00:00:00Z`);
+  monthEndDate.setUTCDate(monthEndDate.getUTCDate() - 1);
+  const monthEnd = monthEndDate.toISOString().slice(0, 10);
+  const scheduleOccurrences = useQuery({
+    queryKey: queryKeys.scheduleOccurrences(userId, monthStart, monthEnd),
+    queryFn: () => searchPaymentScheduleOccurrences(monthStart, monthEnd),
+    enabled: validMonth.test(monthStart) && profile.isSuccess,
+  });
   const loadedMonthId = month.data?.id;
   const createMonth = useMutation({
     mutationFn: async () => {
@@ -128,14 +138,21 @@ export const BudgetPage = () => {
   if (
     month.isLoading ||
     profile.isLoading ||
+    scheduleOccurrences.isLoading ||
     (!readOnly && (defaultTemplate.isLoading || categories.isLoading))
   ) {
     return <LoadingState label="Opening your month…" />;
   }
-  if (month.error || profile.error || (!readOnly && (defaultTemplate.error || categories.error))) {
+  if (
+    month.error ||
+    profile.error ||
+    scheduleOccurrences.error ||
+    (!readOnly && (defaultTemplate.error || categories.error))
+  ) {
     const error =
       month.error ??
       profile.error ??
+      scheduleOccurrences.error ??
       (!readOnly ? (defaultTemplate.error ?? categories.error) : null);
     return (
       <ErrorState
@@ -328,6 +345,40 @@ export const BudgetPage = () => {
           {actionError}
         </div>
       )}
+
+      {(scheduleOccurrences.data?.length ?? 0) > 0 &&
+        (() => {
+          const expected = (scheduleOccurrences.data ?? []).filter(
+            (entry) => entry.status === 'expected',
+          );
+          const nextIncome = expected.find((entry) => entry.item_type === 'income');
+          const dueBeforeIncome = expected.filter(
+            (entry) =>
+              entry.item_type === 'expense' &&
+              (!nextIncome || entry.due_date < nextIncome.due_date),
+          );
+          return (
+            <aside className="budget-forecast-callout" aria-label="Upcoming cash flow">
+              <CalendarClock aria-hidden="true" />
+              <div>
+                <strong>
+                  {formatMoney(
+                    dueBeforeIncome.reduce((total, entry) => total + entry.amount_minor, 0) / 100,
+                    currency,
+                    locale,
+                  )}{' '}
+                  due before your next expected income
+                </strong>
+                <span>
+                  {nextIncome
+                    ? `Next income: ${nextIncome.due_date}`
+                    : 'No later income is scheduled this month.'}
+                </span>
+              </div>
+              <Link to="/app/cash-flow">View cash flow</Link>
+            </aside>
+          );
+        })()}
 
       <div className="summary-grid">
         <article className="summary-card">

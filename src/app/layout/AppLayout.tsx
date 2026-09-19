@@ -1,6 +1,7 @@
 import {
   BookOpen,
   CalendarDays,
+  CalendarClock,
   CircleDollarSign,
   LayoutTemplate,
   LogOut,
@@ -28,6 +29,7 @@ import { queryKeys } from '../../data/queryKeys';
 const navigation = [
   { to: '/app/budget/current', label: 'Budget', icon: CircleDollarSign },
   { to: '/app/transactions', label: 'Transactions', icon: ReceiptText },
+  { to: '/app/cash-flow', label: 'Cash flow', icon: CalendarClock },
   { to: '/app/months', label: 'Months', icon: CalendarDays },
   { to: '/app/templates', label: 'Templates', icon: LayoutTemplate },
   { to: '/app/categories', label: 'Categories', icon: Tags },

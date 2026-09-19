@@ -2,8 +2,8 @@
 
 ## GitHub Pages
 
-1. Link the intended Supabase project and run `npx supabase db push` before deploying the frontend. Confirm migrations `202609130002_add_transactions_and_accounts.sql` and `202609140001_add_csv_transaction_imports.sql` are applied successfully.
-2. Run `npm run test:db` against an isolated local Supabase stack, then smoke-test transaction creation, CSV import/reimport/undo, and historical locking in staging.
+1. Link the intended Supabase project and run `npx supabase db push` before deploying the frontend. Confirm migrations `202609130002_add_transactions_and_accounts.sql`, `202609140001_add_csv_transaction_imports.sql`, and `202609190002_add_payment_schedules.sql` are applied successfully.
+2. Run `npm run test:db` against an isolated local Supabase stack, then smoke-test transaction creation, CSV import/reimport/undo, schedule creation and confirmation, forecasts, and historical locking in staging.
 3. Create/select the GitHub repository and push the project to `main`.
 4. Open Settings → Pages and choose **GitHub Actions**.
 5. Open Settings → Actions → General and allow the repository workflows.
