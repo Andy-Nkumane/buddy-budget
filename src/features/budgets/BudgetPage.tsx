@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   CircleAlert,
   LockKeyhole,
+  Landmark,
   Plus,
   TrendingDown,
   TrendingUp,
@@ -43,6 +44,7 @@ import { AddMonthItemForm } from './AddMonthItemForm';
 import { BudgetRow } from './BudgetRow';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import { formatGoalPriority } from '../../shared/reporting/budgetReport';
 
 const validMonth = /^\d{4}-(0[1-9]|1[0-2])-01$/;
 
@@ -203,6 +205,11 @@ export const BudgetPage = () => {
     (item) => !archivingItemIds.has(item.id),
   );
   const progress = calculateBudgetProgress(visibleBudgetItems, budgetMonth.budget_transactions);
+  const goalRecommendations = budgetMonth.goal_month_recommendations ?? [];
+  const goalPlanMinor = goalRecommendations.reduce(
+    (total, recommendation) => total + recommendation.recommended_amount_minor,
+    0,
+  );
   const locale = profile.data?.locale ?? 'en-ZA';
   const currency = budgetMonth.currency_code;
   const itemsByType = (type: ItemType) =>
@@ -457,6 +464,49 @@ export const BudgetPage = () => {
           </div>
         </article>
       </div>
+
+      <section className="goal-plan-card" aria-labelledby="monthly-goal-plan-heading">
+        <div className="goal-plan-card__heading">
+          <span className="summary-icon">
+            <Landmark aria-hidden="true" />
+          </span>
+          <div>
+            <h2 id="monthly-goal-plan-heading">Goal contributions</h2>
+            <p>Transfers toward goals are shown separately and are not counted as expenses.</p>
+          </div>
+          <Link to="/app/goals">Manage goals</Link>
+        </div>
+        {goalRecommendations.length ? (
+          <>
+            <ul className="goal-plan-list">
+              {goalRecommendations.map((recommendation) => (
+                <li key={recommendation.id}>
+                  <span>
+                    <strong>{recommendation.name_snapshot}</strong>
+                    <small>
+                      {recommendation.goal_type.replace('_', ' ')} ·{' '}
+                      {formatGoalPriority(recommendation.priority)} priority
+                    </small>
+                  </span>
+                  <strong>
+                    {formatMoney(recommendation.recommended_amount_minor / 100, currency, locale)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+            <footer>
+              <span>Recommended this month</span>
+              <strong>{formatMoney(goalPlanMinor / 100, currency, locale)}</strong>
+              <span>Plan available after goals</span>
+              <strong>
+                {formatMoney(progress.planned.remaining - goalPlanMinor / 100, currency, locale)}
+              </strong>
+            </footer>
+          </>
+        ) : (
+          <p className="muted">No active goal contribution is planned for this month.</p>
+        )}
+      </section>
 
       {(['income', 'expense'] as const).map((type) => {
         const sectionItems = itemsByType(type);

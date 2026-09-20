@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowDown, ArrowUp, Check, Pencil, Plus, Star } from 'lucide-react';
+import { Archive, ArrowDown, ArrowUp, Check, Landmark, Pencil, Plus, Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import {
   createTemplate,
@@ -7,6 +8,7 @@ import {
   moveTemplateItem,
   retrieveProfile,
   searchCategories,
+  searchFinancialGoals,
   searchTemplates,
   setDefaultTemplate,
   updateTemplateItem,
@@ -19,6 +21,8 @@ import { Modal } from '../../shared/ui/Modal';
 import { parseMoney, toDatabaseMoney } from '../../shared/validation/schemas';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import { calculateGoalProgress } from '../goals/goalCalculations';
+import { formatMoney } from '../../shared/formatting/money';
 
 const TemplateItemRow = ({
   item,
@@ -153,6 +157,10 @@ export const TemplatesPage = () => {
     queryKey: queryKeys.categories(userId),
     queryFn: () => searchCategories(),
   });
+  const goals = useQuery({
+    queryKey: queryKeys.goals(userId),
+    queryFn: () => searchFinancialGoals(),
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -202,13 +210,13 @@ export const TemplatesPage = () => {
     }
   };
 
-  if (templates.isLoading || categories.isLoading || profile.isLoading)
+  if (templates.isLoading || categories.isLoading || profile.isLoading || goals.isLoading)
     return <LoadingState label="Loading templates…" />;
-  if (templates.error || categories.error || profile.error)
+  if (templates.error || categories.error || profile.error || goals.error)
     return (
       <ErrorState
         message={
-          (templates.error ?? categories.error ?? profile.error)?.message ??
+          (templates.error ?? categories.error ?? profile.error ?? goals.error)?.message ??
           'Templates are unavailable.'
         }
         retry={refresh}
@@ -234,6 +242,38 @@ export const TemplatesPage = () => {
           <p>Editing amounts, names, or categories below will not rewrite any existing month.</p>
         </div>
       </div>
+      <aside className="template-goals" aria-labelledby="template-goals-heading">
+        <Landmark aria-hidden="true" />
+        <div>
+          <h2 id="template-goals-heading">Goal allocations</h2>
+          <p>
+            These transfers sit beside your recurring income and expenses and flow into new monthly
+            plans.
+          </p>
+          {(goals.data ?? []).filter((goal) => goal.status === 'active').length ? (
+            <ul>
+              {(goals.data ?? [])
+                .filter((goal) => goal.status === 'active')
+                .map((goal) => (
+                  <li key={goal.id}>
+                    <span>{goal.name}</span>
+                    <strong>
+                      {formatMoney(
+                        calculateGoalProgress(goal, goal.goal_contributions)
+                          .recommendedMonthlyMinor / 100,
+                        profile.data?.currency_code,
+                        profile.data?.locale,
+                      )}
+                    </strong>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p className="muted">No active goals yet.</p>
+          )}
+        </div>
+        <Link to="/app/goals">Manage goals</Link>
+      </aside>
       {!templates.data?.length ? (
         <div className="empty-card">
           <h2>Create your recurring plan</h2>

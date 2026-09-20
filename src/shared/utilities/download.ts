@@ -6,6 +6,7 @@ import {
 } from '../formatting/money';
 import {
   calculateReportTotalsByCurrency,
+  formatGoalPriority,
   formatSignedReportAmount,
   formatSignedTransactionAmount,
 } from '../reporting/budgetReport';
@@ -141,6 +142,44 @@ export const downloadMonthsCsv = (
           transaction.is_refund ? 'yes' : 'no',
           transaction.external_reference ?? '',
           transaction.import_batch_id ?? '',
+        ]),
+        ...(month.goal_month_recommendations ?? []).map((recommendation) => [
+          'goal_contribution_plan',
+          month.month_start,
+          month.currency_code,
+          recommendation.goal_type,
+          recommendation.name_snapshot,
+          '',
+          '',
+          (recommendation.recommended_amount_minor / 100).toFixed(2),
+          '',
+          '',
+          '',
+          '',
+          `recommended · ${formatGoalPriority(recommendation.priority)} priority`,
+          'goal',
+          '',
+          '',
+          recommendation.goal_id,
+        ]),
+        ...(month.goal_contributions ?? []).map((contribution) => [
+          'goal_contribution',
+          month.month_start,
+          month.currency_code,
+          'transfer',
+          contribution.goal_name_snapshot,
+          '',
+          '',
+          '',
+          (contribution.amount_minor / 100).toFixed(2),
+          '',
+          '',
+          contribution.contribution_date,
+          'recorded',
+          contribution.transaction_id ? 'linked transaction' : 'manual goal contribution',
+          '',
+          contribution.transaction_id ?? '',
+          contribution.goal_id,
         ]),
         ...(includeForecast
           ? (month.payment_schedule_occurrences ?? []).map((occurrence) => [
@@ -359,6 +398,40 @@ export const downloadBudgetReportPdf = async (
           cell.cell.styles.textColor =
             occurrence?.item_type === 'income' ? incomeColor : expenseColor;
         },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
+    if ((month.goal_month_recommendations?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Goal allocation', 'Type', 'Priority', 'Recommended']],
+        body: (month.goal_month_recommendations ?? []).map((recommendation) => [
+          recommendation.name_snapshot,
+          recommendation.goal_type.replace('_', ' '),
+          formatGoalPriority(recommendation.priority),
+          formatMoney(recommendation.recommended_amount_minor / 100, month.currency_code, locale),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [25, 79, 71], textColor: [255, 255, 255] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
+    if ((month.goal_contributions?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Date', 'Goal contribution', 'Link', 'Amount']],
+        body: (month.goal_contributions ?? []).map((contribution) => [
+          contribution.contribution_date,
+          contribution.goal_name_snapshot,
+          contribution.transaction_id ? 'Transaction linked' : 'Manual record',
+          formatMoney(contribution.amount_minor / 100, month.currency_code, locale),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
       });
       cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
     }

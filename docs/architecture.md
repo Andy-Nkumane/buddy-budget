@@ -23,6 +23,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `transactions`: manual and browser-local CSV-imported actual income/expense ledger, optional account assignment, categorisation, pagination, duplicate protection, and locked-history controls.
 - `rules`: explicit ordered transaction conditions, per-field winning actions, dry-run explanations, conservative suggestions, and bounded reprocessing.
 - `schedules`: recurring expected income and expenses, immutable month occurrences, explicit transaction matching, and minor-unit cash-flow projections.
+- `goals`: savings, sinking-fund, and debt-paydown definitions; auditable contributions; and immutable monthly recommendation snapshots.
 - `templates`: recurring plans used only when creating a future snapshot.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, export, deletion.
@@ -47,6 +48,8 @@ Rule suggestions are derived only after at least three transactions share the sa
 Payment schedules are editable definitions; `payment_schedule_occurrences` are the monthly snapshot layer. Generation uses calendar dates in the schedule/profile IANA timezone, clamps a monthly day to the destination month end, and supports exact 7/14-day intervals or ISO weekdays. Schedule edits regenerate only unconfirmed occurrences in editable current/future snapshots. Disabling a schedule removes future expectations while confirmed and locked history remains intact.
 
 Forecasts never mutate or masquerade as actual transactions. Daily projections add posted actual cash effects and unmatched expected occurrences once, using integer minor units throughout. A matched occurrence has a unique transaction reference and is excluded from forecast effects. Candidate matches use type, amount, and a narrow date window, but the user must confirm the link.
+
+Goals are not expenses. `financial_goals` stores the editable target, while `goal_contributions` stores positive minor-unit progress records and optionally links one posted transaction per goal. Savings and sinking funds add contributions to their starting balance; debt goals subtract contributions from the outstanding starting balance while measuring payoff progress against the target amount. `goal_month_recommendations` snapshots the suggested transfer for each existing month. Goal edits refresh only editable snapshots, so locked reports never drift.
 
 ## Autosave
 

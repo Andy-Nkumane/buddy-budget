@@ -8,6 +8,9 @@ import type {
   Category,
   FinancialAccount,
   FinancialAccountWithBalance,
+  FinancialGoal,
+  GoalContribution,
+  GoalMonthRecommendation,
   PaymentSchedule,
   PaymentScheduleOccurrence,
   Profile,
@@ -211,6 +214,39 @@ export interface Database {
           | 'updated_at'
         >;
         Update: UpdateShape<PaymentScheduleOccurrence>;
+        Relationships: [];
+      };
+      financial_goals: {
+        Row: FinancialGoal;
+        Insert: OptionalInsert<
+          FinancialGoal,
+          | 'id'
+          | 'starting_balance_minor'
+          | 'desired_monthly_contribution_minor'
+          | 'target_date'
+          | 'priority'
+          | 'status'
+          | 'category_id'
+          | 'account_id'
+          | 'created_at'
+          | 'updated_at'
+        >;
+        Update: UpdateShape<FinancialGoal>;
+        Relationships: [];
+      };
+      goal_contributions: {
+        Row: GoalContribution;
+        Insert: OptionalInsert<
+          GoalContribution,
+          'id' | 'transaction_id' | 'notes' | 'created_at' | 'updated_at'
+        >;
+        Update: UpdateShape<GoalContribution>;
+        Relationships: [];
+      };
+      goal_month_recommendations: {
+        Row: GoalMonthRecommendation;
+        Insert: OptionalInsert<GoalMonthRecommendation, 'id' | 'created_at' | 'updated_at'>;
+        Update: UpdateShape<GoalMonthRecommendation>;
         Relationships: [];
       };
     };
@@ -420,6 +456,29 @@ export interface Database {
           requested_transaction_id?: string | null;
         };
         Returns: PaymentScheduleOccurrence[];
+      };
+      create_financial_goal: {
+        Args: { requested_goal: Record<string, unknown> };
+        Returns: FinancialGoal[];
+      };
+      update_financial_goal: {
+        Args: { requested_goal_id: string; requested_goal: Record<string, unknown> };
+        Returns: FinancialGoal[];
+      };
+      create_goal_contribution: {
+        Args: {
+          requested_goal_id: string;
+          requested_budget_month_id: string;
+          requested_transaction_id: string | null;
+          requested_contribution_date: string;
+          requested_amount_minor: number;
+          requested_notes?: string | null;
+        };
+        Returns: GoalContribution[];
+      };
+      delete_goal_contribution: {
+        Args: { requested_contribution_id: string };
+        Returns: undefined;
       };
       setup_first_budget: {
         Args: {
