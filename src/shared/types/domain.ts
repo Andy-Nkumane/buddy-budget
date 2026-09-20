@@ -8,6 +8,8 @@ export type TransactionImportStatus = 'completed' | 'undone';
 export type RuleDescriptionMatch = 'contains' | 'exact';
 export type ScheduleRecurrence = 'weekly' | 'fortnightly' | 'monthly' | 'selected_days';
 export type ScheduleOccurrenceStatus = 'expected' | 'paid' | 'received' | 'skipped';
+export type FinancialGoalType = 'savings' | 'sinking_fund' | 'debt_paydown';
+export type FinancialGoalStatus = 'active' | 'paused' | 'completed' | 'archived';
 
 export type Profile = {
   user_id: string;
@@ -213,6 +215,54 @@ export type PaymentScheduleOccurrence = {
   updated_at: string;
 };
 
+export type FinancialGoal = {
+  id: string;
+  user_id: string;
+  name: string;
+  goal_type: FinancialGoalType;
+  target_amount_minor: number;
+  target_date: string | null;
+  starting_balance_minor: number;
+  desired_monthly_contribution_minor: number | null;
+  priority: number;
+  status: FinancialGoalStatus;
+  category_id: string | null;
+  account_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GoalContribution = {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  budget_month_id: string;
+  transaction_id: string | null;
+  goal_name_snapshot: string;
+  contribution_date: string;
+  amount_minor: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GoalMonthRecommendation = {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  budget_month_id: string;
+  name_snapshot: string;
+  goal_type: FinancialGoalType;
+  recommended_amount_minor: number;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FinancialGoalWithContributions = FinancialGoal & {
+  goal_contributions: GoalContribution[];
+};
+
 export type TransactionImportBatch = {
   id: string;
   user_id: string;
@@ -236,6 +286,8 @@ export type BudgetMonthWithItems = BudgetMonth & {
   budget_month_items: BudgetMonthItem[];
   budget_transactions: BudgetTransaction[];
   payment_schedule_occurrences?: PaymentScheduleOccurrence[];
+  goal_month_recommendations?: GoalMonthRecommendation[];
+  goal_contributions?: GoalContribution[];
 };
 
 export type MonthSummary = BudgetMonth & {

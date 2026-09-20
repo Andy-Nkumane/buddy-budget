@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatSignedReportAmount } from './budgetReport';
+import { formatGoalPriority, formatSignedReportAmount } from './budgetReport';
 
 describe('formatSignedReportAmount', () => {
   it('prefixes income with a plus sign', () => {
@@ -13,5 +13,17 @@ describe('formatSignedReportAmount', () => {
   it('reverses the sign when refunds exceed activity', () => {
     expect(formatSignedReportAmount(-10, 'expense', 'USD', 'en-US')).toBe('+ $10.00');
     expect(formatSignedReportAmount(-10, 'income', 'USD', 'en-US')).toBe('- $10.00');
+  });
+});
+
+describe('formatGoalPriority', () => {
+  it.each([
+    [1, 'Highest'],
+    [2, 'High'],
+    [3, 'Normal'],
+    [4, 'Low'],
+    [5, 'Lowest'],
+  ])('formats priority %i as %s', (priority, label) => {
+    expect(formatGoalPriority(priority)).toBe(label);
   });
 });

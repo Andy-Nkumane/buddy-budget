@@ -6,6 +6,7 @@ import {
 } from '../../shared/formatting/money';
 import {
   calculateReportTotalsByCurrency,
+  formatGoalPriority,
   formatSignedReportAmount,
   formatSignedTransactionAmount,
 } from '../../shared/reporting/budgetReport';
@@ -266,6 +267,81 @@ export const BudgetReportPreview = ({
                 ) : (
                   <p>No scheduled items.</p>
                 )}
+              </>
+            )}
+            {(month.goal_month_recommendations?.length ?? 0) > 0 && (
+              <>
+                <h4>Goal contribution plan</h4>
+                <div className="report-preview__table-wrap">
+                  <table>
+                    <caption className="visually-hidden">
+                      Goal allocations for {formatMonth(month.month_start, profile.locale)}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Goal</th>
+                        <th scope="col">Type</th>
+                        <th scope="col">Priority</th>
+                        <th scope="col">Recommended</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {month.goal_month_recommendations?.map((recommendation) => (
+                        <tr key={recommendation.id}>
+                          <th scope="row">{recommendation.name_snapshot}</th>
+                          <td>{recommendation.goal_type.replace('_', ' ')}</td>
+                          <td>{formatGoalPriority(recommendation.priority)}</td>
+                          <td>
+                            {formatMoney(
+                              recommendation.recommended_amount_minor / 100,
+                              month.currency_code,
+                              profile.locale,
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            {(month.goal_contributions?.length ?? 0) > 0 && (
+              <>
+                <h4>Recorded goal contributions</h4>
+                <div className="report-preview__table-wrap">
+                  <table>
+                    <caption className="visually-hidden">
+                      Recorded goal contributions for{' '}
+                      {formatMonth(month.month_start, profile.locale)}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Goal</th>
+                        <th scope="col">Source</th>
+                        <th scope="col">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {month.goal_contributions?.map((contribution) => (
+                        <tr key={contribution.id}>
+                          <td>{contribution.contribution_date}</td>
+                          <th scope="row">{contribution.goal_name_snapshot}</th>
+                          <td>
+                            {contribution.transaction_id ? 'Transaction linked' : 'Manual record'}
+                          </td>
+                          <td>
+                            {formatMoney(
+                              contribution.amount_minor / 100,
+                              month.currency_code,
+                              profile.locale,
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </>
             )}
           </section>

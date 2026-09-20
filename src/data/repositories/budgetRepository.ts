@@ -12,6 +12,12 @@ import type {
   FinancialAccount,
   FinancialAccountType,
   FinancialAccountWithBalance,
+  FinancialGoal,
+  FinancialGoalStatus,
+  FinancialGoalType,
+  FinancialGoalWithContributions,
+  GoalContribution,
+  GoalMonthRecommendation,
   ItemType,
   MonthSummary,
   PaymentSchedule,
@@ -360,17 +366,50 @@ const retrieveMonthScheduleOccurrences = async (
   );
 };
 
+const retrieveMonthGoalRecommendations = async (
+  monthId: string,
+): Promise<GoalMonthRecommendation[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<GoalMonthRecommendation>((from, to) =>
+    client
+      .from('goal_month_recommendations')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('priority')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const retrieveMonthGoalContributions = async (monthId: string): Promise<GoalContribution[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<GoalContribution>((from, to) =>
+    client
+      .from('goal_contributions')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('contribution_date')
+      .order('id')
+      .range(from, to),
+  );
+};
+
 const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => {
-  const [items, transactions, scheduleOccurrences] = await Promise.all([
-    retrieveMonthItems(month.id),
-    retrieveMonthTransactions(month.id),
-    retrieveMonthScheduleOccurrences(month.id),
-  ]);
+  const [items, transactions, scheduleOccurrences, goalRecommendations, goalContributions] =
+    await Promise.all([
+      retrieveMonthItems(month.id),
+      retrieveMonthTransactions(month.id),
+      retrieveMonthScheduleOccurrences(month.id),
+      retrieveMonthGoalRecommendations(month.id),
+      retrieveMonthGoalContributions(month.id),
+    ]);
   return {
     ...month,
     budget_month_items: items,
     budget_transactions: transactions,
     payment_schedule_occurrences: scheduleOccurrences,
+    goal_month_recommendations: goalRecommendations,
+    goal_contributions: goalContributions,
   };
 };
 
@@ -416,7 +455,14 @@ export const retrieveMonthsForExport = async (
   range: MonthExportRange = {},
 ): Promise<BudgetMonthWithItems[]> => {
   const client = requireSupabase();
-  const [months, monthItems, transactions, scheduleOccurrences] = await Promise.all([
+  const [
+    months,
+    monthItems,
+    transactions,
+    scheduleOccurrences,
+    goalRecommendations,
+    goalContributions,
+  ] = await Promise.all([
     retrieveAllPages<BudgetMonth>((from, to) => {
       let query = client.from('budget_months').select('*').order('month_start').range(from, to);
       if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
@@ -457,16 +503,39 @@ export const retrieveMonthsForExport = async (
       if (range.toMonth) query = query.lt('due_date', adjacentMonthStart(range.toMonth, 1));
       return query;
     }),
+    retrieveAllPages<GoalMonthRecommendation>((from, to) =>
+      client
+        .from('goal_month_recommendations')
+        .select('*')
+        .order('priority')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<GoalContribution>((from, to) =>
+      client
+        .from('goal_contributions')
+        .select('*')
+        .order('contribution_date')
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   if (!months.length) return [];
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
   const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
   const occurrencesByMonth = groupRecordsBy(scheduleOccurrences, (entry) => entry.budget_month_id);
+  const goalsByMonth = groupRecordsBy(goalRecommendations, (entry) => entry.budget_month_id);
+  const goalContributionsByMonth = groupRecordsBy(
+    goalContributions,
+    (entry) => entry.budget_month_id,
+  );
   return months.map((month) => ({
     ...month,
     budget_month_items: itemsByMonth.get(month.id) ?? [],
     budget_transactions: transactionsByMonth.get(month.id) ?? [],
     payment_schedule_occurrences: occurrencesByMonth.get(month.id) ?? [],
+    goal_month_recommendations: goalsByMonth.get(month.id) ?? [],
+    goal_contributions: goalContributionsByMonth.get(month.id) ?? [],
   }));
 };
 
@@ -909,6 +978,103 @@ export const confirmPaymentOccurrence = async (
   return data[0];
 };
 
+export interface FinancialGoalInput {
+  name: string;
+  goal_type: FinancialGoalType;
+  target_amount_minor: number;
+  target_date: string | null;
+  starting_balance_minor: number;
+  desired_monthly_contribution_minor: number | null;
+  priority: number;
+  status: FinancialGoalStatus;
+  category_id: string | null;
+  account_id: string | null;
+}
+
+export const searchFinancialGoals = async (
+  includeArchived = false,
+): Promise<FinancialGoalWithContributions[]> => {
+  const client = requireSupabase();
+  let query = client
+    .from('financial_goals')
+    .select('*')
+    .order('priority')
+    .order('target_date', { nullsFirst: false })
+    .order('id');
+  if (!includeArchived) query = query.neq('status', 'archived');
+  const [{ data: goals, error }, contributions] = await Promise.all([
+    query,
+    retrieveAllPages<GoalContribution>((from, to) =>
+      client
+        .from('goal_contributions')
+        .select('*')
+        .order('contribution_date', { ascending: false })
+        .order('id')
+        .range(from, to),
+    ),
+  ]);
+  throwWhenError(error);
+  const byGoal = groupRecordsBy(contributions, (entry) => entry.goal_id);
+  return (goals ?? []).map((goal) => ({
+    ...goal,
+    goal_contributions: byGoal.get(goal.id) ?? [],
+  }));
+};
+
+export const searchGoalRecommendations = async (
+  monthId: string,
+): Promise<GoalMonthRecommendation[]> => retrieveMonthGoalRecommendations(monthId);
+
+export const createFinancialGoal = async (input: FinancialGoalInput): Promise<FinancialGoal> => {
+  const { data, error } = await requireSupabase().rpc('create_financial_goal', {
+    requested_goal: { ...input },
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The goal could not be created.');
+  return data[0];
+};
+
+export const updateFinancialGoal = async (
+  id: string,
+  input: FinancialGoalInput,
+): Promise<FinancialGoal> => {
+  const { data, error } = await requireSupabase().rpc('update_financial_goal', {
+    requested_goal_id: id,
+    requested_goal: { ...input },
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The goal could not be updated.');
+  return data[0];
+};
+
+export const createGoalContribution = async (input: {
+  goalId: string;
+  budgetMonthId: string;
+  transactionId: string | null;
+  contributionDate: string;
+  amountMinor: number;
+  notes: string;
+}): Promise<GoalContribution> => {
+  const { data, error } = await requireSupabase().rpc('create_goal_contribution', {
+    requested_goal_id: input.goalId,
+    requested_budget_month_id: input.budgetMonthId,
+    requested_transaction_id: input.transactionId,
+    requested_contribution_date: input.contributionDate,
+    requested_amount_minor: input.amountMinor,
+    requested_notes: input.notes,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The contribution could not be recorded.');
+  return data[0];
+};
+
+export const deleteGoalContribution = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('delete_goal_contribution', {
+    requested_contribution_id: id,
+  });
+  throwWhenError(error);
+};
+
 export const exportAllData = async (range: MonthExportRange = {}) => {
   const client = requireSupabase();
   const [
@@ -924,6 +1090,9 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     categorisationRules,
     paymentSchedules,
     paymentScheduleOccurrences,
+    financialGoals,
+    goalContributions,
+    goalRecommendations,
   ] = await Promise.all([
     retrieveProfile(),
     retrievePreferences(),
@@ -987,6 +1156,25 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
       if (range.toMonth) query = query.lt('due_date', adjacentMonthStart(range.toMonth, 1));
       return query;
     }),
+    retrieveAllPages<FinancialGoal>((from, to) =>
+      client.from('financial_goals').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<GoalContribution>((from, to) =>
+      client
+        .from('goal_contributions')
+        .select('*')
+        .order('contribution_date')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<GoalMonthRecommendation>((from, to) =>
+      client
+        .from('goal_month_recommendations')
+        .select('*')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
@@ -997,7 +1185,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 6,
+    schema_version: 7,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -1013,6 +1201,13 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     payment_schedules: paymentSchedules,
     payment_schedule_occurrences: paymentScheduleOccurrences.filter((occurrence) =>
       exportedMonthIds.has(occurrence.budget_month_id),
+    ),
+    financial_goals: financialGoals,
+    goal_contributions: goalContributions.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
+    goal_month_recommendations: goalRecommendations.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
     ),
     templates: templates.map((template) => ({
       ...template,

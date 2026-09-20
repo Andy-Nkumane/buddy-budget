@@ -10,10 +10,16 @@ import {
   PencilLine,
   Smartphone,
   WalletCards,
+  Landmark,
   WifiOff,
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: Landmark,
+    title: 'Plan goals without hiding spending',
+    body: 'Create savings, sinking-fund, or debt-payoff goals in Goals. Recommended contributions appear beside templates and monthly budgets as transfers, not expenses. Record contributions to update progress; pausing a goal keeps its history and stops future recommendations.',
+  },
   {
     icon: CalendarClock,
     title: 'Forecast upcoming cash flow',

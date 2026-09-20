@@ -74,3 +74,14 @@ export const formatSignedTransactionAmount = (
     locale,
   )}`;
 };
+
+const goalPriorityLabels: Record<number, string> = {
+  1: 'Highest',
+  2: 'High',
+  3: 'Normal',
+  4: 'Low',
+  5: 'Lowest',
+};
+
+export const formatGoalPriority = (priority: number): string =>
+  goalPriorityLabels[priority] ?? 'Unknown';
