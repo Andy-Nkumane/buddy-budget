@@ -20,6 +20,7 @@ import type {
   GoalMonthRecommendation,
   ItemType,
   MonthSummary,
+  NotificationDelivery,
   PaymentSchedule,
   PaymentScheduleOccurrence,
   Profile,
@@ -29,7 +30,9 @@ import type {
   TransactionStatus,
   TransactionImportBatch,
   UserPreferences,
+  WeeklyCheckInPreferences,
 } from '../../shared/types/domain';
+import type { WeeklyCheckInSummary } from '../../shared/checkins/checkin';
 import { requireSupabase } from '../supabase/client';
 
 const throwWhenError = (error: { message: string } | null): void => {
@@ -106,6 +109,82 @@ export const updateProfileAndPreferences = async (input: {
     requested_locale: input.locale,
     requested_timezone: input.timezone,
     requested_theme: input.theme,
+  });
+  throwWhenError(error);
+};
+
+export const retrieveWeeklyCheckInPreferences =
+  async (): Promise<WeeklyCheckInPreferences | null> => {
+    const user = await retrieveAuthenticatedUser();
+    const { data, error } = await requireSupabase()
+      .from('weekly_checkin_preferences')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    throwWhenError(error);
+    return data;
+  };
+
+export const updateWeeklyCheckInPreferences = async (input: {
+  optedIn: boolean;
+  weekday: number;
+  deliveryTime: string;
+  timezone: string;
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+  emailDetailEnabled: boolean;
+  paused: boolean;
+}): Promise<WeeklyCheckInPreferences> => {
+  const { data, error } = await requireSupabase().rpc('update_weekly_checkin_preferences', {
+    requested_preferences: {
+      opted_in: input.optedIn,
+      weekday: input.weekday,
+      delivery_time: input.deliveryTime,
+      timezone: input.timezone,
+      in_app_enabled: input.inAppEnabled,
+      email_enabled: input.emailEnabled,
+      email_detail_enabled: input.emailDetailEnabled,
+      paused: input.paused,
+    },
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('Check-in preferences could not be saved.');
+  return data[0];
+};
+
+export const searchNotificationDeliveries = async (): Promise<NotificationDelivery[]> => {
+  const { data, error } = await requireSupabase()
+    .from('notification_deliveries')
+    .select('*')
+    .order('scheduled_for', { ascending: false })
+    .limit(12);
+  throwWhenError(error);
+  return data ?? [];
+};
+
+const invokeWeeklyCheckIn = async <T>(body: Record<string, unknown>): Promise<T> => {
+  const response = (await requireSupabase().functions.invoke('weekly-checkin', {
+    body,
+  })) as unknown as {
+    data: unknown;
+    error: { message: string } | null;
+  };
+  throwWhenError(response.error);
+  return response.data as T;
+};
+
+export const previewWeeklyCheckIn = async (): Promise<WeeklyCheckInSummary> => {
+  const result = await invokeWeeklyCheckIn<{ summary: WeeklyCheckInSummary }>({ mode: 'preview' });
+  return result.summary;
+};
+
+export const sendTestWeeklyCheckIn = async (channel: 'in_app' | 'email'): Promise<void> => {
+  await invokeWeeklyCheckIn({ mode: 'test', channel });
+};
+
+export const markNotificationDeliveryRead = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('mark_notification_delivery_read', {
+    requested_delivery_id: id,
   });
   throwWhenError(error);
 };
@@ -1093,6 +1172,8 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     financialGoals,
     goalContributions,
     goalRecommendations,
+    weeklyCheckInPreferences,
+    notificationDeliveries,
   ] = await Promise.all([
     retrieveProfile(),
     retrievePreferences(),
@@ -1175,6 +1256,15 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         .order('id')
         .range(from, to),
     ),
+    retrieveWeeklyCheckInPreferences(),
+    retrieveAllPages<NotificationDelivery>((from, to) =>
+      client
+        .from('notification_deliveries')
+        .select('*')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
@@ -1185,13 +1275,15 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 7,
+    schema_version: 8,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
     },
     profile,
     preferences,
+    weekly_checkin_preferences: weeklyCheckInPreferences,
+    notification_deliveries: notificationDeliveries,
     categories,
     financial_accounts: financialAccounts,
     transaction_import_batches: transactionImportBatches.filter((batch) =>

@@ -25,6 +25,7 @@ import {
   addMinorUnitsExact,
   currentDateInTimeZone,
   findUncertainOccurrenceMatches,
+  formatCashFlowAmount,
 } from './cashFlow';
 import { ScheduleForm } from './ScheduleForm';
 
@@ -69,6 +70,10 @@ export const CashFlowPage = () => {
     queryFn: () => retrieveMonthByStart(monthStart),
   });
   const entries = useMemo(() => occurrences.data ?? [], [occurrences.data]);
+  const scheduleEnabled = useMemo(
+    () => new Map((schedules.data ?? []).map((schedule) => [schedule.id, schedule.enabled])),
+    [schedules.data],
+  );
   const transactions = month.data?.budget_transactions ?? [];
   const projection = useMemo(
     () =>
@@ -251,7 +256,13 @@ export const CashFlowPage = () => {
                       <strong>{entry.name_snapshot}</strong>
                       <span>
                         {entry.amount_is_approximate ? 'Approx. ' : ''}
-                        {formatMoney(entry.amount_minor / 100, currency, locale)} ·{' '}
+                        {formatCashFlowAmount(
+                          entry.amount_minor,
+                          entry.item_type,
+                          currency,
+                          locale,
+                        )}{' '}
+                        ·{' '}
                         {entry.status === 'expected' && entry.due_date < today
                           ? 'overdue'
                           : entry.status}
@@ -291,40 +302,98 @@ export const CashFlowPage = () => {
             )}
           </div>
         ) : (
-          <div className="cash-calendar">
-            {Array.from({ length: 7 }, (_, index) => addDays(today, index)).map((date) => (
-              <article key={date}>
-                <time dateTime={date}>
-                  {new Intl.DateTimeFormat(locale, {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                    timeZone: 'UTC',
-                  }).format(new Date(`${date}T00:00:00Z`))}
-                </time>
-                {upcoming
-                  .filter((entry) => entry.due_date === date)
-                  .map((entry) => (
-                    <span
-                      className={`calendar-event calendar-event--${entry.item_type}`}
-                      key={entry.id}
+          <div className="calendar-view">
+            <ul className="calendar-legend" aria-label="Calendar status legend">
+              <li>
+                <span className="calendar-key calendar-key--expected" />
+                Expected
+              </li>
+              <li>
+                <span className="calendar-key calendar-key--paid" />
+                Paid
+              </li>
+              <li>
+                <span className="calendar-key calendar-key--received" />
+                Received
+              </li>
+              <li>
+                <span className="calendar-key calendar-key--skipped" />
+                Skipped
+              </li>
+              <li>
+                <span className="calendar-key calendar-key--disabled" />
+                Disabled
+              </li>
+            </ul>
+            <p className="calendar-mobile-hint">Swipe sideways to compare all seven days.</p>
+            <div className="cash-calendar" tabIndex={0} aria-label="Seven-day cash-flow calendar">
+              {Array.from({ length: 7 }, (_, index) => addDays(today, index)).map((date) => {
+                const dayEntries = upcoming.filter((entry) => entry.due_date === date);
+                const dayProjection = projection.days.find((day) => day.date === date);
+                return (
+                  <article key={date} className={date === today ? 'cash-calendar__today' : ''}>
+                    <header>
+                      <time dateTime={date}>
+                        {new Intl.DateTimeFormat(locale, {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          timeZone: 'UTC',
+                        }).format(new Date(`${date}T00:00:00Z`))}
+                      </time>
+                      {date === today && <small>Today</small>}
+                    </header>
+                    <div className="calendar-events">
+                      {dayEntries.length ? (
+                        dayEntries.map((entry) => {
+                          const status =
+                            scheduleEnabled.get(entry.schedule_id) === false &&
+                            entry.status === 'expected'
+                              ? 'disabled'
+                              : entry.status;
+                          return (
+                            <div
+                              className={`calendar-event calendar-event--${entry.item_type} calendar-event--${status}`}
+                              key={entry.id}
+                            >
+                              <div className="calendar-event__heading">
+                                <strong>{entry.name_snapshot}</strong>
+                                <span
+                                  className={`calendar-event__type calendar-event__type--${entry.item_type}`}
+                                >
+                                  {entry.item_type}
+                                </span>
+                              </div>
+                              <small>
+                                {formatCashFlowAmount(
+                                  entry.amount_minor,
+                                  entry.item_type,
+                                  currency,
+                                  locale,
+                                )}
+                              </small>
+                              <span className="calendar-event__status">{status}</span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <span className="calendar-day-empty">No items</span>
+                      )}
+                    </div>
+                    <footer
+                      className={
+                        (dayProjection?.balanceMinor ?? 0) < 0 ? 'calendar-balance--risk' : ''
+                      }
                     >
-                      {entry.name_snapshot}
-                      <small>{formatMoney(entry.amount_minor / 100, currency, locale)}</small>
-                    </span>
-                  ))}
-                <footer>
-                  <small>Projected balance</small>
-                  <strong>
-                    {formatMoney(
-                      (projection.days.find((day) => day.date === date)?.balanceMinor ?? 0) / 100,
-                      currency,
-                      locale,
-                    )}
-                  </strong>
-                </footer>
-              </article>
-            ))}
+                      <small>Projected balance</small>
+                      <strong>
+                        {formatMoney((dayProjection?.balanceMinor ?? 0) / 100, currency, locale)}
+                      </strong>
+                    </footer>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         )}
       </section>

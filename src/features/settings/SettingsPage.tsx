@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, ListChecks, LogOut, ShieldAlert, Trash2 } from 'lucide-react';
+import { BellRing, Download, ListChecks, LogOut, ShieldAlert, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
@@ -187,6 +187,13 @@ export const SettingsPage = () => {
               )}
             </div>
           </form>
+        </section>
+        <section className="settings-card">
+          <h2>Weekly budget check-in</h2>
+          <p>Get one concise, opt-in summary in the app, by email, or both.</p>
+          <Link className="button button--secondary" to="/app/settings/check-ins">
+            <BellRing size={18} /> Set up check-ins
+          </Link>
         </section>
         <section className="settings-card">
           <h2>Categorisation rules</h2>

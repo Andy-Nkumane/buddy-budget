@@ -5,6 +5,7 @@ import {
   addMinorUnitsExact,
   currentDateInTimeZone,
   findUncertainOccurrenceMatches,
+  formatCashFlowAmount,
   generateOccurrenceDates,
 } from './cashFlow';
 
@@ -57,6 +58,15 @@ const transaction = (values: Partial<BudgetTransaction> = {}): BudgetTransaction
 });
 
 describe('schedule recurrence', () => {
+  it('creates exactly one occurrence for a once payment', () => {
+    expect(
+      generateOccurrenceDates({
+        startDate: '2026-10-05',
+        endDate: '2026-11-05',
+        recurrence: 'once',
+      }),
+    ).toEqual(['2026-10-05']);
+  });
   it('resolves calendar dates in the profile timezone at a UTC boundary', () => {
     const instant = new Date('2026-12-31T22:30:00Z');
     expect(currentDateInTimeZone('Africa/Johannesburg', instant)).toBe('2027-01-01');
@@ -93,6 +103,11 @@ describe('schedule recurrence', () => {
 });
 
 describe('cash-flow projection', () => {
+  it('shows income and expenses with explicit cash-flow signs', () => {
+    expect(formatCashFlowAmount(12500, 'income', 'ZAR', 'en-ZA')).toMatch(/^\+\s/);
+    expect(formatCashFlowAmount(12500, 'expense', 'ZAR', 'en-ZA')).toMatch(/^-\s/);
+  });
+
   it('uses integer minor units and excludes matched forecasts', () => {
     const result = calculateCashFlowProjection({
       fromDate: '2028-02-28',

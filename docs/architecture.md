@@ -10,6 +10,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 
 - React Router owns navigation and UX-only authentication/onboarding guards.
 - `AuthProvider` restores and observes the Supabase-managed browser session.
+- Supabase Cron invokes the server-only `weekly-checkin` Edge Function. The function claims bounded, idempotent jobs, builds summaries from user-scoped records, and calls Mailjet without exposing provider credentials to the browser.
 - TanStack Query owns server state, invalidation, retry, and optimistic cache updates.
 - React Hook Form and Zod own form state and untrusted-input validation.
 - Repositories are the only frontend modules that issue database queries.

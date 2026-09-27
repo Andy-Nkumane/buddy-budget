@@ -7,6 +7,7 @@ import {
   Landmark,
   LogOut,
   Menu,
+  BellRing,
   ReceiptText,
   Settings,
   Tags,
@@ -14,10 +15,12 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   retrievePreferences,
   retrieveProfile,
+  searchNotificationDeliveries,
+  markNotificationDeliveryRead,
   updateLastLocation,
 } from '../../data/repositories/budgetRepository';
 import { PwaStatus } from '../../pwa/PwaStatus';
@@ -26,6 +29,8 @@ import { Button } from '../../shared/ui/Button';
 import { BrandMark } from '../../shared/ui/BrandMark';
 import { useAuth } from '../providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import type { WeeklyCheckInSummary } from '../../shared/checkins/checkin';
+import { useQueryClient } from '@tanstack/react-query';
 
 const navigation = [
   { to: '/app/budget/current', label: 'Budget', icon: CircleDollarSign },
@@ -56,6 +61,7 @@ const Navigation = ({ close }: { close?: () => void }) => (
 );
 
 export const AppLayout = () => {
+  const queryClient = useQueryClient();
   const { session, signOut } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -66,6 +72,15 @@ export const AppLayout = () => {
     queryFn: retrievePreferences,
   });
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
+  const deliveries = useQuery({
+    queryKey: queryKeys.notificationDeliveries(userId),
+    queryFn: searchNotificationDeliveries,
+  });
+  const unreadCheckIn = deliveries.data?.find(
+    (delivery) =>
+      delivery.channel === 'in_app' && delivery.status === 'delivered' && !delivery.read_at,
+  );
+  const checkInSummary = unreadCheckIn?.summary_payload as WeeklyCheckInSummary | undefined;
   useEnsureCurrentMonth();
   const accountName = profile.data?.display_name?.trim() || session?.user.email || 'Account';
   const handleSignOut = async () => {
@@ -153,6 +168,34 @@ export const AppLayout = () => {
           <div className="inline-alert inline-alert--error" role="alert">
             {accountError}
           </div>
+        )}
+        {unreadCheckIn && checkInSummary?.recommendation && (
+          <aside className="checkin-banner" aria-label="Weekly budget check-in">
+            <BellRing aria-hidden="true" size={22} />
+            <div>
+              <strong>{checkInSummary.recommendation.title}</strong>
+              <p>{checkInSummary.recommendation.body}</p>
+            </div>
+            <Link className="button button--secondary" to={unreadCheckIn.action_path}>
+              Review
+            </Link>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Dismiss check-in"
+              onClick={() => {
+                void markNotificationDeliveryRead(unreadCheckIn.id)
+                  .then(() =>
+                    queryClient.invalidateQueries({
+                      queryKey: queryKeys.notificationDeliveries(userId),
+                    }),
+                  )
+                  .catch(() => setAccountError('The check-in could not be dismissed.'));
+              }}
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+          </aside>
         )}
         <Outlet />
       </main>

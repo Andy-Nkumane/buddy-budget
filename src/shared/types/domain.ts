@@ -6,10 +6,13 @@ export type TransactionStatus = 'pending' | 'posted' | 'void';
 export type TransactionSource = 'manual' | 'csv_import';
 export type TransactionImportStatus = 'completed' | 'undone';
 export type RuleDescriptionMatch = 'contains' | 'exact';
-export type ScheduleRecurrence = 'weekly' | 'fortnightly' | 'monthly' | 'selected_days';
-export type ScheduleOccurrenceStatus = 'expected' | 'paid' | 'received' | 'skipped';
+export type ScheduleRecurrence = 'once' | 'weekly' | 'fortnightly' | 'monthly' | 'selected_days';
+export type ScheduleOccurrenceStatus = 'expected' | 'paid' | 'received' | 'skipped' | 'disabled';
 export type FinancialGoalType = 'savings' | 'sinking_fund' | 'debt_paydown';
 export type FinancialGoalStatus = 'active' | 'paused' | 'completed' | 'archived';
+export type CheckInDeliveryChannel = 'in_app' | 'email';
+export type CheckInDeliveryStatus =
+  'queued' | 'processing' | 'delivered' | 'failed' | 'failed_final' | 'skipped';
 
 export type Profile = {
   user_id: string;
@@ -261,6 +264,44 @@ export type GoalMonthRecommendation = {
 
 export type FinancialGoalWithContributions = FinancialGoal & {
   goal_contributions: GoalContribution[];
+};
+
+export type WeeklyCheckInPreferences = {
+  user_id: string;
+  opted_in: boolean;
+  weekday: number;
+  delivery_time: string;
+  timezone: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  email_detail_enabled: boolean;
+  paused: boolean;
+  email_delivery_state: 'active' | 'bounced' | 'blocked';
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationDelivery = {
+  id: string;
+  user_id: string;
+  channel: CheckInDeliveryChannel;
+  delivery_kind: 'weekly' | 'test';
+  job_key: string;
+  period_start: string;
+  scheduled_for: string;
+  status: CheckInDeliveryStatus;
+  attempt_count: number;
+  last_attempt_at: string | null;
+  delivered_at: string | null;
+  next_attempt_at: string | null;
+  error_code: string | null;
+  error_summary: string | null;
+  provider_message_id: string | null;
+  action_path: string;
+  summary_payload: Record<string, unknown> | null;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type TransactionImportBatch = {

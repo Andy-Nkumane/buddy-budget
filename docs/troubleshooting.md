@@ -46,3 +46,31 @@ Finish pending edits, use the in-app Update action, or close/reopen all app wind
 ## CSP blocks Supabase
 
 The project must use an HTTPS `*.supabase.co` URL or the documented local origin. If using a custom Supabase domain, add only that exact origin to `connect-src`, rebuild, and verify. Do not broadly allow arbitrary origins.
+
+# Testing an in-app weekly check-in locally
+
+Run each command from WSL in the repository directory.
+
+1. Start Supabase and apply the local migrations:
+
+   ```bash
+   npx supabase start
+   npx supabase db reset
+   ```
+
+2. In a separate WSL terminal, start the Edge Function. In-app delivery does not call Mailjet, so placeholder Mailjet values from the committed example are sufficient:
+
+   ```bash
+   npx supabase functions serve weekly-checkin --env-file supabase/functions/.env.example
+   ```
+
+3. In another WSL terminal, start the frontend:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Sign in with a local user, open **Settings → Weekly budget check-in**, enable weekly check-ins and **In app**, then save.
+5. Select **Send in-app test**. A delivered check-in appears above the current application page. Its delivery also appears under **Recent delivery activity**.
+
+If the button remains disabled, save the opt-in first and ensure the preference is not paused. If the request fails, keep the Edge Function terminal open and confirm the local `VITE_SUPABASE_URL` and publishable key point to the output from `npx supabase status`.
