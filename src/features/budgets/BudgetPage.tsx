@@ -42,6 +42,7 @@ import { parseMoney } from '../../shared/validation/schemas';
 import { hasActiveBudgetEditors } from '../../pwa/editState';
 import { AddMonthItemForm } from './AddMonthItemForm';
 import { BudgetRow } from './BudgetRow';
+import { MonthClosePanel } from './MonthClosePanel';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
 import { formatGoalPriority } from '../../shared/reporting/budgetReport';
@@ -58,9 +59,9 @@ export const BudgetPage = () => {
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const current = currentMonthStart(profile.data?.timezone);
   const monthStart = routeMonth === 'current' || !routeMonth ? current : routeMonth;
-  const readOnly = validMonth.test(monthStart) && isMonthReadOnly(monthStart, current);
+  const ageLocked = validMonth.test(monthStart) && isMonthReadOnly(monthStart, current);
   const [addingType, setAddingType] = useState<ItemType | null>(() =>
-    !readOnly && searchParams.get('add') === 'expense' ? 'expense' : null,
+    !ageLocked && searchParams.get('add') === 'expense' ? 'expense' : null,
   );
   const [archivedItem, setArchivedItem] = useState<BudgetMonthItem | null>(null);
   const [archivingItemIds, setArchivingItemIds] = useState<Set<string>>(() => new Set());
@@ -72,18 +73,19 @@ export const BudgetPage = () => {
   const defaultTemplate = useQuery({
     queryKey: queryKeys.defaultTemplate(userId),
     queryFn: retrieveDefaultTemplate,
-    enabled: !readOnly,
+    enabled: !ageLocked,
   });
   const categories = useQuery({
     queryKey: queryKeys.categories(userId),
     queryFn: () => searchCategories(),
-    enabled: !readOnly,
+    enabled: !ageLocked,
   });
   const month = useQuery({
     queryKey: monthKey,
     queryFn: () => retrieveMonthByStart(monthStart),
     enabled: validMonth.test(monthStart) && profile.isSuccess,
   });
+  const readOnly = ageLocked || month.data?.lifecycle?.state === 'closed';
   const monthEndDate = new Date(`${adjacentMonthStart(monthStart, 1)}T00:00:00Z`);
   monthEndDate.setUTCDate(monthEndDate.getUTCDate() - 1);
   const monthEnd = monthEndDate.toISOString().slice(0, 10);
@@ -91,6 +93,11 @@ export const BudgetPage = () => {
     queryKey: queryKeys.scheduleOccurrences(userId, monthStart, monthEnd),
     queryFn: () => searchPaymentScheduleOccurrences(monthStart, monthEnd),
     enabled: validMonth.test(monthStart) && profile.isSuccess,
+  });
+  const currentMonthForAdjustment = useQuery({
+    queryKey: queryKeys.month(userId, current),
+    queryFn: () => retrieveMonthByStart(current),
+    enabled: ageLocked && current !== monthStart,
   });
   const loadedMonthId = month.data?.id;
   const createMonth = useMutation({
@@ -333,7 +340,9 @@ export const BudgetPage = () => {
       {readOnly && (
         <div className="inline-alert" role="status">
           <LockKeyhole aria-hidden="true" size={18} />
-          Months become read-only when they are two calendar months old.
+          {ageLocked
+            ? 'Months become permanently read-only when they are two calendar months old.'
+            : 'This month is closed. Reopen it to make changes before the automatic lock boundary.'}
         </div>
       )}
 
@@ -352,6 +361,19 @@ export const BudgetPage = () => {
           {actionError}
         </div>
       )}
+
+      <MonthClosePanel
+        month={budgetMonth}
+        ageLocked={ageLocked}
+        currentMonthId={
+          monthStart === current ? budgetMonth.id : (currentMonthForAdjustment.data?.id ?? null)
+        }
+        locale={locale}
+        onChanged={() => {
+          void queryClient.invalidateQueries({ queryKey: monthKey });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.months(userId) });
+        }}
+      />
 
       {(scheduleOccurrences.data?.length ?? 0) > 0 &&
         (() => {

@@ -6,6 +6,7 @@ import {
 } from '../formatting/money';
 import {
   calculateReportTotalsByCurrency,
+  calculateAdjustedActuals,
   formatGoalPriority,
   formatSignedReportAmount,
   formatSignedTransactionAmount,
@@ -142,6 +143,44 @@ export const downloadMonthsCsv = (
           transaction.is_refund ? 'yes' : 'no',
           transaction.external_reference ?? '',
           transaction.import_batch_id ?? '',
+        ]),
+        ...(month.close_summaries ?? []).map((summary) => [
+          'month_close_summary',
+          month.month_start,
+          month.currency_code,
+          'snapshot',
+          `Immutable close snapshot ${summary.close_sequence}`,
+          '',
+          '',
+          (summary.planned_income_minor / 100).toFixed(2),
+          (summary.actual_income_minor / 100).toFixed(2),
+          (summary.income_variance_minor / 100).toFixed(2),
+          (summary.actual_balance_minor / 100).toFixed(2),
+          summary.completed_at,
+          'closed',
+          'immutable close summary',
+          '',
+          '',
+          summary.id,
+        ]),
+        ...(month.adjustments ?? []).map((adjustment) => [
+          'historical_adjustment',
+          month.month_start,
+          month.currency_code,
+          adjustment.item_type,
+          adjustment.reason,
+          '',
+          '',
+          '',
+          `${adjustment.direction === 'increase' ? '' : '-'}${(adjustment.amount_minor / 100).toFixed(2)}`,
+          '',
+          '',
+          adjustment.created_at,
+          adjustment.direction,
+          'subsequent adjustment; original unchanged',
+          '',
+          '',
+          adjustment.id,
         ]),
         ...(month.goal_month_recommendations ?? []).map((recommendation) => [
           'goal_contribution_plan',
@@ -285,10 +324,19 @@ export const downloadBudgetReportPdf = async (
       cursorY = 44;
     }
     const progress = calculateBudgetProgress(month.budget_month_items, month.budget_transactions);
+    const adjusted = calculateAdjustedActuals(month);
     document.setTextColor(23, 37, 34);
     document.setFontSize(15);
     document.text(formatMonth(month.month_start, locale), margin, cursorY);
     cursorY += 16;
+    document.setFontSize(8.5);
+    document.setTextColor(...bodyColor);
+    document.text(
+      `Report state: ${month.lifecycle?.state ?? 'open'}${month.close_summaries?.[0] ? ` · close snapshot ${month.close_summaries[0].close_sequence}` : ''}`,
+      margin,
+      cursorY,
+    );
+    cursorY += 14;
     document.setFontSize(9);
     let cursorX = margin;
     const drawTotal = (label: string, value: string, color: [number, number, number]) => {
@@ -371,6 +419,35 @@ export const downloadBudgetReportPdf = async (
         },
       });
       cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
+    if ((month.adjustments?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Recorded', 'Subsequent adjustment', 'Change', 'Amount']],
+        body: (month.adjustments ?? []).map((adjustment) => [
+          new Date(adjustment.created_at).toLocaleDateString(locale),
+          adjustment.reason,
+          `${adjustment.direction} ${adjustment.item_type}`,
+          formatSignedReportAmount(
+            (adjustment.direction === 'increase' ? 1 : -1) * (adjustment.amount_minor / 100),
+            adjustment.item_type,
+            month.currency_code,
+            locale,
+          ),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [240, 175, 69], textColor: [23, 37, 34] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 8;
+      document.setFontSize(9);
+      document.setTextColor(...bodyColor);
+      document.text(
+        `Original balance ${formatMoney(adjusted.original.remaining, month.currency_code, locale)} · adjusted interpretation ${formatMoney(adjusted.remaining, month.currency_code, locale)}. Original snapshot unchanged.`,
+        margin,
+        cursorY,
+      );
+      cursorY += 24;
     }
     if (includeForecast && (month.payment_schedule_occurrences?.length ?? 0) > 0) {
       autoTable(document, {

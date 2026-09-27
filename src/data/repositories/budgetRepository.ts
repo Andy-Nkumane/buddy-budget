@@ -3,6 +3,7 @@ import { adjacentMonthStart, calculateBudgetProgress } from '../../shared/format
 import type {
   BudgetMonth,
   BudgetMonthItem,
+  BudgetMonthLifecycle,
   BudgetMonthWithItems,
   BudgetTemplate,
   BudgetTransaction,
@@ -20,6 +21,10 @@ import type {
   GoalMonthRecommendation,
   ItemType,
   MonthSummary,
+  MonthAdjustment,
+  MonthAdjustmentDirection,
+  MonthCloseSummary,
+  MonthLifecycleEvent,
   NotificationDelivery,
   PaymentSchedule,
   PaymentScheduleOccurrence,
@@ -473,15 +478,76 @@ const retrieveMonthGoalContributions = async (monthId: string): Promise<GoalCont
   );
 };
 
+const retrieveMonthLifecycle = async (monthId: string): Promise<BudgetMonthLifecycle | null> => {
+  const { data, error } = await requireSupabase()
+    .from('budget_month_lifecycle')
+    .select('*')
+    .eq('budget_month_id', monthId)
+    .maybeSingle();
+  throwWhenError(error);
+  return data;
+};
+
+const retrieveMonthCloseSummaries = async (monthId: string): Promise<MonthCloseSummary[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<MonthCloseSummary>((from, to) =>
+    client
+      .from('month_close_summaries')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('close_sequence', { ascending: false })
+      .range(from, to),
+  );
+};
+
+const retrieveMonthAdjustments = async (monthId: string): Promise<MonthAdjustment[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<MonthAdjustment>((from, to) =>
+    client
+      .from('month_adjustments')
+      .select('*')
+      .eq('original_budget_month_id', monthId)
+      .order('created_at')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const retrieveMonthLifecycleEvents = async (monthId: string): Promise<MonthLifecycleEvent[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<MonthLifecycleEvent>((from, to) =>
+    client
+      .from('month_lifecycle_events')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('created_at')
+      .order('id')
+      .range(from, to),
+  );
+};
+
 const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => {
-  const [items, transactions, scheduleOccurrences, goalRecommendations, goalContributions] =
-    await Promise.all([
-      retrieveMonthItems(month.id),
-      retrieveMonthTransactions(month.id),
-      retrieveMonthScheduleOccurrences(month.id),
-      retrieveMonthGoalRecommendations(month.id),
-      retrieveMonthGoalContributions(month.id),
-    ]);
+  const [
+    items,
+    transactions,
+    scheduleOccurrences,
+    goalRecommendations,
+    goalContributions,
+    lifecycle,
+    closeSummaries,
+    adjustments,
+    lifecycleEvents,
+  ] = await Promise.all([
+    retrieveMonthItems(month.id),
+    retrieveMonthTransactions(month.id),
+    retrieveMonthScheduleOccurrences(month.id),
+    retrieveMonthGoalRecommendations(month.id),
+    retrieveMonthGoalContributions(month.id),
+    retrieveMonthLifecycle(month.id),
+    retrieveMonthCloseSummaries(month.id),
+    retrieveMonthAdjustments(month.id),
+    retrieveMonthLifecycleEvents(month.id),
+  ]);
   return {
     ...month,
     budget_month_items: items,
@@ -489,6 +555,10 @@ const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> =
     payment_schedule_occurrences: scheduleOccurrences,
     goal_month_recommendations: goalRecommendations,
     goal_contributions: goalContributions,
+    lifecycle,
+    close_summaries: closeSummaries,
+    adjustments,
+    lifecycle_events: lifecycleEvents,
   };
 };
 
@@ -517,12 +587,65 @@ export const retrieveMonthById = async (id: string): Promise<BudgetMonthWithItem
 export const searchMonths = async (): Promise<MonthSummary[]> => {
   const { data, error } = await requireSupabase().rpc('retrieve_budget_month_summaries');
   throwWhenError(error);
-  return (data ?? []).map(({ actual_income, actual_expenses, actual_remaining, ...month }) => ({
-    ...month,
-    actualIncome: actual_income,
-    actualExpenses: actual_expenses,
-    actualRemaining: actual_remaining,
-  }));
+  return (data ?? []).map(
+    ({
+      actual_income,
+      actual_expenses,
+      actual_remaining,
+      lifecycle_state,
+      closed_at,
+      ...month
+    }) => ({
+      ...month,
+      actualIncome: actual_income,
+      actualExpenses: actual_expenses,
+      actualRemaining: actual_remaining,
+      lifecycleState: lifecycle_state,
+      closedAt: closed_at,
+    }),
+  );
+};
+
+export const closeBudgetMonth = async (monthId: string): Promise<MonthCloseSummary> => {
+  const { data, error } = await requireSupabase().rpc('close_budget_month', {
+    requested_month_id: monthId,
+    requested_acknowledged: true,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The month could not be closed.');
+  return data[0];
+};
+
+export const reopenBudgetMonth = async (monthId: string): Promise<BudgetMonthLifecycle> => {
+  const { data, error } = await requireSupabase().rpc('reopen_budget_month', {
+    requested_month_id: monthId,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The month could not be reopened.');
+  return data[0];
+};
+
+export const createMonthAdjustment = async (input: {
+  originalMonthId: string;
+  appliedMonthId: string;
+  itemType: ItemType;
+  direction: MonthAdjustmentDirection;
+  amountMinor: number;
+  reason: string;
+  idempotencyKey: string;
+}): Promise<MonthAdjustment> => {
+  const { data, error } = await requireSupabase().rpc('create_month_adjustment', {
+    requested_original_month_id: input.originalMonthId,
+    requested_applied_month_id: input.appliedMonthId,
+    requested_item_type: input.itemType,
+    requested_direction: input.direction,
+    requested_amount_minor: input.amountMinor,
+    requested_reason: input.reason,
+    requested_idempotency_key: input.idempotencyKey,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The adjustment could not be created.');
+  return data[0];
 };
 
 export interface MonthExportRange {
@@ -541,6 +664,10 @@ export const retrieveMonthsForExport = async (
     scheduleOccurrences,
     goalRecommendations,
     goalContributions,
+    monthLifecycles,
+    closeSummaries,
+    monthAdjustments,
+    lifecycleEvents,
   ] = await Promise.all([
     retrieveAllPages<BudgetMonth>((from, to) => {
       let query = client.from('budget_months').select('*').order('month_start').range(from, to);
@@ -598,6 +725,23 @@ export const retrieveMonthsForExport = async (
         .order('id')
         .range(from, to),
     ),
+    retrieveAllPages<BudgetMonthLifecycle>((from, to) =>
+      client.from('budget_month_lifecycle').select('*').order('updated_at').range(from, to),
+    ),
+    retrieveAllPages<MonthCloseSummary>((from, to) =>
+      client
+        .from('month_close_summaries')
+        .select('*')
+        .order('close_sequence', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(from, to),
+    ),
+    retrieveAllPages<MonthAdjustment>((from, to) =>
+      client.from('month_adjustments').select('*').order('created_at').range(from, to),
+    ),
+    retrieveAllPages<MonthLifecycleEvent>((from, to) =>
+      client.from('month_lifecycle_events').select('*').order('created_at').range(from, to),
+    ),
   ]);
   if (!months.length) return [];
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
@@ -608,6 +752,13 @@ export const retrieveMonthsForExport = async (
     goalContributions,
     (entry) => entry.budget_month_id,
   );
+  const lifecycleByMonth = new Map(monthLifecycles.map((entry) => [entry.budget_month_id, entry]));
+  const summariesByMonth = groupRecordsBy(closeSummaries, (entry) => entry.budget_month_id);
+  const adjustmentsByMonth = groupRecordsBy(
+    monthAdjustments,
+    (entry) => entry.original_budget_month_id,
+  );
+  const eventsByMonth = groupRecordsBy(lifecycleEvents, (entry) => entry.budget_month_id);
   return months.map((month) => ({
     ...month,
     budget_month_items: itemsByMonth.get(month.id) ?? [],
@@ -615,6 +766,10 @@ export const retrieveMonthsForExport = async (
     payment_schedule_occurrences: occurrencesByMonth.get(month.id) ?? [],
     goal_month_recommendations: goalsByMonth.get(month.id) ?? [],
     goal_contributions: goalContributionsByMonth.get(month.id) ?? [],
+    lifecycle: lifecycleByMonth.get(month.id) ?? null,
+    close_summaries: summariesByMonth.get(month.id) ?? [],
+    adjustments: adjustmentsByMonth.get(month.id) ?? [],
+    lifecycle_events: eventsByMonth.get(month.id) ?? [],
   }));
 };
 
@@ -1174,6 +1329,10 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     goalRecommendations,
     weeklyCheckInPreferences,
     notificationDeliveries,
+    monthLifecycles,
+    closeSummaries,
+    monthAdjustments,
+    lifecycleEvents,
   ] = await Promise.all([
     retrieveProfile(),
     retrievePreferences(),
@@ -1265,6 +1424,23 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         .order('id')
         .range(from, to),
     ),
+    retrieveAllPages<BudgetMonthLifecycle>((from, to) =>
+      client.from('budget_month_lifecycle').select('*').order('updated_at').range(from, to),
+    ),
+    retrieveAllPages<MonthCloseSummary>((from, to) =>
+      client
+        .from('month_close_summaries')
+        .select('*')
+        .order('close_sequence', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(from, to),
+    ),
+    retrieveAllPages<MonthAdjustment>((from, to) =>
+      client.from('month_adjustments').select('*').order('created_at').range(from, to),
+    ),
+    retrieveAllPages<MonthLifecycleEvent>((from, to) =>
+      client.from('month_lifecycle_events').select('*').order('created_at').range(from, to),
+    ),
   ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
@@ -1275,7 +1451,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 8,
+    schema_version: 9,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -1284,6 +1460,18 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     preferences,
     weekly_checkin_preferences: weeklyCheckInPreferences,
     notification_deliveries: notificationDeliveries,
+    budget_month_lifecycle: monthLifecycles.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
+    month_close_summaries: closeSummaries.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
+    month_adjustments: monthAdjustments.filter((entry) =>
+      exportedMonthIds.has(entry.original_budget_month_id),
+    ),
+    month_lifecycle_events: lifecycleEvents.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
     categories,
     financial_accounts: financialAccounts,
     transaction_import_batches: transactionImportBatches.filter((batch) =>

@@ -170,6 +170,86 @@
   color: var(--ink-500);
 }
 
+.month-close-panel {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  border: 0.0625rem solid var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.month-close-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.month-close-panel h2,
+.month-close-panel p {
+  margin: 0;
+}
+
+.month-close-panel .eyebrow {
+  margin-bottom: 0.35rem;
+}
+
+.adjusted-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--amber-100);
+}
+
+.month-activity summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.month-activity ol,
+.close-checklist {
+  display: grid;
+  gap: 0;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.month-activity li,
+.close-checklist li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.month-activity time {
+  color: var(--ink-500);
+  font-size: 0.8rem;
+}
+
+.month-state-pill {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999rem;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 @media (max-width: 60rem) {
   .checkin-layout {
     grid-template-columns: 1fr;
@@ -177,6 +257,18 @@
 }
 
 @media (max-width: 42rem) {
+  .month-close-panel {
+    padding: 1rem;
+  }
+
+  .month-close-panel > header {
+    display: grid;
+  }
+
+  .month-close-panel > header .button {
+    width: 100%;
+  }
+
   .checkin-banner {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 0.5rem 0.75rem;

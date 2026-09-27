@@ -80,7 +80,11 @@ export const TransactionsPage = () => {
   });
   const current = currentMonthStart(profile.data?.timezone);
   const editableMonths = useMemo(
-    () => (months.data ?? []).filter((month) => !isMonthReadOnly(month.month_start, current)),
+    () =>
+      (months.data ?? []).filter(
+        (month) =>
+          !isMonthReadOnly(month.month_start, current) && month.lifecycleState !== 'closed',
+      ),
     [current, months.data],
   );
   const initialMonth =
@@ -295,7 +299,10 @@ export const TransactionsPage = () => {
           <div className="import-batch-list">
             {importBatches.data?.map((batch) => {
               const month = monthById.get(batch.budget_month_id);
-              const locked = !month || isMonthReadOnly(month.month_start, current);
+              const locked =
+                !month ||
+                isMonthReadOnly(month.month_start, current) ||
+                month.lifecycleState === 'closed';
               return (
                 <article key={batch.id} className="import-batch">
                   <div>

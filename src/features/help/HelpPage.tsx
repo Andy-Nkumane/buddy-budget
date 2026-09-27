@@ -17,6 +17,11 @@ import {
 
 const topics = [
   {
+    icon: LockKeyhole,
+    title: 'Close a month without losing history',
+    body: 'Review the close checklist, save an immutable summary, and reopen before the automatic age lock if needed. For a legitimately late correction to a locked report, record a current-month adjustment; Buddy Budget keeps the original totals visible and labels the adjusted interpretation separately.',
+  },
+  {
     icon: BellRing,
     title: 'Choose a weekly check-in',
     body: 'In Settings, opt in to one weekly in-app reminder, email, or both. Emails hide financial values unless you explicitly enable them. You can preview, pause, test, or opt out at any time.',

@@ -6,6 +6,7 @@ import {
 } from '../../shared/formatting/money';
 import {
   calculateReportTotalsByCurrency,
+  calculateAdjustedActuals,
   formatGoalPriority,
   formatSignedReportAmount,
   formatSignedTransactionAmount,
@@ -89,9 +90,17 @@ export const BudgetReportPreview = ({
           month.budget_transactions,
         );
         const headingId = `report-month-${month.id}`;
+        const adjusted = calculateAdjustedActuals(month);
+        const latestClose = month.close_summaries?.[0];
         return (
           <section className="report-preview__section" aria-labelledby={headingId} key={month.id}>
             <h3 id={headingId}>{formatMonth(month.month_start, profile.locale)}</h3>
+            <p>
+              Report state: {month.lifecycle?.state ?? 'open'}
+              {latestClose
+                ? ` · immutable close snapshot completed ${new Date(latestClose.completed_at).toLocaleString(profile.locale)}`
+                : ''}
+            </p>
             <dl className="report-preview__totals report-preview__totals--four">
               <div>
                 <dt>Planned income</dt>
@@ -126,6 +135,51 @@ export const BudgetReportPreview = ({
                 </dd>
               </div>
             </dl>
+            {(month.adjustments?.length ?? 0) > 0 && (
+              <>
+                <h4>Subsequent adjustments</h4>
+                <p>
+                  Original actual balance{' '}
+                  {formatMoney(adjusted.original.remaining, month.currency_code, profile.locale)}.
+                  Adjusted interpretation{' '}
+                  {formatMoney(adjusted.remaining, month.currency_code, profile.locale)}. Original
+                  records and close snapshots are unchanged.
+                </p>
+                <div className="report-preview__table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Recorded</th>
+                        <th scope="col">Type</th>
+                        <th scope="col">Change</th>
+                        <th scope="col">Reason</th>
+                        <th scope="col">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {month.adjustments?.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{new Date(entry.created_at).toLocaleDateString(profile.locale)}</td>
+                          <td>{entry.item_type}</td>
+                          <td>{entry.direction}</td>
+                          <td>{entry.reason}</td>
+                          <td>
+                            {formatSignedReportAmount(
+                              entry.direction === 'increase'
+                                ? entry.amount_minor / 100
+                                : -entry.amount_minor / 100,
+                              entry.item_type,
+                              month.currency_code,
+                              profile.locale,
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
             <h4>Budget items</h4>
             <div className="report-preview__table-wrap">
               <table>

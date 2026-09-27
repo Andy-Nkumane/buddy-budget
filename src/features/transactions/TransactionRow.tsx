@@ -23,7 +23,8 @@ export const TransactionRow = ({
   profileCurrency,
   transaction,
 }: TransactionRowProps) => {
-  const readOnly = !month || isMonthReadOnly(month.month_start, currentMonth);
+  const readOnly =
+    !month || isMonthReadOnly(month.month_start, currentMonth) || month.lifecycleState === 'closed';
   const positiveCashFlow =
     (transaction.transaction_type === 'income' && !transaction.is_refund) ||
     (transaction.transaction_type === 'expense' && transaction.is_refund);

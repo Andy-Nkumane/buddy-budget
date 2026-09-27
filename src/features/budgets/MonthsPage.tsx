@@ -124,6 +124,13 @@ export const MonthsPage = () => {
                   {month.month_start === current && (
                     <small className="current-pill">Current month</small>
                   )}
+                  <small className="month-state-pill">
+                    {isMonthReadOnly(month.month_start, current)
+                      ? 'Locked'
+                      : month.lifecycleState === 'closed'
+                        ? 'Closed'
+                        : 'Open'}
+                  </small>
                 </div>
               </div>
               <dl>
