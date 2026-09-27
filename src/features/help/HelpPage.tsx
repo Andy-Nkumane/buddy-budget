@@ -12,9 +12,15 @@ import {
   WalletCards,
   Landmark,
   WifiOff,
+  BellRing,
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: BellRing,
+    title: 'Choose a weekly check-in',
+    body: 'In Settings, opt in to one weekly in-app reminder, email, or both. Emails hide financial values unless you explicitly enable them. You can preview, pause, test, or opt out at any time.',
+  },
   {
     icon: Landmark,
     title: 'Plan goals without hiding spending',
@@ -23,7 +29,7 @@ const topics = [
   {
     icon: CalendarClock,
     title: 'Forecast upcoming cash flow',
-    body: 'Add income and expense schedules in Cash flow. The seven-day list and calendar show what is expected before your next income and the lowest projected balance. Forecasts become paid or received only when you confirm them, and transaction matches always require your confirmation.',
+    body: 'Add once or recurring income and expense schedules in Cash flow. The seven-day list and calendar distinguish expected, paid, received, skipped, and disabled items while showing the projected balance. Forecasts become actual only when you confirm them.',
   },
   {
     icon: ListChecks,

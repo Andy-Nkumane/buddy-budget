@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(17);
 
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) values
 ('d1111111-1111-4111-8111-111111111111','00000000-0000-0000-0000-000000000000','authenticated','authenticated','schedule-a@example.test',extensions.crypt('password',extensions.gen_salt('bf')),now(),'{}','{}',now(),now()),
@@ -18,7 +18,7 @@ select set_config('request.jwt.claim.sub','d1111111-1111-4111-8111-111111111111'
 
 select lives_ok($$select * from public.create_payment_schedule(jsonb_build_object(
   'name','Rent','item_type','expense','amount_minor',750000,'amount_is_approximate',false,
-  'start_date',date_trunc('month',now() at time zone 'Africa/Johannesburg')::date,
+  'start_date',(now() at time zone 'Africa/Johannesburg')::date,
   'end_date',null,'recurrence','monthly','selected_days',jsonb_build_array(),
   'timezone','Africa/Johannesburg','enabled',true,
   'category_id','d2000000-0000-4000-8000-000000000001','notes','Monthly rent'
@@ -32,6 +32,12 @@ select throws_ok($$select * from public.create_payment_schedule(jsonb_build_obje
   'recurrence','monthly','selected_days',jsonb_build_array(),'timezone','UTC','enabled',true,
   'category_id','d2000000-0000-4000-8000-000000000002'
 ))$$,'23514','Schedule category must be active, owned, and match its type','Cross-user category association is rejected');
+select throws_ok($$select * from public.create_payment_schedule(jsonb_build_object(
+  'name','Past schedule','item_type','expense','amount_minor',1,
+  'start_date',(now() at time zone 'Africa/Johannesburg')::date - 1,
+  'recurrence','once','selected_days',jsonb_build_array(),
+  'timezone','Africa/Johannesburg','enabled',true
+))$$,'22023','Schedule start date cannot be before today','Past schedule creation is rejected');
 
 reset role;
 insert into public.payment_schedule_occurrences(user_id,schedule_id,budget_month_id,due_date,name_snapshot,item_type,amount_minor)
@@ -51,11 +57,28 @@ select throws_ok($$select * from public.confirm_payment_occurrence(
 select lives_ok($$select * from public.update_payment_schedule(
   (select id from public.payment_schedules limit 1),
   jsonb_build_object('name','Rent','item_type','expense','amount_minor',750000,
-  'amount_is_approximate',false,'start_date',date_trunc('month',now() at time zone 'Africa/Johannesburg')::date,
+  'amount_is_approximate',false,'start_date',(now() at time zone 'Africa/Johannesburg')::date,
   'end_date',null,'recurrence','monthly','selected_days',jsonb_build_array(),
   'timezone','Africa/Johannesburg','enabled',false,
   'category_id','d2000000-0000-4000-8000-000000000001','notes','Monthly rent')
 )$$,'Disabling a schedule keeps history and succeeds');
+select is((select status from public.payment_schedule_occurrences where name_snapshot='Rent'), 'disabled', 'Disabling retains the future occurrence with a visible disabled state');
+select lives_ok($$select * from public.update_payment_schedule(
+  (select id from public.payment_schedules where name='Rent'),
+  jsonb_build_object('name','Rent','item_type','expense','amount_minor',750000,
+  'amount_is_approximate',false,'start_date',(now() at time zone 'Africa/Johannesburg')::date,
+  'end_date',null,'recurrence','monthly','selected_days',jsonb_build_array(),
+  'timezone','Africa/Johannesburg','enabled',true,
+  'category_id','d2000000-0000-4000-8000-000000000001','notes','Monthly rent')
+)$$,'A disabled schedule can be enabled again');
+select is((select status from public.payment_schedule_occurrences where name_snapshot='Rent'), 'expected', 'Re-enabling restores the future occurrence');
+select lives_ok($$select * from public.create_payment_schedule(jsonb_build_object(
+  'name','Once fee','item_type','expense','amount_minor',2500,'amount_is_approximate',false,
+  'start_date',(now() at time zone 'Africa/Johannesburg')::date,
+  'end_date',null,'recurrence','once','selected_days',jsonb_build_array(),
+  'timezone','Africa/Johannesburg','enabled',true,'notes','One payment'
+))$$,'A once payment creates exactly one schedule occurrence');
+select is((select count(*)::bigint from public.payment_schedule_occurrences where name_snapshot='Once fee'),1::bigint,'A once payment does not repeat');
 select is((select count(*)::bigint from public.payment_schedule_occurrences where name_snapshot='Historical rent'),1::bigint,'Historical occurrences remain after disabling');
 
 select * from finish();

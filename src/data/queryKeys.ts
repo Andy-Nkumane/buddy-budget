@@ -3,6 +3,10 @@ const userRoot = (userId: string) => ['user', userId] as const;
 export const queryKeys = {
   profile: (userId: string) => [...userRoot(userId), 'profile'] as const,
   preferences: (userId: string) => [...userRoot(userId), 'preferences'] as const,
+  weeklyCheckInPreferences: (userId: string) =>
+    [...userRoot(userId), 'weekly-check-in-preferences'] as const,
+  notificationDeliveries: (userId: string) =>
+    [...userRoot(userId), 'notification-deliveries'] as const,
   categoryRoot: (userId: string) => [...userRoot(userId), 'categories'] as const,
   categories: (userId: string, includeArchived = false) =>
     [...userRoot(userId), 'categories', includeArchived ? 'all' : 'active'] as const,

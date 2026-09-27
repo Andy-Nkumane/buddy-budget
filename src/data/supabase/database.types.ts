@@ -11,12 +11,14 @@ import type {
   FinancialGoal,
   GoalContribution,
   GoalMonthRecommendation,
+  NotificationDelivery,
   PaymentSchedule,
   PaymentScheduleOccurrence,
   Profile,
   TemplateItem,
   TransactionImportBatch,
   UserPreferences,
+  WeeklyCheckInPreferences,
 } from '../../shared/types/domain';
 
 type OptionalInsert<T, OptionalKeys extends keyof T> = Omit<T, OptionalKeys> &
@@ -249,6 +251,48 @@ export interface Database {
         Update: UpdateShape<GoalMonthRecommendation>;
         Relationships: [];
       };
+      weekly_checkin_preferences: {
+        Row: WeeklyCheckInPreferences;
+        Insert: OptionalInsert<
+          WeeklyCheckInPreferences,
+          | 'opted_in'
+          | 'weekday'
+          | 'delivery_time'
+          | 'timezone'
+          | 'in_app_enabled'
+          | 'email_enabled'
+          | 'email_detail_enabled'
+          | 'paused'
+          | 'email_delivery_state'
+          | 'created_at'
+          | 'updated_at'
+        >;
+        Update: UpdateShape<WeeklyCheckInPreferences>;
+        Relationships: [];
+      };
+      notification_deliveries: {
+        Row: NotificationDelivery;
+        Insert: OptionalInsert<
+          NotificationDelivery,
+          | 'id'
+          | 'delivery_kind'
+          | 'status'
+          | 'attempt_count'
+          | 'last_attempt_at'
+          | 'delivered_at'
+          | 'next_attempt_at'
+          | 'error_code'
+          | 'error_summary'
+          | 'provider_message_id'
+          | 'action_path'
+          | 'summary_payload'
+          | 'read_at'
+          | 'created_at'
+          | 'updated_at'
+        >;
+        Update: UpdateShape<NotificationDelivery>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -478,6 +522,22 @@ export interface Database {
       };
       delete_goal_contribution: {
         Args: { requested_contribution_id: string };
+        Returns: undefined;
+      };
+      update_weekly_checkin_preferences: {
+        Args: { requested_preferences: Record<string, unknown> };
+        Returns: WeeklyCheckInPreferences[];
+      };
+      claim_due_weekly_checkins: {
+        Args: { requested_limit?: number };
+        Returns: NotificationDelivery[];
+      };
+      create_test_checkin_delivery: {
+        Args: { requested_channel: string };
+        Returns: NotificationDelivery[];
+      };
+      mark_notification_delivery_read: {
+        Args: { requested_delivery_id: string };
         Returns: undefined;
       };
       setup_first_budget: {

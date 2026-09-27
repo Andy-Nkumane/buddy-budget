@@ -10,6 +10,7 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import type { PaymentScheduleInput } from '../../data/repositories/budgetRepository';
+import { currentDateInTimeZone } from './cashFlow';
 
 const weekdays = [
   [1, 'Monday'],
@@ -39,7 +40,7 @@ export const ScheduleForm = ({
   const [amount, setAmount] = useState(schedule ? String(schedule.amount_minor / 100) : '');
   const [approximate, setApproximate] = useState(schedule?.amount_is_approximate ?? false);
   const [startDate, setStartDate] = useState(
-    schedule?.start_date ?? new Date().toISOString().slice(0, 10),
+    schedule?.start_date ?? currentDateInTimeZone(timezone),
   );
   const [endDate, setEndDate] = useState(schedule?.end_date ?? '');
   const [recurrence, setRecurrence] = useState<PaymentSchedule['recurrence']>(
@@ -53,10 +54,15 @@ export const ScheduleForm = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selectedTemplate = templates.find((entry) => entry.id === templateId);
+  const today = currentDateInTimeZone(timezone);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+    if (!schedule && startDate < today) {
+      setError('Choose today or a future date.');
+      return;
+    }
     if (recurrence === 'selected_days' && selectedDays.length === 0) {
       setError('Choose at least one weekday.');
       return;
@@ -69,7 +75,7 @@ export const ScheduleForm = ({
         amount_minor: moneyToMinorUnits(amount),
         amount_is_approximate: approximate,
         start_date: startDate,
-        end_date: endDate || null,
+        end_date: recurrence === 'once' ? null : endDate || null,
         recurrence,
         selected_days: recurrence === 'selected_days' ? selectedDays : [],
         timezone,
@@ -115,25 +121,29 @@ export const ScheduleForm = ({
           value={recurrence}
           onChange={(event) => setRecurrence(event.target.value as PaymentSchedule['recurrence'])}
         >
+          <option value="once">Once</option>
           <option value="monthly">Monthly</option>
           <option value="weekly">Weekly</option>
           <option value="fortnightly">Fortnightly</option>
           <option value="selected_days">Selected weekdays</option>
         </SelectField>
         <FormField
-          label="Starts"
+          label={recurrence === 'once' ? 'Payment date' : 'Starts'}
           required
           type="date"
+          min={schedule ? undefined : today}
           value={startDate}
           onChange={(event) => setStartDate(event.target.value)}
         />
-        <FormField
-          label="Ends (optional)"
-          type="date"
-          min={startDate}
-          value={endDate}
-          onChange={(event) => setEndDate(event.target.value)}
-        />
+        {recurrence !== 'once' && (
+          <FormField
+            label="Ends (optional)"
+            type="date"
+            min={startDate}
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+          />
+        )}
       </div>
       <label className="check-row">
         <input

@@ -3,6 +3,15 @@ import type {
   PaymentScheduleOccurrence,
   ScheduleRecurrence,
 } from '../../shared/types/domain';
+import { formatMoney } from '../../shared/formatting/money';
+
+export const formatCashFlowAmount = (
+  amountMinor: number,
+  itemType: PaymentScheduleOccurrence['item_type'],
+  currencyCode: string,
+  locale: string,
+): string =>
+  `${itemType === 'income' ? '+' : '-'} ${formatMoney(amountMinor / 100, currencyCode, locale)}`;
 
 const parseDate = (value: string): Date => new Date(`${value}T00:00:00Z`);
 const formatDate = (date: Date): string => date.toISOString().slice(0, 10);
@@ -41,6 +50,7 @@ export const isOccurrenceDate = (
   const start = parseDate(startDate);
   const elapsedDays = Math.round((current.getTime() - start.getTime()) / 86_400_000);
   if (elapsedDays < 0) return false;
+  if (recurrence === 'once') return elapsedDays === 0;
   if (recurrence === 'weekly') return elapsedDays % 7 === 0;
   if (recurrence === 'fortnightly') return elapsedDays % 14 === 0;
   if (recurrence === 'selected_days') {

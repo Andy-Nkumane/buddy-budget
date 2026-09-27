@@ -56,6 +56,11 @@ const SettingsPage = lazy(() =>
     default: module.SettingsPage,
   })),
 );
+const WeeklyCheckInPage = lazy(() =>
+  import('../../features/settings/WeeklyCheckInPage').then((module) => ({
+    default: module.WeeklyCheckInPage,
+  })),
+);
 const TemplatesPage = lazy(() =>
   import('../../features/templates/TemplatesPage').then((module) => ({
     default: module.TemplatesPage,
@@ -126,6 +131,7 @@ export const AppRouter = () => (
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="categories" element={<CategoriesPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/check-ins" element={<WeeklyCheckInPage />} />
               <Route path="settings/rules" element={<RulesPage />} />
               <Route path="help" element={<HelpPage />} />
             </Route>

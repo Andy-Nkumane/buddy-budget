@@ -56,3 +56,17 @@ If moving to Cloudflare Pages or another host, add response headers rather than 
 Do not cache Auth callbacks, Supabase APIs, exports, or authenticated HTML. Fingerprinted JS/CSS/icons may use long immutable caching; `index.html`, the manifest, and service worker need revalidation-friendly policies.
 
 Authoritative references: [Vite static deployment](https://vite.dev/guide/static-deploy.html), [GitHub Pages custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), and [`vite-plugin-pwa` service-worker registration](https://vite-pwa-org.netlify.app/guide/register-service-worker).
+
+## Weekly check-in delivery
+
+Weekly check-ins require the `weekly-checkin` Edge Function, Mailjet API credentials, and the Cron/Vault values used by migration `202609250001_add_weekly_checkins.sql`. These are server secrets; they must never be GitHub Pages variables or `VITE_` values.
+
+1. Verify the Mailjet sender address or domain. Use an API key and secret key, not SMTP credentials.
+2. Copy `supabase/functions/.env.example` to the ignored `supabase/functions/.env.local` for local testing and replace its placeholders.
+3. Store production secrets with `npx supabase secrets set --env-file supabase/functions/.env.local`.
+4. Deploy with `npx supabase functions deploy weekly-checkin`.
+5. In the Supabase SQL editor, create Vault secrets named `buddy_budget_project_url` and `buddy_budget_service_role_key`. Their values are the project URL and service-role key. Restrict dashboard/project access because the service-role key bypasses RLS.
+6. Confirm the `buddy-budget-weekly-checkins` Cron job runs every 15 minutes and that its `net._http_response` records return successful responses. Do not log or copy authorization headers while troubleshooting.
+7. Opt in with a staging account, preview the summary, send one in-app test and one email test, then opt out and verify the next dispatch creates no delivery.
+
+The function rechecks preferences immediately before each delivery. Provider rejections can retry up to three total attempts. A network interruption after an email request is not retried automatically because the provider outcome is ambiguous; operators can inspect the non-sensitive `failed_final` state without exposing message content or credentials. Mark a preference `bounced` or `blocked` when Mailjet reports that state; the dispatcher will suppress further email delivery until it is safely resolved. Account deletion cascades preferences and delivery history.
