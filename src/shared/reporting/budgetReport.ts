@@ -85,3 +85,21 @@ const goalPriorityLabels: Record<number, string> = {
 
 export const formatGoalPriority = (priority: number): string =>
   goalPriorityLabels[priority] ?? 'Unknown';
+
+export const calculateAdjustedActuals = (month: BudgetMonthWithItems) => {
+  const original = calculateBudgetProgress(
+    month.budget_month_items,
+    month.budget_transactions,
+  ).actual;
+  const adjustmentMinor = (itemType: ItemType) =>
+    (month.adjustments ?? [])
+      .filter((entry) => entry.item_type === itemType)
+      .reduce(
+        (total, entry) =>
+          total + (entry.direction === 'increase' ? entry.amount_minor : -entry.amount_minor),
+        0,
+      );
+  const income = original.income + adjustmentMinor('income') / 100;
+  const expenses = original.expenses + adjustmentMinor('expense') / 100;
+  return { original, income, expenses, remaining: income - expenses };
+};

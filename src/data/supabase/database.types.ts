@@ -2,6 +2,7 @@ import type {
   BudgetTransaction,
   BudgetMonth,
   BudgetMonthItem,
+  BudgetMonthLifecycle,
   BudgetTemplate,
   CategorisationRule,
   CategorisationRuleSuggestion,
@@ -12,6 +13,9 @@ import type {
   GoalContribution,
   GoalMonthRecommendation,
   NotificationDelivery,
+  MonthAdjustment,
+  MonthCloseSummary,
+  MonthLifecycleEvent,
   PaymentSchedule,
   PaymentScheduleOccurrence,
   Profile,
@@ -293,6 +297,30 @@ export interface Database {
         Update: UpdateShape<NotificationDelivery>;
         Relationships: [];
       };
+      budget_month_lifecycle: {
+        Row: BudgetMonthLifecycle;
+        Insert: BudgetMonthLifecycle;
+        Update: UpdateShape<BudgetMonthLifecycle>;
+        Relationships: [];
+      };
+      month_close_summaries: {
+        Row: MonthCloseSummary;
+        Insert: MonthCloseSummary;
+        Update: never;
+        Relationships: [];
+      };
+      month_adjustments: {
+        Row: MonthAdjustment;
+        Insert: MonthAdjustment;
+        Update: never;
+        Relationships: [];
+      };
+      month_lifecycle_events: {
+        Row: MonthLifecycleEvent;
+        Insert: MonthLifecycleEvent;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -369,8 +397,30 @@ export interface Database {
             actual_income: number;
             actual_expenses: number;
             actual_remaining: number;
+            lifecycle_state: 'open' | 'closed';
+            closed_at: string | null;
           }
         >;
+      };
+      close_budget_month: {
+        Args: { requested_month_id: string; requested_acknowledged: boolean };
+        Returns: MonthCloseSummary[];
+      };
+      reopen_budget_month: {
+        Args: { requested_month_id: string };
+        Returns: BudgetMonthLifecycle[];
+      };
+      create_month_adjustment: {
+        Args: {
+          requested_original_month_id: string;
+          requested_applied_month_id: string;
+          requested_item_type: string;
+          requested_direction: string;
+          requested_amount_minor: number;
+          requested_reason: string;
+          requested_idempotency_key: string;
+        };
+        Returns: MonthAdjustment[];
       };
       update_financial_account: {
         Args: {

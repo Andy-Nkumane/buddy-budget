@@ -52,6 +52,10 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 - `financial_goals`: user-owned savings, sinking-fund, and debt-paydown targets with optional owned account/category context.
 - `goal_contributions`: positive minor-unit progress records with optional unique transaction links and month ownership.
 - `goal_month_recommendations`: month-linked recommendation snapshots preserved when reports lock.
+- `budget_month_lifecycle`: the current explicit open/closed state for each month.
+- `month_close_summaries`: immutable, sequenced derived snapshots created by each successful close.
+- `month_adjustments`: append-only current-month corrections referencing an age-locked original month.
+- `month_lifecycle_events`: append-only user-visible close, reopen, and adjustment activity.
 - Composite `(parent_id, user_id)` foreign keys prevent cross-owner child records.
 - Category triggers verify owner and item type.
 - Money is `numeric(14,2)` and constrained to `0..999999999999.99`.
@@ -84,6 +88,10 @@ Suggestions require at least three transactions with the same normalized descrip
 
 `create_financial_goal(jsonb)` and `update_financial_goal(uuid, jsonb)` derive ownership from `auth.uid()` and refresh recommendations only in editable months. `create_goal_contribution(...)` validates the owned month and optional posted transaction, rejects duplicate goal/transaction links, and applies the shared historical lock. Contribution amounts are positive minor units; their meaning depends on goal type and remains distinct from expense totals.
 
+`close_budget_month(uuid, boolean)` serializes on the month, calculates the checklist and exact minor-unit snapshot in the same transaction, changes lifecycle state, and appends one audit event. Retrying a closed month returns the existing latest summary without duplicating history. `reopen_budget_month(uuid)` is allowed only before the profile-timezone automatic lock boundary. The shared edit assertion rejects writes to either explicitly closed or age-locked months.
+
+`create_month_adjustment(...)` accepts only an owned age-locked original month and the owned current open month in the same currency. A caller-provided UUID makes retries idempotent without collapsing legitimate equal-value corrections. Adjustments, close summaries, and activity events reject updates and deletes. They do not mutate or participate in the original transaction ledger; reporting calculates a separately labelled adjusted interpretation.
+
 All security-definer functions use `search_path = ''`, qualify objects, reject unauthenticated access, accept no caller-supplied owner ID, revoke public/anonymous execution, and grant only the intended authenticated operation.
 
 ## Auth configuration
@@ -104,6 +112,6 @@ The PKCE and password flow choices follow the current [Supabase PKCE guide](http
 
 The owner must choose provider backup/PITR retention appropriate to the data and plan, restrict restore access, and run periodic restore drills in a non-production project. Record RPO/RTO, escalation contacts, and the last successful drill. JSON user exports are not a replacement for database backups.
 
-User JSON exports use schema version 8. They include financial accounts, import-batch metadata, categorisation rules, payment schedules, selected schedule occurrences, financial goals, selected contributions and goal recommendation snapshots, weekly check-in preferences and delivery metadata, each selected month's transaction ledger, and a derived `planned_versus_actual` summary. Any future restore implementation must ignore and recompute derived summaries and goal recommendations; validate ownership, fingerprints, integer minor-unit bounds, composite references, transaction links, notification job uniqueness, and historical locks; and never treat mapping metadata as original statement content. No restore path currently writes this export back into the database.
+User JSON exports use schema version 9. They include financial accounts, import-batch metadata, categorisation rules, payment schedules, selected schedule occurrences, financial goals, selected contributions and goal recommendation snapshots, weekly check-in preferences and delivery metadata, month lifecycle, close summaries, adjustments, activity events, each selected month's transaction ledger, and a derived `planned_versus_actual` summary. Any future restore implementation must ignore and recompute ordinary derived summaries and goal recommendations, while preserving verified immutable close summaries and activity only through a dedicated privileged restore process; validate ownership, fingerprints, integer minor-unit bounds, composite references, transaction links, notification job uniqueness, adjustment idempotency, and historical locks; and never treat mapping metadata as original statement content. No restore path currently writes this export back into the database.
 
 Weekly check-ins use `weekly_checkin_preferences` and `notification_deliveries`. Preferences and delivery history are owner-readable through RLS; browser writes are limited to validated security-definer RPCs. The service-role-only claim RPC creates stable weekly channel keys, claims bounded batches with `skip locked`, and enforces three attempts. In-app payloads may contain the signed-in user's summary. Email delivery rows retain only the recommended action and non-sensitive provider status; Mailjet credentials and recipient email addresses are never stored in these tables.

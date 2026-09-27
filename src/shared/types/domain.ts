@@ -13,6 +13,8 @@ export type FinancialGoalStatus = 'active' | 'paused' | 'completed' | 'archived'
 export type CheckInDeliveryChannel = 'in_app' | 'email';
 export type CheckInDeliveryStatus =
   'queued' | 'processing' | 'delivered' | 'failed' | 'failed_final' | 'skipped';
+export type MonthLifecycleStatus = 'open' | 'closed';
+export type MonthAdjustmentDirection = 'increase' | 'decrease';
 
 export type Profile = {
   user_id: string;
@@ -83,6 +85,56 @@ export type BudgetMonth = {
   last_opened_at: string;
   created_at: string;
   updated_at: string;
+};
+
+export type BudgetMonthLifecycle = {
+  budget_month_id: string;
+  user_id: string;
+  state: MonthLifecycleStatus;
+  closed_at: string | null;
+  updated_at: string;
+};
+
+export type MonthCloseSummary = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  close_sequence: number;
+  completed_at: string;
+  planned_income_minor: number;
+  planned_expenses_minor: number;
+  actual_income_minor: number;
+  actual_expenses_minor: number;
+  actual_balance_minor: number;
+  income_variance_minor: number;
+  expense_variance_minor: number;
+  uncategorised_count: number;
+  unmatched_schedule_count: number;
+  incomplete_goal_count: number;
+  created_at: string;
+};
+
+export type MonthAdjustment = {
+  id: string;
+  user_id: string;
+  original_budget_month_id: string;
+  applied_budget_month_id: string;
+  item_type: ItemType;
+  direction: MonthAdjustmentDirection;
+  amount_minor: number;
+  reason: string;
+  idempotency_key: string;
+  created_at: string;
+};
+
+export type MonthLifecycleEvent = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  event_type: 'closed' | 'reopened' | 'adjustment_created';
+  adjustment_id: string | null;
+  event_payload: Record<string, unknown>;
+  created_at: string;
 };
 
 export type BudgetMonthItem = {
@@ -329,6 +381,10 @@ export type BudgetMonthWithItems = BudgetMonth & {
   payment_schedule_occurrences?: PaymentScheduleOccurrence[];
   goal_month_recommendations?: GoalMonthRecommendation[];
   goal_contributions?: GoalContribution[];
+  lifecycle?: BudgetMonthLifecycle | null;
+  close_summaries?: MonthCloseSummary[];
+  adjustments?: MonthAdjustment[];
+  lifecycle_events?: MonthLifecycleEvent[];
 };
 
 export type MonthSummary = BudgetMonth & {
@@ -338,4 +394,6 @@ export type MonthSummary = BudgetMonth & {
   actualIncome: number;
   actualExpenses: number;
   actualRemaining: number;
+  lifecycleState?: MonthLifecycleStatus;
+  closedAt?: string | null;
 };
