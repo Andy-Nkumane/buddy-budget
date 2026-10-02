@@ -76,7 +76,10 @@ export const GoalsPage = () => {
   const [notes, setNotes] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: queryKeys.goals(userId) });
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.goals(userId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
+  };
   const saveGoal = async (input: Parameters<typeof createFinancialGoal>[0]) => {
     if (editing && editing !== 'new') await updateFinancialGoal(editing.id, input);
     else await createFinancialGoal(input);

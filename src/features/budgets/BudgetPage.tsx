@@ -107,7 +107,10 @@ export const BudgetPage = () => {
       if (!defaultTemplate.data) throw new Error('Create a default template first.');
       return createMonthFromTemplate(monthStart, defaultTemplate.data.id);
     },
-    onSuccess: (created) => queryClient.setQueryData(monthKey, created),
+    onSuccess: (created) => {
+      queryClient.setQueryData(monthKey, created);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
+    },
   });
 
   useEffect(() => {
@@ -235,7 +238,10 @@ export const BudgetPage = () => {
         : existing,
     );
   };
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: monthKey });
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: monthKey });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
+  };
   const archive = async (item: BudgetMonthItem) => {
     if (readOnly) return;
     setArchivingItemIds((current) => new Set(current).add(item.id));
@@ -372,6 +378,7 @@ export const BudgetPage = () => {
         onChanged={() => {
           void queryClient.invalidateQueries({ queryKey: monthKey });
           void queryClient.invalidateQueries({ queryKey: queryKeys.months(userId) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
         }}
       />
 

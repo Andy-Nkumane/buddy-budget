@@ -16,6 +16,93 @@ export type CheckInDeliveryStatus =
 export type MonthLifecycleStatus = 'open' | 'closed';
 export type MonthAdjustmentDirection = 'increase' | 'decrease';
 
+export type InsightMonthlyMetric = {
+  month_start: string;
+  currency_code: string;
+  planned_income_minor: number;
+  planned_expenses_minor: number;
+  actual_income_minor: number;
+  actual_expenses_minor: number;
+  income_variance_minor: number;
+  expense_variance_minor: number;
+  savings_minor: number;
+  savings_rate_basis_points: number | null;
+  adjustment_income_minor: number;
+  adjustment_expenses_minor: number;
+};
+
+export type InsightCategoryMetric = {
+  category_id: string | null;
+  category_name: string;
+  item_type: ItemType;
+  currency_code: string;
+  planned_minor: number;
+  actual_minor: number;
+  variance_minor: number;
+  average_actual_minor: number;
+  months_with_data: number;
+  overspent_months: number;
+};
+
+export type InsightRecurringChange = {
+  description: string;
+  transaction_type: ItemType;
+  currency_code: string;
+  previous_month: string;
+  current_month: string;
+  previous_amount_minor: number;
+  current_amount_minor: number;
+  change_minor: number;
+};
+
+export type InsightDiscretionaryExpense = {
+  id: string;
+  transaction_date: string;
+  description: string;
+  category_name: string;
+  currency_code: string;
+  amount_minor: number;
+};
+
+export type InsightIncomeStability = {
+  currency_code: string;
+  months_observed: number;
+  months_with_income: number;
+  average_income_minor: number;
+  minimum_income_minor: number;
+  maximum_income_minor: number;
+  range_basis_points: number | null;
+};
+
+export type InsightGoalProgress = {
+  goal_id: string;
+  name: string;
+  goal_type: FinancialGoalType;
+  status: FinancialGoalStatus;
+  priority: number;
+  currency_code: string;
+  target_amount_minor: number;
+  contributed_minor: number;
+  achieved_minor: number;
+  remaining_minor: number;
+  progress_basis_points: number;
+};
+
+export type BudgetInsights = {
+  definitions_version: number;
+  from_month: string;
+  to_month: string;
+  category_id: string | null;
+  month_count: number;
+  currencies: string[];
+  monthly: InsightMonthlyMetric[];
+  categories: InsightCategoryMetric[];
+  recurring_changes: InsightRecurringChange[];
+  largest_discretionary: InsightDiscretionaryExpense[];
+  income_stability: InsightIncomeStability[];
+  goals: InsightGoalProgress[];
+};
+
 export type Profile = {
   user_id: string;
   display_name: string | null;

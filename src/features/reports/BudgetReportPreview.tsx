@@ -11,13 +11,14 @@ import {
   formatSignedReportAmount,
   formatSignedTransactionAmount,
 } from '../../shared/reporting/budgetReport';
-import type { BudgetMonthWithItems, Profile } from '../../shared/types/domain';
+import type { BudgetInsights, BudgetMonthWithItems, Profile } from '../../shared/types/domain';
 
 interface BudgetReportPreviewProps {
   months: BudgetMonthWithItems[];
   profile: Profile;
   rangeLabel: string;
   includeForecast?: boolean;
+  insights?: BudgetInsights | null;
 }
 
 export const BudgetReportPreview = ({
@@ -25,6 +26,7 @@ export const BudgetReportPreview = ({
   profile,
   rangeLabel,
   includeForecast = false,
+  insights = null,
 }: BudgetReportPreviewProps) => {
   const totalsByCurrency = calculateReportTotalsByCurrency(months);
 
@@ -84,6 +86,53 @@ export const BudgetReportPreview = ({
           </table>
         </div>
       </section>
+      {insights && (
+        <section className="report-preview__section" aria-labelledby="report-insights-heading">
+          <h3 id="report-insights-heading">Decision insights</h3>
+          <p>
+            Evidence from {insights.month_count} budget month{insights.month_count === 1 ? '' : 's'}
+            . Values are separated by currency and categoryless historical adjustments affect only
+            whole-month totals.
+          </p>
+          <div className="report-preview__table-wrap">
+            <table>
+              <caption>Monthly savings and expense variance insights</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Month</th>
+                  <th scope="col">Currency</th>
+                  <th scope="col">Expense variance</th>
+                  <th scope="col">Savings</th>
+                  <th scope="col">Savings rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {insights.monthly.map((month) => (
+                  <tr key={`${month.currency_code}-${month.month_start}`}>
+                    <th scope="row">{formatMonth(month.month_start, profile.locale)}</th>
+                    <td>{month.currency_code}</td>
+                    <td>
+                      {formatMoney(
+                        month.expense_variance_minor / 100,
+                        month.currency_code,
+                        profile.locale,
+                      )}
+                    </td>
+                    <td>
+                      {formatMoney(month.savings_minor / 100, month.currency_code, profile.locale)}
+                    </td>
+                    <td>
+                      {month.savings_rate_basis_points === null
+                        ? 'Not available'
+                        : `${month.savings_rate_basis_points / 100}%`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       {months.map((month) => {
         const progress = calculateBudgetProgress(
           month.budget_month_items,

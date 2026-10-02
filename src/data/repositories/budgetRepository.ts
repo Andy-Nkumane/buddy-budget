@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 import { adjacentMonthStart, calculateBudgetProgress } from '../../shared/formatting/money';
 import type {
   BudgetMonth,
+  BudgetInsights,
   BudgetMonthItem,
   BudgetMonthLifecycle,
   BudgetMonthWithItems,
@@ -99,6 +100,73 @@ export const retrievePreferences = async (): Promise<UserPreferences | null> => 
     .maybeSingle();
   throwWhenError(error);
   return data;
+};
+
+export const retrieveBudgetInsights = async (input: {
+  fromMonth: string;
+  toMonth: string;
+  categoryIds?: string[];
+}): Promise<BudgetInsights> => {
+  const categoryIds = [...new Set(input.categoryIds ?? [])].sort();
+  const retrieveCategory = async (categoryId: string | null) => {
+    const { data, error } = await requireSupabase().rpc('retrieve_budget_insights', {
+      requested_from_month: input.fromMonth,
+      requested_to_month: input.toMonth,
+      requested_category_id: categoryId,
+    });
+    throwWhenError(error);
+    if (!data) throw new Error('Insights could not be calculated.');
+    return data;
+  };
+  if (!categoryIds.length) return retrieveCategory(null);
+  const results = await Promise.all(categoryIds.map(retrieveCategory));
+  const monthly = new Map<string, BudgetInsights['monthly'][number]>();
+  results
+    .flatMap((result) => result.monthly)
+    .forEach((entry) => {
+      const key = `${entry.month_start}:${entry.currency_code}`;
+      const previous = monthly.get(key);
+      const combined = {
+        ...entry,
+        planned_income_minor: entry.planned_income_minor + (previous?.planned_income_minor ?? 0),
+        planned_expenses_minor:
+          entry.planned_expenses_minor + (previous?.planned_expenses_minor ?? 0),
+        actual_income_minor: entry.actual_income_minor + (previous?.actual_income_minor ?? 0),
+        actual_expenses_minor: entry.actual_expenses_minor + (previous?.actual_expenses_minor ?? 0),
+        adjustment_income_minor: 0,
+        adjustment_expenses_minor: 0,
+        savings_rate_basis_points: null,
+      };
+      combined.income_variance_minor = combined.actual_income_minor - combined.planned_income_minor;
+      combined.expense_variance_minor =
+        combined.actual_expenses_minor - combined.planned_expenses_minor;
+      combined.savings_minor = combined.actual_income_minor - combined.actual_expenses_minor;
+      monthly.set(key, combined);
+    });
+  const discretionary = results
+    .flatMap((result) => result.largest_discretionary)
+    .sort((left, right) => right.amount_minor - left.amount_minor)
+    .filter(
+      (entry, index, entries) =>
+        entries
+          .slice(0, index)
+          .filter((candidate) => candidate.currency_code === entry.currency_code).length < 10,
+    );
+  return {
+    ...results[0],
+    category_id: null,
+    currencies: [...new Set(results.flatMap((result) => result.currencies))].sort(),
+    monthly: [...monthly.values()].sort(
+      (left, right) =>
+        left.month_start.localeCompare(right.month_start) ||
+        left.currency_code.localeCompare(right.currency_code),
+    ),
+    categories: results.flatMap((result) => result.categories),
+    recurring_changes: results.flatMap((result) => result.recurring_changes),
+    largest_discretionary: discretionary,
+    income_stability: [],
+    goals: results.flatMap((result) => result.goals),
+  };
 };
 
 export const updateProfileAndPreferences = async (input: {
