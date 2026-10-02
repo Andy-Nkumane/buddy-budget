@@ -29,4 +29,13 @@ export const queryKeys = {
     [...userRoot(userId), 'payment-schedule-occurrences', fromDate, toDate] as const,
   month: (userId: string, monthStart: string) =>
     [...userRoot(userId), 'month', monthStart] as const,
+  insightsRoot: (userId: string) => [...userRoot(userId), 'insights'] as const,
+  insights: (userId: string, fromMonth: string, toMonth: string, categoryIds: string[]) =>
+    [
+      ...userRoot(userId),
+      'insights',
+      fromMonth,
+      toMonth,
+      categoryIds.length ? categoryIds : 'all',
+    ] as const,
 };

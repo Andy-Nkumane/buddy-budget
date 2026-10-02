@@ -11,7 +11,7 @@ import {
   formatSignedReportAmount,
   formatSignedTransactionAmount,
 } from '../reporting/budgetReport';
-import type { BudgetMonthWithItems, Profile } from '../types/domain';
+import type { BudgetInsights, BudgetMonthWithItems, Profile } from '../types/domain';
 
 const saveBlob = (filename: string, type: string, content: string): void => {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -261,6 +261,7 @@ export const downloadBudgetReportPdf = async (
   rangeLabel: string,
   filenameRange: string,
   includeForecast = false,
+  insights: BudgetInsights | null = null,
 ): Promise<void> => {
   const [{ jsPDF }, { autoTable }] = await Promise.all([
     import('jspdf'),
@@ -317,6 +318,26 @@ export const downloadBudgetReportPdf = async (
     },
   });
   cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+
+  if (insights) {
+    autoTable(document, {
+      startY: cursorY,
+      head: [['Insight month', 'Currency', 'Expense variance', 'Savings', 'Savings rate']],
+      body: insights.monthly.map((month) => [
+        formatMonth(month.month_start, locale),
+        month.currency_code,
+        formatMoney(month.expense_variance_minor / 100, month.currency_code, locale),
+        formatMoney(month.savings_minor / 100, month.currency_code, locale),
+        month.savings_rate_basis_points === null
+          ? 'Not available'
+          : `${month.savings_rate_basis_points / 100}%`,
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [36, 103, 93], textColor: [255, 255, 255] },
+      styles: { fontSize: 8.5, cellPadding: 5 },
+    });
+    cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+  }
 
   months.forEach((month) => {
     if (cursorY > pageHeight - 160) {

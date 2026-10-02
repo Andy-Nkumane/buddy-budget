@@ -13,9 +13,15 @@ import {
   Landmark,
   WifiOff,
   BellRing,
+  BarChart3,
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: BarChart3,
+    title: 'Turn history into decisions',
+    body: 'Insights compares plans with posted actuals, identifies repeated changes, and gives an evidence-based next action. Missing evidence is labelled as insufficient, currencies stay separate, and locked-month adjustments never rewrite history.',
+  },
   {
     icon: LockKeyhole,
     title: 'Close a month without losing history',

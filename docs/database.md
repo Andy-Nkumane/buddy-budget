@@ -92,6 +92,8 @@ Suggestions require at least three transactions with the same normalized descrip
 
 `create_month_adjustment(...)` accepts only an owned age-locked original month and the owned current open month in the same currency. A caller-provided UUID makes retries idempotent without collapsing legitimate equal-value corrections. Adjustments, close summaries, and activity events reject updates and deletes. They do not mutate or participate in the original transaction ledger; reporting calculates a separately labelled adjusted interpretation.
 
+`retrieve_budget_insights(date, date, uuid)` validates ownership and a maximum 60-month range, then returns JSON aggregates in integer minor units. Covering and partial indexes support month/category posted-transaction and recurring-candidate scans. No redundant insight totals are stored.
+
 All security-definer functions use `search_path = ''`, qualify objects, reject unauthenticated access, accept no caller-supplied owner ID, revoke public/anonymous execution, and grant only the intended authenticated operation.
 
 ## Auth configuration

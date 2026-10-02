@@ -11,6 +11,7 @@ import {
   ReceiptText,
   Settings,
   Tags,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -38,6 +39,7 @@ const navigation = [
   { to: '/app/goals', label: 'Goals', icon: Landmark },
   { to: '/app/cash-flow', label: 'Cash flow', icon: CalendarClock },
   { to: '/app/months', label: 'Months', icon: CalendarDays },
+  { to: '/app/insights', label: 'Insights', icon: TrendingUp },
   { to: '/app/templates', label: 'Templates', icon: LayoutTemplate },
   { to: '/app/categories', label: 'Categories', icon: Tags },
   { to: '/app/settings', label: 'Settings', icon: Settings },

@@ -22,6 +22,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `onboarding`: transactional first profile/template/current-month setup.
 - `budgets`: independent monthly plans, planned-versus-actual progress, temporary item pausing, inline drafts, debounced saves, one-offs.
 - `month close`: explicit open/closed workflow state, immutable close summaries, append-only lifecycle activity, and current-month adjustments that interpret but never rewrite age-locked reports.
+- `insights`: bounded server-side aggregates, explicit metric definitions, accessible evidence, and deterministic next actions.
 - `transactions`: manual and browser-local CSV-imported actual income/expense ledger, optional account assignment, categorisation, pagination, duplicate protection, and locked-history controls.
 - `rules`: explicit ordered transaction conditions, per-field winning actions, dry-run explanations, conservative suggestions, and bounded reprocessing.
 - `schedules`: recurring expected income and expenses, immutable month occurrences, explicit transaction matching, and minor-unit cash-flow projections.
@@ -54,6 +55,8 @@ Forecasts never mutate or masquerade as actual transactions. Daily projections a
 Goals are not expenses. `financial_goals` stores the editable target, while `goal_contributions` stores positive minor-unit progress records and optionally links one posted transaction per goal. Savings and sinking funds add contributions to their starting balance; debt goals subtract contributions from the outstanding starting balance while measuring payoff progress against the target amount. `goal_month_recommendations` snapshots the suggested transfer for each existing month. Goal edits refresh only editable snapshots, so locked reports never drift.
 
 Month lifecycle has two independent layers. A user-controlled month is `open` or `closed`; closing creates an immutable derived summary and makes all normal month mutations fail until an audited reopen. The existing profile-timezone boundary independently makes months two or more calendar months old permanently locked. Corrections to locked reports are append-only `month_adjustments` stored against the current open month and linked to the original month. Reports always present original totals first and label the adjusted interpretation separately.
+
+Insights are calculated on demand by one authenticated RPC over at most 60 calendar months. Derived totals are not persisted. Whole-month trends include explicit historical adjustments, category trends exclude unattributed adjustments, and unlike currencies are never combined.
 
 ## Autosave
 

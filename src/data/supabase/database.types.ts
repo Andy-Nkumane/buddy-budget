@@ -3,6 +3,7 @@ import type {
   BudgetMonth,
   BudgetMonthItem,
   BudgetMonthLifecycle,
+  BudgetInsights,
   BudgetTemplate,
   CategorisationRule,
   CategorisationRuleSuggestion,
@@ -324,6 +325,14 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      retrieve_budget_insights: {
+        Args: {
+          requested_from_month: string;
+          requested_to_month: string;
+          requested_category_id?: string | null;
+        };
+        Returns: BudgetInsights;
+      };
       create_month_from_template: {
         Args: { requested_month_start: string; requested_template_id: string };
         Returns: BudgetMonth[];
