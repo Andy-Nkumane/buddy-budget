@@ -1390,13 +1390,13 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     transactions,
     transactionImportBatches,
     categorisationRules,
+    categorisationSuggestionDismissals,
     paymentSchedules,
     paymentScheduleOccurrences,
     financialGoals,
     goalContributions,
     goalRecommendations,
     weeklyCheckInPreferences,
-    notificationDeliveries,
     monthLifecycles,
     closeSummaries,
     monthAdjustments,
@@ -1450,6 +1450,20 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         .order('id')
         .range(from, to),
     ),
+    retrieveAllPages<{
+      user_id: string;
+      normalized_description: string;
+      transaction_type: string;
+      category_id: string | null;
+      budget_item_name: string | null;
+      dismissed_at: string;
+    }>((from, to) =>
+      client
+        .from('categorisation_suggestion_dismissals')
+        .select('*')
+        .order('dismissed_at')
+        .range(from, to),
+    ),
     retrieveAllPages<PaymentSchedule>((from, to) =>
       client.from('payment_schedules').select('*').order('created_at').order('id').range(from, to),
     ),
@@ -1484,14 +1498,6 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         .range(from, to),
     ),
     retrieveWeeklyCheckInPreferences(),
-    retrieveAllPages<NotificationDelivery>((from, to) =>
-      client
-        .from('notification_deliveries')
-        .select('*')
-        .order('created_at')
-        .order('id')
-        .range(from, to),
-    ),
     retrieveAllPages<BudgetMonthLifecycle>((from, to) =>
       client.from('budget_month_lifecycle').select('*').order('updated_at').range(from, to),
     ),
@@ -1519,7 +1525,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return {
     exported_at: new Date().toISOString(),
-    schema_version: 9,
+    schema_version: 10,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
@@ -1527,7 +1533,6 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     profile,
     preferences,
     weekly_checkin_preferences: weeklyCheckInPreferences,
-    notification_deliveries: notificationDeliveries,
     budget_month_lifecycle: monthLifecycles.filter((entry) =>
       exportedMonthIds.has(entry.budget_month_id),
     ),
@@ -1546,6 +1551,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
       exportedMonthIds.has(batch.budget_month_id),
     ),
     transaction_categorisation_rules: categorisationRules,
+    categorisation_suggestion_dismissals: categorisationSuggestionDismissals,
     payment_schedules: paymentSchedules,
     payment_schedule_occurrences: paymentScheduleOccurrences.filter((occurrence) =>
       exportedMonthIds.has(occurrence.budget_month_id),
@@ -1572,6 +1578,49 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
       };
     }),
   };
+};
+
+export interface BackupRestoreReport {
+  restore_id: string;
+  mode: 'merge' | 'replace';
+  status: 'completed';
+  recovery_snapshot_id: string | null;
+  inserted: Record<string, number>;
+  matched: Record<string, number>;
+  skipped: Record<string, number>;
+  failed: Record<string, number>;
+  warnings: string[];
+  completed_at: string;
+}
+
+export const reauthenticateForRestore = async (password: string): Promise<void> => {
+  const client = requireSupabase();
+  const { data: userData, error: userError } = await client.auth.getUser();
+  throwWhenError(userError);
+  if (!userData.user?.email)
+    throw new Error('Password re-authentication is unavailable for this account.');
+  const { error } = await client.auth.signInWithPassword({
+    email: userData.user.email,
+    password,
+  });
+  throwWhenError(error);
+};
+
+export const restoreBackup = async (input: {
+  payload: Record<string, unknown>;
+  mode: 'merge' | 'replace';
+  fingerprint: string;
+  confirmation: string;
+}): Promise<BackupRestoreReport> => {
+  const { data, error } = await requireSupabase().rpc('restore_backup', {
+    requested_payload: input.payload,
+    requested_mode: input.mode,
+    requested_fingerprint: input.fingerprint,
+    requested_confirmation: input.confirmation,
+  });
+  throwWhenError(error);
+  if (!data) throw new Error('The restore did not return a report.');
+  return data;
 };
 
 export const requestAccountDeletion = async (): Promise<void> => {

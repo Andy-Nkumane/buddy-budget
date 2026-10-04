@@ -70,3 +70,7 @@ Weekly check-ins require the `weekly-checkin` Edge Function, Mailjet API credent
 7. Opt in with a staging account, preview the summary, send one in-app test and one email test, then opt out and verify the next dispatch creates no delivery.
 
 The function rechecks preferences immediately before each delivery. Provider rejections can retry up to three total attempts. A network interruption after an email request is not retried automatically because the provider outcome is ambiguous; operators can inspect the non-sensitive `failed_final` state without exposing message content or credentials. Mark a preference `bounced` or `blocked` when Mailjet reports that state; the dispatcher will suppress further email delivery until it is safely resolved. Account deletion cascades preferences and delivery history.
+
+## Backup restore operations
+
+Migration `202610020001_add_backup_restore.sql` must be applied before schema-v10 exports are offered. It needs no additional browser or server secret. After deployment, use a disposable staging account to export, merge, replace, download the restore report, and exercise `rollback_backup_restore` with the reported snapshot ID. Confirm that notification delivery rows and provider data are absent. Keep normal Supabase backup/PITR retention enabled; recovery snapshots are account-scoped safeguards, not infrastructure backups.

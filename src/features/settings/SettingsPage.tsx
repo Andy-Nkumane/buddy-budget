@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BellRing, Download, ListChecks, LogOut, ShieldAlert, Trash2 } from 'lucide-react';
+import { BellRing, Download, ListChecks, LogOut, ShieldAlert, Trash2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
@@ -25,6 +25,7 @@ import { Modal } from '../../shared/ui/Modal';
 import { SelectField } from '../../shared/ui/SelectField';
 import { profileSchema } from '../../shared/validation/schemas';
 import { ExportDataForm } from './ExportDataForm';
+import { RestoreBackupForm } from './RestoreBackupForm';
 import { queryKeys } from '../../data/queryKeys';
 
 type SettingsValues = z.infer<typeof profileSchema>;
@@ -42,6 +43,7 @@ export const SettingsPage = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -207,13 +209,22 @@ export const SettingsPage = () => {
           <p>
             Choose a date range and create a PDF report, CSV spreadsheet, or portable JSON backup.
           </p>
-          <Button
-            variant="secondary"
-            icon={<Download size={18} />}
-            onClick={() => setExportOpen(true)}
-          >
-            Create export
-          </Button>
+          <div className="stacked-actions">
+            <Button
+              variant="secondary"
+              icon={<Download size={18} />}
+              onClick={() => setExportOpen(true)}
+            >
+              Create export
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Upload size={18} />}
+              onClick={() => setRestoreOpen(true)}
+            >
+              Restore backup
+            </Button>
+          </div>
           <p className="privacy-note">
             <ShieldAlert size={18} />
             The export contains private financial information. Store it securely.
@@ -244,6 +255,14 @@ export const SettingsPage = () => {
           )}
         </section>
       </div>
+      <Modal
+        open={restoreOpen}
+        title="Restore a JSON backup"
+        description="Validate the file first, then choose a safe merge or a complete replacement."
+        onClose={() => setRestoreOpen(false)}
+      >
+        {restoreOpen && <RestoreBackupForm onComplete={() => setRestoreOpen(false)} />}
+      </Modal>
       <Modal
         open={exportOpen}
         title="Create an export"

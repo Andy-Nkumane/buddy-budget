@@ -29,7 +29,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `goals`: savings, sinking-fund, and debt-paydown definitions; auditable contributions; and immutable monthly recommendation snapshots.
 - `templates`: recurring plans used only when creating a future snapshot.
 - `categories`: user-owned classification independent from income/expense type.
-- `settings`: display preferences, export, deletion.
+- `settings`: display preferences, versioned export, validated merge/replacement restore, deletion.
 - `pwa`: install prompt, connectivity status, safe explicit update lifecycle.
 
 ## Historical correctness
@@ -57,6 +57,8 @@ Goals are not expenses. `financial_goals` stores the editable target, while `goa
 Month lifecycle has two independent layers. A user-controlled month is `open` or `closed`; closing creates an immutable derived summary and makes all normal month mutations fail until an audited reopen. The existing profile-timezone boundary independently makes months two or more calendar months old permanently locked. Corrections to locked reports are append-only `month_adjustments` stored against the current open month and linked to the original month. Reports always present original totals first and label the adjusted interpretation separately.
 
 Insights are calculated on demand by one authenticated RPC over at most 60 calendar months. Derived totals are not persisted. Whole-month trends include explicit historical adjustments, category trends exclude unattributed adjustments, and unlike currencies are never combined.
+
+Backup restoration has a local validation boundary and a transactional database boundary. The browser migrates supported old schemas, removes non-portable fields, and previews owner-neutral metadata. PostgreSQL revalidates size, shape, version, forbidden fields, recent authentication, ownership, and relationships; remaps every source ID; and performs the chosen merge or replacement atomically. Replacement creates a server-side recovery snapshot first. A private transaction marker—not a client-controlled setting—is the only restore-time bypass for immutable-history triggers.
 
 ## Autosave
 

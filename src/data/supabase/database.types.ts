@@ -322,9 +322,38 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      categorisation_suggestion_dismissals: {
+        Row: {
+          user_id: string;
+          normalized_description: string;
+          transaction_type: string;
+          category_id: string | null;
+          budget_item_name: string | null;
+          dismissed_at: string;
+        };
+        Insert: {
+          user_id: string;
+          normalized_description: string;
+          transaction_type: string;
+          category_id: string | null;
+          budget_item_name: string | null;
+          dismissed_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
+      restore_backup: {
+        Args: {
+          requested_payload: Record<string, unknown>;
+          requested_mode: 'merge' | 'replace';
+          requested_fingerprint: string;
+          requested_confirmation: string;
+        };
+        Returns: import('../../data/repositories/budgetRepository').BackupRestoreReport;
+      };
       retrieve_budget_insights: {
         Args: {
           requested_from_month: string;

@@ -1,0 +1,22 @@
+{
+  "schema_version": 10,
+  "profile": { "user_id": "00000000-0000-0000-0000-000000000001", "currency_code": "ZAR" },
+  "preferences": {},
+  "notification_deliveries": [{ "provider_message_id": "secret" }],
+  "categories": [],
+  "financial_accounts": [],
+  "transaction_import_batches": [],
+  "transaction_categorisation_rules": [],
+  "categorisation_suggestion_dismissals": [],
+  "payment_schedules": [],
+  "payment_schedule_occurrences": [],
+  "financial_goals": [],
+  "goal_contributions": [],
+  "goal_month_recommendations": [],
+  "budget_month_lifecycle": [],
+  "month_close_summaries": [],
+  "month_adjustments": [],
+  "month_lifecycle_events": [],
+  "templates": [],
+  "budget_months": []
+}
