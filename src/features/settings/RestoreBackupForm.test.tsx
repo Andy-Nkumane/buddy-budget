@@ -1,10 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  reauthenticateForRestore,
-  restoreBackup,
-} from '../../data/repositories/budgetRepository';
+import { reauthenticateForRestore, restoreBackup } from '../../data/repositories/budgetRepository';
 import { RestoreBackupForm } from './RestoreBackupForm';
 
 vi.mock('../../data/repositories/budgetRepository', () => ({
@@ -68,7 +65,9 @@ describe('RestoreBackupForm', () => {
     );
     fireEvent.change(screen.getByLabelText('Buddy Budget JSON backup'), {
       target: {
-        files: [new File([JSON.stringify(validBackup)], 'backup.json', { type: 'application/json' })],
+        files: [
+          new File([JSON.stringify(validBackup)], 'backup.json', { type: 'application/json' }),
+        ],
       },
     });
     expect(await screen.findByRole('heading', { name: 'Validated backup' })).toBeVisible();
