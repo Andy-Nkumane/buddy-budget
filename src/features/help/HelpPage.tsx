@@ -93,6 +93,11 @@ const topics = [
     body: 'Choose a preset or custom month range in Settings, then export planned and actual details as CSV, JSON, or a PDF report. One-month exports remain available in Month history.',
   },
   {
+    icon: History,
+    title: 'Restore a JSON backup',
+    body: 'Settings validates the backup before upload. Merge adds missing data without rewriting existing months. Full replacement requires your current password and typed confirmation, and creates a recovery snapshot first.',
+  },
+  {
     icon: Smartphone,
     title: '9. Install on Android or iOS',
     body: 'On Android Chrome, open the browser menu and choose Install app or Add to Home screen. On iPhone or iPad Safari, tap Share, then Add to Home Screen.',
