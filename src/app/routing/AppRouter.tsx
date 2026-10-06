@@ -87,6 +87,16 @@ const InsightsPage = lazy(() =>
     default: module.InsightsPage,
   })),
 );
+const HouseholdPage = lazy(() =>
+  import('../../features/households/HouseholdPage').then((module) => ({
+    default: module.HouseholdPage,
+  })),
+);
+const HouseholdInvitationPage = lazy(() =>
+  import('../../features/households/HouseholdInvitationPage').then((module) => ({
+    default: module.HouseholdInvitationPage,
+  })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -125,6 +135,7 @@ export const AppRouter = () => (
         </Route>
         <Route element={<RequireAuthentication />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/app/household/invite" element={<HouseholdInvitationPage />} />
           <Route path="/app" element={<AppHome />} />
           <Route element={<RequireOnboarding />}>
             <Route path="/app" element={<AppLayout />}>
@@ -137,6 +148,7 @@ export const AppRouter = () => (
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="categories" element={<CategoriesPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="household" element={<HouseholdPage />} />
               <Route path="settings/check-ins" element={<WeeklyCheckInPage />} />
               <Route path="settings/rules" element={<RulesPage />} />
               <Route path="help" element={<HelpPage />} />

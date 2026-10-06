@@ -23,7 +23,10 @@ const collectionKeys = [
 const forbiddenKeys = new Set([
   'user_id',
   'owner_id',
+  'owner_user_id',
+  'data_owner_user_id',
   'household_id',
+  'active_household_id',
   'email',
   'password',
   'access_token',

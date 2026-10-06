@@ -1,6 +1,12 @@
-const userRoot = (userId: string) => ['user', userId] as const;
+const activeHouseholdScope = () =>
+  typeof window === 'undefined'
+    ? 'unresolved-household'
+    : (window.localStorage.getItem('buddy-budget-active-household') ?? 'unresolved-household');
+
+const userRoot = (userId: string) => ['user', userId, 'household', activeHouseholdScope()] as const;
 
 export const queryKeys = {
+  household: (userId: string) => ['user', userId, 'households'] as const,
   profile: (userId: string) => [...userRoot(userId), 'profile'] as const,
   preferences: (userId: string) => [...userRoot(userId), 'preferences'] as const,
   weeklyCheckInPreferences: (userId: string) =>

@@ -14,9 +14,15 @@ import {
   WifiOff,
   BellRing,
   BarChart3,
+  Users,
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: Users,
+    title: 'Share a household safely',
+    body: 'Household owners can invite a verified email as an editor or read-only viewer. Invitations expire after seven days and work once. Use the household switcher to change budgets; Buddy Budget clears cached financial data before loading the selected household.',
+  },
   {
     icon: BarChart3,
     title: 'Turn history into decisions',

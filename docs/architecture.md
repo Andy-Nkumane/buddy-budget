@@ -30,6 +30,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `templates`: recurring plans used only when creating a future snapshot.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, versioned export, validated merge/replacement restore, deletion.
+- `households`: active-household selection, verified invitations, role management, cache isolation, and append-only shared activity.
 - `pwa`: install prompt, connectivity status, safe explicit update lifecycle.
 
 ## Historical correctness
@@ -61,6 +62,8 @@ Insights are calculated on demand by one authenticated RPC over at most 60 calen
 Backup restoration has a local validation boundary and a transactional database boundary. The browser migrates supported old schemas, removes non-portable fields, and previews owner-neutral metadata. PostgreSQL revalidates size, shape, version, forbidden fields, recent authentication, ownership, and relationships; remaps every source ID; and performs the chosen merge or replacement atomically. Replacement creates a server-side recovery snapshot first. A private transaction marker—not a client-controlled setting—is the only restore-time bypass for immutable-history triggers.
 
 ## Autosave
+
+Household collaboration keeps profiles, preferences, authentication, and notification delivery personal while assigning every shared financial record a `household_id`. Membership helpers centralize owner/editor/viewer authorization for RLS and RPCs. The legacy data-owner UUID is retained for relational compatibility, but it is not used to authorize browser requests. Household switching cancels requests and clears the complete query cache before fetching the selected scope.
 
 Amount input remains local and updates the query cache for immediate totals. After 650 ms without another keystroke, a validated fixed-decimal string is sent. State transitions are `idle → saving → saved` or `idle/saving → failed`. Failed and offline drafts remain visible for explicit retry. Service-worker activation is disabled while editing/saving.
 
