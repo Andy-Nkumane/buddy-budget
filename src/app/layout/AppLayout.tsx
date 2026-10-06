@@ -12,6 +12,7 @@ import {
   Settings,
   Tags,
   TrendingUp,
+  Users,
   X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -32,6 +33,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
 import type { WeeklyCheckInSummary } from '../../shared/checkins/checkin';
 import { useQueryClient } from '@tanstack/react-query';
+import { useHousehold } from '../providers/HouseholdProvider';
 
 const navigation = [
   { to: '/app/budget/current', label: 'Budget', icon: CircleDollarSign },
@@ -43,6 +45,7 @@ const navigation = [
   { to: '/app/templates', label: 'Templates', icon: LayoutTemplate },
   { to: '/app/categories', label: 'Categories', icon: Tags },
   { to: '/app/settings', label: 'Settings', icon: Settings },
+  { to: '/app/household', label: 'Household', icon: Users },
   { to: '/app/help', label: 'How it works', icon: BookOpen },
 ];
 
@@ -65,6 +68,7 @@ const Navigation = ({ close }: { close?: () => void }) => (
 export const AppLayout = () => {
   const queryClient = useQueryClient();
   const { session, signOut } = useAuth();
+  const household = useHousehold();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -105,7 +109,7 @@ export const AppLayout = () => {
   }, [preferences.data?.theme]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-household-role={household.role ?? undefined}>
       <aside className="sidebar">
         <NavLink className="brand" to="/app/budget/current" aria-label="Buddy Budget home">
           <BrandMark />
@@ -114,6 +118,25 @@ export const AppLayout = () => {
             <small>Your month. Under control.</small>
           </span>
         </NavLink>
+        {household.context && household.context.households.length > 0 && (
+          <label className="household-switcher">
+            <span>Household</span>
+            <select
+              value={household.context.active_household_id}
+              onChange={(event) => {
+                void household
+                  .switchHousehold(event.target.value)
+                  .catch((error: Error) => setAccountError(error.message));
+              }}
+            >
+              {household.context.households.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name} ({entry.role})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <Navigation />
         <footer className="sidebar__account">
           <span className="avatar" aria-hidden="true">
@@ -154,6 +177,26 @@ export const AppLayout = () => {
 
       {menuOpen && (
         <div className="mobile-drawer">
+          {household.context && household.context.households.length > 0 && (
+            <label className="household-switcher">
+              <span>Household</span>
+              <select
+                value={household.context.active_household_id}
+                onChange={(event) => {
+                  setMenuOpen(false);
+                  void household
+                    .switchHousehold(event.target.value)
+                    .catch((error: Error) => setAccountError(error.message));
+                }}
+              >
+                {household.context.households.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name} ({entry.role})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <Navigation close={() => setMenuOpen(false)} />
           <Button
             icon={<LogOut aria-hidden="true" size={18} />}
@@ -166,6 +209,11 @@ export const AppLayout = () => {
       )}
 
       <main className="app-main" id="main-content">
+        {household.role === 'viewer' && (
+          <aside className="inline-alert" role="status">
+            This household is read-only for you. Ask the owner for editor access to make changes.
+          </aside>
+        )}
         {accountError && (
           <div className="inline-alert inline-alert--error" role="alert">
             {accountError}
@@ -199,7 +247,15 @@ export const AppLayout = () => {
             </button>
           </aside>
         )}
-        <Outlet />
+        {household.role === 'viewer' &&
+        !location.pathname.startsWith('/app/household') &&
+        !location.pathname.startsWith('/app/insights') ? (
+          <fieldset className="viewer-read-only" disabled aria-label="Read-only household content">
+            <Outlet />
+          </fieldset>
+        ) : (
+          <Outlet />
+        )}
       </main>
 
       <nav className="bottom-nav" aria-label="Mobile navigation">

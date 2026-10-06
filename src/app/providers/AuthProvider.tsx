@@ -36,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (authenticatedUserId.current && authenticatedUserId.current !== nextUserId) {
         void queryClient.cancelQueries();
         queryClient.clear();
+        window.localStorage.removeItem('buddy-budget-active-household');
       }
       authenticatedUserId.current = nextUserId;
       setSession(nextSession);

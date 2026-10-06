@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import { adjacentMonthStart, calculateBudgetProgress } from '../../shared/formatting/money';
+import { removePortableOwnership } from '../../shared/utilities/portableBackup';
 import type {
   BudgetMonth,
   BudgetInsights,
@@ -1523,7 +1524,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
   const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
-  return {
+  return removePortableOwnership({
     exported_at: new Date().toISOString(),
     schema_version: 10,
     range: {
@@ -1577,7 +1578,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         planned_versus_actual: calculateBudgetProgress(budgetMonthItems, budgetTransactions),
       };
     }),
-  };
+  });
 };
 
 export interface BackupRestoreReport {

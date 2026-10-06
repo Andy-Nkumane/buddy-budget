@@ -2938,6 +2938,144 @@ p {
   justify-items: start;
 }
 
+.household-switcher {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0.75rem 0.75rem;
+}
+
+.household-switcher span {
+  color: var(--ink-500);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.household-switcher select,
+.household-member select {
+  background: var(--surface);
+  border: 0.0625rem solid var(--line);
+  border-radius: 0.625rem;
+  color: var(--ink);
+  min-width: 0;
+  padding: 0.625rem;
+  width: 100%;
+}
+
+.household-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.viewer-read-only {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.viewer-read-only :is(button, input, select, textarea) {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.household-invite,
+.household-member-list,
+.household-activity {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.household-invite__fields {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.household-name__controls {
+  align-items: end;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.household-invite__link {
+  overflow-wrap: anywhere;
+  width: 100%;
+}
+
+.household-member {
+  align-items: center;
+  border-top: 0.0625rem solid var(--line);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding-top: 0.875rem;
+}
+
+.household-member:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.household-member small,
+.household-activity time {
+  color: var(--ink-500);
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.household-member__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.household-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.household-activity li {
+  border-top: 0.0625rem solid var(--line);
+  padding: 0.75rem 0;
+}
+
+.invitation-page {
+  margin: 10vh auto 2rem;
+  max-width: 36rem;
+  padding: 1rem;
+}
+
+@media (max-width: 48rem) {
+  .household-switcher {
+    margin: 0 0 1rem;
+  }
+
+  .household-invite__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .household-name__controls {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .household-member {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .household-member__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 36rem) {
   .restore-summary dl,
   .restore-result__counts {

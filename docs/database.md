@@ -37,6 +37,10 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 
 ## Model and invariants
 
+- `households`, `household_memberships`, and `household_invitations`: shared ownership, roles, and expiring verified-recipient access.
+- Shared financial tables use `household_id` for authorization; legacy `user_id` remains a migration-compatible data-owner key.
+- `household_activity` is append-only and records material actors without copying financial values.
+
 - `profiles` and `user_preferences`: one row per Auth user.
 - `categories`: user-owned and typed as income/expense.
 - `budget_templates` and `template_items`: recurring plans; one active default per user.

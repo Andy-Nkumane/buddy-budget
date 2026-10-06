@@ -15,6 +15,47 @@ export type CheckInDeliveryStatus =
   'queued' | 'processing' | 'delivered' | 'failed' | 'failed_final' | 'skipped';
 export type MonthLifecycleStatus = 'open' | 'closed';
 export type MonthAdjustmentDirection = 'increase' | 'decrease';
+export type HouseholdRole = 'owner' | 'editor' | 'viewer';
+
+export type HouseholdSummary = {
+  id: string;
+  name: string;
+  role: HouseholdRole;
+  created_at: string;
+};
+
+export type HouseholdMember = {
+  user_id: string;
+  display_name: string;
+  role: HouseholdRole;
+  joined_at: string;
+};
+
+export type HouseholdInvitation = {
+  id: string;
+  email: string;
+  role: Exclude<HouseholdRole, 'owner'>;
+  expires_at: string;
+  created_at: string;
+};
+
+export type HouseholdActivity = {
+  id: number;
+  actor_user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+};
+
+export type HouseholdContext = {
+  active_household_id: string;
+  households: HouseholdSummary[];
+  members: HouseholdMember[];
+  invitations: HouseholdInvitation[];
+  activity: HouseholdActivity[];
+};
 
 export type InsightMonthlyMetric = {
   month_start: string;
@@ -105,6 +146,7 @@ export type BudgetInsights = {
 
 export type Profile = {
   user_id: string;
+  active_household_id?: string | null;
   display_name: string | null;
   currency_code: string;
   locale: string;

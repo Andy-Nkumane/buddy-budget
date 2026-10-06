@@ -354,6 +354,38 @@ export interface Database {
         };
         Returns: import('../../data/repositories/budgetRepository').BackupRestoreReport;
       };
+      retrieve_household_context: {
+        Args: Record<string, never>;
+        Returns: import('../../shared/types/domain').HouseholdContext;
+      };
+      switch_household: {
+        Args: { requested_household_id: string };
+        Returns: undefined;
+      };
+      update_household_name: {
+        Args: { requested_name: string };
+        Returns: undefined;
+      };
+      create_household_invitation: {
+        Args: { requested_email: string; requested_role: string };
+        Returns: { invitation_id: string; invitation_token: string; expires_at: string }[];
+      };
+      respond_to_household_invitation: {
+        Args: { requested_token: string; requested_accept: boolean };
+        Returns: string;
+      };
+      revoke_household_invitation: {
+        Args: { requested_invitation_id: string };
+        Returns: undefined;
+      };
+      manage_household_member: {
+        Args: {
+          requested_action: string;
+          requested_user_id: string;
+          requested_role: string | null;
+        };
+        Returns: undefined;
+      };
       retrieve_budget_insights: {
         Args: {
           requested_from_month: string;
