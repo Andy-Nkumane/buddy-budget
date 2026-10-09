@@ -20,6 +20,7 @@ import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import { parseMoney, profileSchema, toDatabaseMoney } from '../../shared/validation/schemas';
 import type { UserPreferences } from '../../shared/types/domain';
+import { clearApprovedStarterPlan, retrieveApprovedStarterPlan } from '../demo/demoModel';
 
 const onboardingSchema = profileSchema.extend({
   templateName: z.string().trim().min(1, 'Name your template.').max(80),
@@ -66,10 +67,23 @@ export const OnboardingPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [starterPlan] = useState(() => retrieveApprovedStarterPlan(window.localStorage));
   const { control, register, handleSubmit, setValue, trigger, formState } =
     useForm<OnboardingValues>({
       resolver: zodResolver(onboardingSchema),
-      defaultValues: defaults,
+      defaultValues: starterPlan
+        ? {
+            ...defaults,
+            currencyCode: starterPlan.currencyCode,
+            templateName: starterPlan.templateName,
+            items: starterPlan.items.map((item) => ({
+              name: item.name,
+              itemType: item.itemType,
+              categoryName: item.categoryName,
+              amount: (item.amountMinor / 100).toFixed(2),
+            })),
+          }
+        : defaults,
       mode: 'onBlur',
     });
   const items = useFieldArray({ control, name: 'items' });
@@ -112,6 +126,7 @@ export const OnboardingPage = () => {
         updated_at: completedAt,
       }));
       await queryClient.invalidateQueries({ queryKey: preferencesKey, refetchType: 'none' });
+      if (starterPlan) clearApprovedStarterPlan(window.localStorage);
       void navigate(`/app/budget/${month.month_start}`, { replace: true });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Setup failed. Please try again.');
@@ -202,6 +217,11 @@ export const OnboardingPage = () => {
               <p className="muted">
                 Zero is welcome—fill uncertain amounts in when the month begins.
               </p>
+              {starterPlan && (
+                <div className="inline-alert" role="status">
+                  Your approved demo plan is ready. Review it before creating your first month.
+                </div>
+              )}
               <FormField
                 label="Template name"
                 error={formState.errors.templateName?.message}

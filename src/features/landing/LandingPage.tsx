@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarCheck, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, CalendarCheck, Play, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BrandMark } from '../../shared/ui/BrandMark';
 
@@ -13,9 +13,9 @@ export const LandingPage = () => (
         <Link className="button button--ghost" to="/auth/sign-in">
           Sign in
         </Link>
-        <Link className="button button--primary" to="/auth/register">
-          Start budgeting
-        </Link>
+        <a className="button button--demo" href={`${import.meta.env.BASE_URL}demo`}>
+          <Play aria-hidden="true" size={17} /> Try demo
+        </a>
       </div>
     </header>
     <section className="hero">
@@ -36,7 +36,10 @@ export const LandingPage = () => (
           <Link className="button button--primary button--large" to="/auth/register">
             Create your first budget <ArrowRight aria-hidden="true" size={19} />
           </Link>
-          <Link className="button button--secondary button--large" to="/auth/sign-in">
+          <a className="button button--demo button--large" href={`${import.meta.env.BASE_URL}demo`}>
+            <Play aria-hidden="true" size={19} /> Try the interactive demo
+          </a>
+          <Link className="button button--ghost button--large" to="/auth/sign-in">
             I already have an account
           </Link>
         </div>

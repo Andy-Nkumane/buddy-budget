@@ -19,6 +19,11 @@ import {
 
 const topics = [
   {
+    icon: Laptop,
+    title: 'Try the fictional demo safely',
+    body: 'The public interactive demo uses deterministic fictional data in browser memory and never reads or writes an account. If you choose “Start with this setup”, only the plan you approve is kept locally for up to 24 hours; sample transactions are never transferred.',
+  },
+  {
     icon: Users,
     title: 'Share a household safely',
     body: 'Household owners can invite a verified email as an editor or read-only viewer. Invitations expire after seven days and work once. Use the household switcher to change budgets; Buddy Budget clears cached financial data before loading the selected household.',

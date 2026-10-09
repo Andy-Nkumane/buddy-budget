@@ -10,9 +10,10 @@
 6. Add Actions variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
 7. Run `Quality`; deployment starts only after it succeeds.
 8. Confirm `https://<owner>.github.io/<repo>/` loads.
-9. Refresh `/app/help`, `/app/transactions`, `/auth/callback`, and `/auth/reset-password` directly.
-10. Inspect `manifest.webmanifest`, `sw.js`, and shortcut URLs under `/<repo>/`.
-11. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
+9. Refresh `/demo`, `/app/help`, `/app/transactions`, `/auth/callback`, and `/auth/reset-password` directly.
+10. Test locally with `npm run preview:pwa`, not `npm run dev`: Vite's development/HMR runtime requires a live WebSocket and is not an offline deployment simulation. Visit `http://localhost:5173/demo` online once and wait for its service worker to activate. Reload once so the page is controlled, switch the browser offline, reload again, and confirm plan editing, sample transactions, and reset still work without network requests. Clearing site data removes the cached assets and requires another online visit.
+11. Inspect `manifest.webmanifest`, `sw.js`, and shortcut URLs under `/<repo>/`; confirm the lazy demo chunk is included in the precache manifest.
+12. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
 
 ## Required pull-request checks
 
