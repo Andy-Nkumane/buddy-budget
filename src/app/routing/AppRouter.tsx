@@ -97,6 +97,9 @@ const HouseholdInvitationPage = lazy(() =>
     default: module.HouseholdInvitationPage,
   })),
 );
+const DemoPage = lazy(() =>
+  import('../../features/demo/DemoPage').then((module) => ({ default: module.DemoPage })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -120,6 +123,7 @@ export const AppRouter = () => (
   <BrowserRouter basename={import.meta.env.BASE_URL}>
     <Suspense fallback={<LoadingState />}>
       <Routes>
+        <Route path="/demo" element={<DemoPage />} />
         <Route element={<RedirectAuthenticated />}>
           <Route path="/" element={<LandingPage />} />
         </Route>
