@@ -31,6 +31,7 @@ import type {
   PaymentSchedule,
   PaymentScheduleOccurrence,
   Profile,
+  StarterTemplate,
   TemplateItem,
   TemplateWithItems,
   ThemePreference,
@@ -270,14 +271,16 @@ export const setupFirstBudget = async (input: {
   timezone: string;
   theme: ThemePreference;
   templateName: string;
+  starter?: { id: string; version: number; copyKey: string };
   items: Array<{
     name: string;
     item_type: ItemType;
     category_name: string;
     default_amount: string;
+    starter_item_key?: string;
   }>;
 }): Promise<BudgetMonth> => {
-  const { data, error } = await requireSupabase().rpc('setup_first_budget', {
+  const common = {
     requested_display_name: input.displayName,
     requested_currency_code: input.currencyCode,
     requested_locale: input.locale,
@@ -285,7 +288,16 @@ export const setupFirstBudget = async (input: {
     requested_theme: input.theme,
     requested_template_name: input.templateName,
     requested_template_items: input.items,
-  });
+  };
+  const result = input.starter
+    ? await requireSupabase().rpc('setup_first_budget_from_starter', {
+        ...common,
+        requested_starter_id: input.starter.id,
+        requested_starter_version: input.starter.version,
+        requested_copy_key: input.starter.copyKey,
+      })
+    : await requireSupabase().rpc('setup_first_budget', common);
+  const { data, error } = result;
   throwWhenError(error);
   const month = data?.[0];
   if (!month) throw new Error('Your first month could not be created.');
@@ -413,6 +425,49 @@ export const searchTemplates = async (): Promise<TemplateWithItems[]> => {
     ...template,
     template_items: itemsByTemplate.get(template.id) ?? [],
   }));
+};
+
+export const retrieveStarterTemplates = async (): Promise<StarterTemplate[]> => {
+  const client = requireSupabase();
+  const [{ data: templates, error: templatesError }, { data: items, error: itemsError }] =
+    await Promise.all([
+      client.from('starter_budget_templates').select('*').eq('is_active', true).order('sort_order'),
+      client
+        .from('starter_budget_template_items')
+        .select('*')
+        .order('item_type', { ascending: false })
+        .order('sort_order'),
+    ]);
+  throwWhenError(templatesError ?? itemsError);
+  return (templates ?? []).map((template) => ({
+    ...template,
+    items: (items ?? []).filter(
+      (item) =>
+        item.starter_template_id === template.id &&
+        item.starter_template_version === template.version,
+    ),
+  }));
+};
+
+export const copyStarterTemplate = async (input: {
+  starterId: string;
+  starterVersion: number;
+  templateName: string;
+  copyKey: string;
+  makeDefault: boolean;
+  items: Array<{ item_key: string; amount: string }>;
+}): Promise<BudgetTemplate> => {
+  const { data, error } = await requireSupabase().rpc('copy_starter_budget_template', {
+    requested_starter_id: input.starterId,
+    requested_starter_version: input.starterVersion,
+    requested_template_name: input.templateName,
+    requested_items: input.items,
+    requested_copy_key: input.copyKey,
+    requested_make_default: input.makeDefault,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The starter template could not be copied.');
+  return data[0];
 };
 
 export const createTemplate = async (
@@ -1526,7 +1581,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
   return removePortableOwnership({
     exported_at: new Date().toISOString(),
-    schema_version: 10,
+    schema_version: 11,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,

@@ -180,9 +180,36 @@ export type BudgetTemplate = {
   user_id: string;
   name: string;
   is_default: boolean;
+  starter_template_id: string | null;
+  starter_template_version: number | null;
+  starter_copy_key: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type StarterTemplateItem = {
+  starter_template_id: string;
+  starter_template_version: number;
+  item_key: string;
+  item_type: ItemType;
+  name: string;
+  category_name: string;
+  default_amount: string;
+  sort_order: number;
+};
+
+export type StarterTemplate = {
+  id: string;
+  version: number;
+  name: string;
+  audience: string;
+  description: string;
+  template_name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  items: StarterTemplateItem[];
 };
 
 export type TemplateItem = {

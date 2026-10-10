@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { inspectBackupText } from './backupRestore';
 
 const backup = {
-  schema_version: 10,
+  schema_version: 11,
   exported_at: '2026-10-02T00:00:00.000Z',
   range: { from_month: '2026-01-01', to_month: '2026-09-01' },
   profile: { user_id: 'hostile-owner', currency_code: 'ZAR' },
@@ -39,7 +39,7 @@ describe('inspectBackupText', () => {
     const result = inspectBackupText(
       JSON.stringify({ ...backup, schema_version: 9, notification_deliveries: [{ secret: true }] }),
     );
-    expect(result.schemaVersion).toBe(10);
+    expect(result.schemaVersion).toBe(11);
     expect(result.payload).not.toHaveProperty('notification_deliveries');
     expect(result.warnings[0]).toMatch(/upgraded locally/);
   });

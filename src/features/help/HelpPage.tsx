@@ -5,6 +5,7 @@ import {
   CalendarClock,
   Laptop,
   ListPlus,
+  Library,
   LockKeyhole,
   ListChecks,
   PencilLine,
@@ -18,6 +19,11 @@ import {
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: Library,
+    title: 'Start from a plan that fits',
+    body: 'During setup or from Templates, preview a curated starter for a student, first salary, household, freelancer, or minimal essentials. Include only useful items and enter your own amounts. Suggestions start at zero and copying never changes an existing template or past month.',
+  },
   {
     icon: Laptop,
     title: 'Try the fictional demo safely',

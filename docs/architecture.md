@@ -29,6 +29,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `schedules`: recurring expected income and expenses, immutable month occurrences, explicit transaction matching, and minor-unit cash-flow projections.
 - `goals`: savings, sinking-fund, and debt-paydown definitions; auditable contributions; and immutable monthly recommendation snapshots.
 - `templates`: recurring plans used only when creating a future snapshot.
+- `starter templates`: immutable-by-version, deployment-managed catalog content copied transactionally into ordinary household-owned templates.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, versioned export, validated merge/replacement restore, deletion.
 - `households`: active-household selection, verified invitations, role management, cache isolation, and append-only shared activity.
@@ -39,6 +40,8 @@ The `/demo` entry path renders outside `AuthProvider`, `HouseholdProvider`, and 
 ## Historical correctness
 
 `budget_month_items` copy template name, category name, default amount, item type, and order. They retain optional source IDs for lineage, but render and calculate from snapshot fields. A paused item retains its amount while being excluded from planned totals. No trigger propagates later template updates into a month.
+
+Starter definitions are non-user-owned read-only catalog rows. Copy RPCs validate the active catalog version, selected item keys, exact decimal amounts, role, household, and idempotency key before creating categories, a template, and items atomically. Owned templates retain only source ID/version diagnostics; later catalog versions never propagate into them or their month snapshots.
 
 `budget_transactions` records actual activity separately from the planned snapshot. Amounts and account opening balances use integer minor units. A non-negative refund/reversal record reverses its income or expense effect. Only posted transactions affect actual totals and derived account balances. Transactions linked to paused or later-archived items remain real activity.
 

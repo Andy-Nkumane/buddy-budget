@@ -1,6 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Check, CircleDollarSign, Plus, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CircleDollarSign,
+  Library,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { useState, type ChangeEvent } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -17,10 +25,15 @@ import {
 import { Button } from '../../shared/ui/Button';
 import { BrandMark } from '../../shared/ui/BrandMark';
 import { FormField } from '../../shared/ui/FormField';
+import { Modal } from '../../shared/ui/Modal';
 import { SelectField } from '../../shared/ui/SelectField';
 import { parseMoney, profileSchema, toDatabaseMoney } from '../../shared/validation/schemas';
 import type { UserPreferences } from '../../shared/types/domain';
 import { clearApprovedStarterPlan, retrieveApprovedStarterPlan } from '../demo/demoModel';
+import {
+  StarterTemplatePicker,
+  type StarterTemplateSelection,
+} from '../templates/StarterTemplatePicker';
 
 const onboardingSchema = profileSchema.extend({
   templateName: z.string().trim().min(1, 'Name your template.').max(80),
@@ -31,6 +44,7 @@ const onboardingSchema = profileSchema.extend({
         itemType: z.enum(['income', 'expense']),
         categoryName: z.string().trim().min(1, 'Choose a category.').max(80),
         amount: z.string().refine((value) => parseMoney(value) !== null, 'Enter a valid amount.'),
+        starterItemKey: z.string().optional(),
       }),
     )
     .min(1, 'Add at least one recurring item.'),
@@ -61,13 +75,23 @@ const onboardingCurrencyOptions = includePreferenceOption(currencyOptions, defau
 const onboardingLocaleOptions = includePreferenceOption(localeOptions, defaults.locale);
 const onboardingTimezoneOptions = includePreferenceOption(timezoneOptions, defaults.timezone);
 
+const retrieveLocalStarterPlan = () => {
+  try {
+    return retrieveApprovedStarterPlan(window.localStorage);
+  } catch {
+    return null;
+  }
+};
+
 export const OnboardingPage = () => {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [starterPlan] = useState(() => retrieveApprovedStarterPlan(window.localStorage));
+  const [starterOpen, setStarterOpen] = useState(false);
+  const [starterSelection, setStarterSelection] = useState<StarterTemplateSelection | null>(null);
+  const [starterPlan] = useState(retrieveLocalStarterPlan);
   const { control, register, handleSubmit, setValue, trigger, formState } =
     useForm<OnboardingValues>({
       resolver: zodResolver(onboardingSchema),
@@ -107,11 +131,19 @@ export const OnboardingPage = () => {
         timezone: input.timezone,
         theme: input.theme,
         templateName: input.templateName,
+        starter: starterSelection
+          ? {
+              id: starterSelection.id,
+              version: starterSelection.version,
+              copyKey: starterSelection.copyKey,
+            }
+          : undefined,
         items: input.items.map((item) => ({
           name: item.name,
           item_type: item.itemType,
           category_name: item.categoryName,
           default_amount: toDatabaseMoney(item.amount),
+          ...(starterSelection ? { starter_item_key: item.starterItemKey } : {}),
         })),
       });
       const userId = session?.user.id ?? '';
@@ -217,9 +249,23 @@ export const OnboardingPage = () => {
               <p className="muted">
                 Zero is welcome—fill uncertain amounts in when the month begins.
               </p>
+              <Button
+                type="button"
+                variant="secondary"
+                icon={<Library aria-hidden="true" size={18} />}
+                onClick={() => setStarterOpen(true)}
+              >
+                Choose a starter template
+              </Button>
               {starterPlan && (
                 <div className="inline-alert" role="status">
                   Your approved demo plan is ready. Review it before creating your first month.
+                </div>
+              )}
+              {starterSelection && (
+                <div className="inline-alert" role="status">
+                  {starterSelection.templateName} is selected. Amounts remain editable; reopen the
+                  library to change included items.
                 </div>
               )}
               <FormField
@@ -234,9 +280,11 @@ export const OnboardingPage = () => {
                     <SelectField
                       label="Type"
                       className="field--compact"
+                      disabled={Boolean(starterSelection)}
                       {...register(`items.${index}.itemType`, {
                         onChange: (event: ChangeEvent<HTMLSelectElement>) => {
                           const itemType = event.target.value as 'income' | 'expense';
+                          setStarterSelection(null);
                           setValue(`items.${index}.categoryName`, categoryOptions[itemType][0], {
                             shouldValidate: true,
                           });
@@ -249,22 +297,35 @@ export const OnboardingPage = () => {
                     <FormField
                       label="Item name"
                       className="field--compact"
+                      disabled={Boolean(starterSelection)}
                       error={formState.errors.items?.[index]?.name?.message}
-                      {...register(`items.${index}.name`)}
+                      {...register(`items.${index}.name`, {
+                        onChange: () => setStarterSelection(null),
+                      })}
                     />
                     <SelectField
                       label="Category"
                       className="field--compact"
+                      disabled={Boolean(starterSelection)}
                       error={formState.errors.items?.[index]?.categoryName?.message}
-                      {...register(`items.${index}.categoryName`)}
+                      {...register(`items.${index}.categoryName`, {
+                        onChange: () => setStarterSelection(null),
+                      })}
                     >
-                      {categoryOptions[
-                        values.items?.[index]?.itemType === 'expense' ? 'expense' : 'income'
-                      ].map((category) => (
-                        <option value={category} key={category}>
-                          {category}
-                        </option>
-                      ))}
+                      {[
+                        ...new Set([
+                          ...categoryOptions[
+                            values.items?.[index]?.itemType === 'expense' ? 'expense' : 'income'
+                          ],
+                          values.items?.[index]?.categoryName ?? '',
+                        ]),
+                      ]
+                        .filter(Boolean)
+                        .map((category) => (
+                          <option value={category} key={category}>
+                            {category}
+                          </option>
+                        ))}
                     </SelectField>
                     <FormField
                       label="Default amount"
@@ -273,49 +334,55 @@ export const OnboardingPage = () => {
                       error={formState.errors.items?.[index]?.amount?.message}
                       {...register(`items.${index}.amount`)}
                     />
-                    <button
-                      className="icon-button"
-                      type="button"
-                      aria-label={`Remove ${field.name}`}
-                      onClick={() => items.remove(index)}
-                    >
-                      <Trash2 aria-hidden="true" size={19} />
-                    </button>
+                    {!starterSelection && (
+                      <button
+                        className="icon-button"
+                        type="button"
+                        aria-label={`Remove ${field.name}`}
+                        onClick={() => items.remove(index)}
+                      >
+                        <Trash2 aria-hidden="true" size={19} />
+                      </button>
+                    )}
                   </fieldset>
                 ))}
               </div>
-              <div className="split-actions">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  icon={<Plus aria-hidden="true" size={18} />}
-                  onClick={() =>
-                    items.append({
-                      name: '',
-                      itemType: 'income',
-                      categoryName: 'Earnings',
-                      amount: '0.00',
-                    })
-                  }
-                >
-                  Add income
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  icon={<Plus aria-hidden="true" size={18} />}
-                  onClick={() =>
-                    items.append({
-                      name: '',
-                      itemType: 'expense',
-                      categoryName: 'Housing',
-                      amount: '0.00',
-                    })
-                  }
-                >
-                  Add expense
-                </Button>
-              </div>
+              {!starterSelection && (
+                <div className="split-actions">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<Plus aria-hidden="true" size={18} />}
+                    onClick={() => {
+                      setStarterSelection(null);
+                      items.append({
+                        name: '',
+                        itemType: 'income',
+                        categoryName: 'Earnings',
+                        amount: '0.00',
+                      });
+                    }}
+                  >
+                    Add income
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<Plus aria-hidden="true" size={18} />}
+                    onClick={() => {
+                      setStarterSelection(null);
+                      items.append({
+                        name: '',
+                        itemType: 'expense',
+                        categoryName: 'Housing',
+                        amount: '0.00',
+                      });
+                    }}
+                  >
+                    Add expense
+                  </Button>
+                </div>
+              )}
             </div>
           )}
           {step === 3 && (
@@ -363,6 +430,34 @@ export const OnboardingPage = () => {
           </div>
         </form>
       </section>
+      {starterOpen && (
+        <Modal
+          className="modal--starter"
+          open
+          title="Starter template library"
+          onClose={() => setStarterOpen(false)}
+        >
+          <StarterTemplatePicker
+            currency={values.currencyCode ?? defaults.currencyCode}
+            locale={values.locale ?? defaults.locale}
+            submitLabel="Use this starting point"
+            onSubmit={(selection) => {
+              setStarterSelection(selection);
+              setValue('templateName', selection.templateName, { shouldValidate: true });
+              items.replace(
+                selection.items.map((item) => ({
+                  name: item.name,
+                  itemType: item.itemType,
+                  categoryName: item.categoryName,
+                  amount: item.amount,
+                  starterItemKey: item.itemKey,
+                })),
+              );
+              setStarterOpen(false);
+            }}
+          />
+        </Modal>
+      )}
     </main>
   );
 };

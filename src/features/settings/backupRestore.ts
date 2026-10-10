@@ -1,4 +1,4 @@
-export const CURRENT_BACKUP_VERSION = 10;
+export const CURRENT_BACKUP_VERSION = 11;
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 
 const collectionKeys = [
@@ -85,19 +85,40 @@ const sanitize = (value: unknown, path: string, incompatibleFields: string[]): u
 
 const migrateBackup = (input: Record<string, unknown>, warnings: string[]) => {
   const version = Number(input.schema_version);
+  let migrated = input;
   if (version === 9) {
     warnings.push(
       'Schema version 9 was upgraded locally. Notification delivery logs are intentionally excluded.',
     );
-    const migrated = { ...input };
+    migrated = { ...input };
     delete migrated.notification_deliveries;
-    return {
+    migrated = {
       ...migrated,
-      schema_version: CURRENT_BACKUP_VERSION,
+      schema_version: 10,
       categorisation_suggestion_dismissals: [],
     };
   }
-  return input;
+  if (Number(migrated.schema_version) === 10) {
+    const templates: unknown = migrated.templates;
+    warnings.push('Schema version 10 was upgraded locally with starter-template lineage fields.');
+    migrated = {
+      ...migrated,
+      schema_version: CURRENT_BACKUP_VERSION,
+      templates: Array.isArray(templates)
+        ? templates.map((template: unknown) =>
+            isObject(template)
+              ? {
+                  starter_template_id: null,
+                  starter_template_version: null,
+                  starter_copy_key: null,
+                  ...template,
+                }
+              : template,
+          )
+        : templates,
+    };
+  }
+  return migrated;
 };
 
 const collectCurrencies = (value: unknown, currencies: Set<string>): void => {
@@ -118,10 +139,25 @@ const validatePortableValues = (value: unknown, path = 'backup'): void => {
   if (!isObject(value)) return;
   Object.entries(value).forEach(([key, entry]) => {
     const entryPath = `${path}.${key}`;
-    if ((key === 'id' || key.endsWith('_id') || key === 'idempotency_key') && entry !== null) {
+    if (key === 'starter_template_id' && entry !== null) {
+      if (typeof entry !== 'string' || !/^[a-z0-9-]{2,40}$/.test(entry))
+        throw new Error(`${entryPath} must be a valid starter identifier.`);
+    } else if (
+      (key === 'id' ||
+        key.endsWith('_id') ||
+        key === 'idempotency_key' ||
+        key === 'starter_copy_key') &&
+      entry !== null
+    ) {
       if (typeof entry !== 'string' || !uuidPattern.test(entry))
         throw new Error(`${entryPath} must be a valid identifier.`);
     }
+    if (
+      key === 'starter_template_version' &&
+      entry !== null &&
+      (!Number.isInteger(entry) || (entry as number) < 1)
+    )
+      throw new Error(`${entryPath} must be a positive version.`);
     if (
       key.endsWith('_minor') &&
       entry !== null &&

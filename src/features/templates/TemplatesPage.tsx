@@ -1,10 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowDown, ArrowUp, Check, Landmark, Pencil, Plus, Star } from 'lucide-react';
+import {
+  Archive,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Landmark,
+  Library,
+  Pencil,
+  Plus,
+  Star,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import {
   createTemplate,
   createTemplateItem,
+  copyStarterTemplate,
   moveTemplateItem,
   retrieveProfile,
   searchCategories,
@@ -23,6 +34,8 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
 import { calculateGoalProgress } from '../goals/goalCalculations';
 import { formatMoney } from '../../shared/formatting/money';
+import { useHousehold } from '../../app/providers/HouseholdProvider';
+import { StarterTemplatePicker, type StarterTemplateSelection } from './StarterTemplatePicker';
 
 const TemplateItemRow = ({
   item,
@@ -149,6 +162,7 @@ const TemplateItemRow = ({
 
 export const TemplatesPage = () => {
   const { session } = useAuth();
+  const { role } = useHousehold();
   const userId = session?.user.id ?? '';
   const queryClient = useQueryClient();
   const templates = useQuery({ queryKey: queryKeys.templates(userId), queryFn: searchTemplates });
@@ -163,6 +177,7 @@ export const TemplatesPage = () => {
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [starterOpen, setStarterOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [addType, setAddType] = useState<ItemType | null>(null);
   const [itemName, setItemName] = useState('');
@@ -181,6 +196,22 @@ export const TemplatesPage = () => {
     onSuccess: (template) => {
       setCreateOpen(false);
       setNewTemplateName('');
+      setSelectedId(template.id);
+      refresh();
+    },
+  });
+  const starterMutation = useMutation({
+    mutationFn: (selection: StarterTemplateSelection) =>
+      copyStarterTemplate({
+        starterId: selection.id,
+        starterVersion: selection.version,
+        templateName: selection.templateName,
+        copyKey: selection.copyKey,
+        makeDefault: !templates.data?.length,
+        items: selection.items.map((item) => ({ item_key: item.itemKey, amount: item.amount })),
+      }),
+    onSuccess: (template) => {
+      setStarterOpen(false);
       setSelectedId(template.id);
       refresh();
     },
@@ -231,10 +262,46 @@ export const TemplatesPage = () => {
           <h1>Budget templates</h1>
           <p>Changes here apply only to months you create later. Existing months never change.</p>
         </div>
-        <Button icon={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
-          New template
-        </Button>
+        <div className="page-heading__actions">
+          {role !== 'viewer' && (
+            <Button
+              variant="secondary"
+              icon={<Library size={18} />}
+              onClick={() => setStarterOpen(true)}
+            >
+              Use a starter
+            </Button>
+          )}
+          <Button icon={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
+            New template
+          </Button>
+        </div>
       </div>
+      {starterOpen && (
+        <section className="starter-library-panel" aria-labelledby="starter-library-title">
+          <header>
+            <div>
+              <p className="eyebrow">Choose a starting point</p>
+              <h2 id="starter-library-title">Starter template library</h2>
+            </div>
+            <Button variant="ghost" onClick={() => setStarterOpen(false)}>
+              Close
+            </Button>
+          </header>
+          <StarterTemplatePicker
+            currency={profile.data?.currency_code ?? 'ZAR'}
+            locale={profile.data?.locale ?? 'en-ZA'}
+            submitLabel="Create this template"
+            submitting={starterMutation.isPending}
+            onSubmit={(selection) => starterMutation.mutate(selection)}
+          />
+          {starterMutation.error && (
+            <p className="field__error" role="alert">
+              {starterMutation.error.message}
+            </p>
+          )}
+        </section>
+      )}
       <div className="notice-card">
         <Check aria-hidden="true" />
         <div>

@@ -20,6 +20,8 @@ import type {
   PaymentSchedule,
   PaymentScheduleOccurrence,
   Profile,
+  StarterTemplate,
+  StarterTemplateItem,
   TemplateItem,
   TransactionImportBatch,
   UserPreferences,
@@ -64,9 +66,28 @@ export interface Database {
         Row: BudgetTemplate;
         Insert: OptionalInsert<
           BudgetTemplate,
-          'id' | 'is_default' | 'archived_at' | 'created_at' | 'updated_at'
+          | 'id'
+          | 'is_default'
+          | 'starter_template_id'
+          | 'starter_template_version'
+          | 'starter_copy_key'
+          | 'archived_at'
+          | 'created_at'
+          | 'updated_at'
         >;
         Update: UpdateShape<BudgetTemplate>;
+        Relationships: [];
+      };
+      starter_budget_templates: {
+        Row: Omit<StarterTemplate, 'items'>;
+        Insert: Omit<StarterTemplate, 'items'>;
+        Update: UpdateShape<Omit<StarterTemplate, 'items'>>;
+        Relationships: [];
+      };
+      starter_budget_template_items: {
+        Row: StarterTemplateItem;
+        Insert: StarterTemplateItem;
+        Update: UpdateShape<StarterTemplateItem>;
         Relationships: [];
       };
       template_items: {
@@ -671,6 +692,32 @@ export interface Database {
           requested_template_items: unknown;
         };
         Returns: BudgetMonth[];
+      };
+      setup_first_budget_from_starter: {
+        Args: {
+          requested_display_name: string;
+          requested_currency_code: string;
+          requested_locale: string;
+          requested_timezone: string;
+          requested_theme: string;
+          requested_template_name: string;
+          requested_template_items: unknown;
+          requested_starter_id: string;
+          requested_starter_version: number;
+          requested_copy_key: string;
+        };
+        Returns: BudgetMonth[];
+      };
+      copy_starter_budget_template: {
+        Args: {
+          requested_starter_id: string;
+          requested_starter_version: number;
+          requested_template_name: string;
+          requested_items: unknown;
+          requested_copy_key: string;
+          requested_make_default?: boolean;
+        };
+        Returns: BudgetTemplate[];
       };
       delete_own_account: { Args: Record<string, never>; Returns: undefined };
     };
