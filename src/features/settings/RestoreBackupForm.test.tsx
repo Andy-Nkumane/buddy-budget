@@ -10,7 +10,7 @@ vi.mock('../../data/repositories/budgetRepository', () => ({
 }));
 
 const validBackup = {
-  schema_version: 10,
+  schema_version: 11,
   exported_at: '2026-10-02T00:00:00.000Z',
   range: { from_month: null, to_month: null },
   profile: { currency_code: 'ZAR' },

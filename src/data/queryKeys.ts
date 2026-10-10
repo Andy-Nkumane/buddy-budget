@@ -17,6 +17,7 @@ export const queryKeys = {
   categories: (userId: string, includeArchived = false) =>
     [...userRoot(userId), 'categories', includeArchived ? 'all' : 'active'] as const,
   templates: (userId: string) => [...userRoot(userId), 'templates'] as const,
+  starterTemplates: () => ['starter-templates'] as const,
   defaultTemplate: (userId: string) => [...userRoot(userId), 'default-template'] as const,
   months: (userId: string) => [...userRoot(userId), 'months'] as const,
   accounts: (userId: string) => [...userRoot(userId), 'accounts'] as const,
