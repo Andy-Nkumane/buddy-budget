@@ -20,6 +20,11 @@ import {
 
 const topics = [
   {
+    icon: BarChart3,
+    title: 'Calculate a monthly plan before signing up',
+    body: 'The public calculator totals income, expenses, remaining money, and savings rate entirely in your browser. Nothing is sent to Buddy Budget unless you explicitly choose to create an account and transfer the approved plan once.',
+  },
+  {
     icon: Library,
     title: 'Start from a plan that fits',
     body: 'During setup or from Templates, preview a curated starter for a student, first salary, household, freelancer, or minimal essentials. Include only useful items and enter your own amounts. Suggestions start at zero and copying never changes an existing template or past month.',

@@ -1451,6 +1451,178 @@ p {
 }
 
 /* Onboarding */
+.calculator-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0 1.5rem 4rem;
+  background: radial-gradient(circle at 50% 0, var(--accent-soft), transparent 30%), var(--canvas);
+}
+
+.calculator-header,
+.calculator-hero,
+.calculator-workspace,
+.calculator-explanation {
+  width: min(72rem, 100%);
+  margin-inline: auto;
+}
+
+.calculator-header,
+.calculator-hero,
+.calculator-controls,
+.calculator-group > header,
+.calculator-conversion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.calculator-header {
+  min-height: 5rem;
+}
+
+.calculator-hero {
+  align-items: flex-end;
+  padding: clamp(2rem, 6vw, 5rem) 0 2rem;
+}
+
+.calculator-hero > div {
+  max-width: 43rem;
+}
+
+.calculator-hero h1 {
+  font-size: clamp(2.5rem, 6vw, 5rem);
+}
+
+.calculator-hero aside {
+  display: flex;
+  max-width: 20rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.calculator-hero aside span {
+  display: grid;
+}
+
+.calculator-workspace,
+.calculator-explanation {
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.calculator-controls {
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.calculator-controls .field {
+  min-width: min(18rem, 100%);
+  margin: 0;
+}
+
+.calculator-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-block: 1.5rem 2rem;
+}
+
+.calculator-summary article {
+  display: grid;
+  gap: 0.375rem;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+}
+
+.calculator-summary strong {
+  overflow-wrap: anywhere;
+  font-size: 1.15rem;
+}
+
+.calculator-group {
+  margin-top: 2rem;
+}
+
+.calculator-group > header {
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.calculator-group h2,
+.calculator-group p {
+  margin-bottom: 0;
+}
+
+.calculator-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(9rem, 0.8fr) minmax(9rem, 0.7fr) 3rem;
+  align-items: end;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.75rem 0;
+  border: 0;
+  border-top: 0.0625rem solid var(--line);
+}
+
+.calculator-row label {
+  display: grid;
+  gap: 0.375rem;
+  color: var(--ink-700);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.calculator-row .field__error {
+  grid-column: 1 / -1;
+}
+
+.calculator-conversion {
+  align-items: flex-end;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  color: var(--forest-950);
+  background: var(--amber-100);
+}
+
+.calculator-conversion > div {
+  max-width: 40rem;
+}
+
+.calculator-conversion h2,
+.calculator-conversion p {
+  margin-bottom: 0;
+}
+
+.calculator-conversion .field__error {
+  color: var(--danger);
+}
+
+.calculator-explanation {
+  margin-top: 1.5rem;
+}
+
+.calculator-explanation > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.calculator-explanation article {
+  padding: 1rem;
+  border-left: 0.25rem solid var(--accent-fill);
+  background: var(--canvas);
+}
+
 .onboarding {
   min-height: 100vh;
   min-height: 100dvh;
@@ -4166,6 +4338,34 @@ p {
 }
 
 @media (max-width: 42.5rem) {
+  .calculator-page {
+    padding-inline: 0.75rem;
+  }
+  .calculator-header,
+  .calculator-hero,
+  .calculator-controls,
+  .calculator-group > header,
+  .calculator-conversion {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .calculator-header {
+    padding-block: 1rem;
+  }
+  .calculator-summary,
+  .calculator-explanation > div {
+    grid-template-columns: 1fr 1fr;
+  }
+  .calculator-row {
+    grid-template-columns: minmax(0, 1fr) 3rem;
+  }
+  .calculator-row label {
+    grid-column: 1 / -1;
+  }
+  .calculator-row .icon-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
   .landing__header {
     padding: 1.125rem;
   }

@@ -4,6 +4,7 @@ import {
   calculateActualTotals,
   calculateBudgetProgress,
   calculateItemProgress,
+  calculatePlannedMinorTotals,
   calculateTotals,
   currentMonthStart,
   formatMoney,
@@ -93,6 +94,20 @@ describe('money calculations', () => {
   it('adds decimal amounts without floating-point drift', () => {
     const amounts = Array.from({ length: 10 }, () => item('income', '0.10'));
     expect(calculateTotals(amounts).income).toBe(1);
+  });
+
+  it('shares exact planned minor-unit totals with public planning tools', () => {
+    expect(
+      calculatePlannedMinorTotals([
+        { item_type: 'income', amount: '1000.10' },
+        { item_type: 'expense', amount: '1100.20' },
+      ]),
+    ).toEqual({
+      incomeMinorUnits: 100010,
+      expenseMinorUnits: 110020,
+      remainingMinorUnits: -10010,
+      savingsRate: -10.00899910008999,
+    });
   });
 });
 

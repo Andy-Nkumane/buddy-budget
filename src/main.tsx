@@ -9,14 +9,17 @@ if (!root) throw new Error('BuddyBudget root element is missing.');
 
 const normalizedPath = window.location.pathname.replace(/\/+$/, '');
 const demoPath = `${import.meta.env.BASE_URL}demo`.replace(/\/+$/, '');
-const isDirectDemoVisit =
+const calculatorPath = `${import.meta.env.BASE_URL}calculator`.replace(/\/+$/, '');
+const publicRoute = window.location.search.match(/^\?\/(demo|calculator)\/?(?:&|$)/)?.[1];
+const isDirectPublicVisit =
   normalizedPath === demoPath ||
-  window.location.search === '?/demo' ||
-  window.location.search === '?/demo/';
+  normalizedPath === calculatorPath ||
+  publicRoute === 'demo' ||
+  publicRoute === 'calculator';
 
 createRoot(root).render(
   <StrictMode>
-    {isDirectDemoVisit ? (
+    {isDirectPublicVisit ? (
       <AppRouter />
     ) : (
       <AppProviders>

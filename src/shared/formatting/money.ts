@@ -18,18 +18,31 @@ export const moneyToMinorUnits = (value: string | number): number => {
 
 export const minorUnitsToMoney = (value: number): number => value / 100;
 
-export const calculateTotals = (items: BudgetMonthItem[]) => {
-  const activeItems = items.filter((item) => item.archived_at === null && !item.is_disabled);
-  const incomeMinorUnits = activeItems
+export const calculatePlannedMinorTotals = (
+  items: Array<{ item_type: 'income' | 'expense'; amount: string | number }>,
+) => {
+  const incomeMinorUnits = items
     .filter((item) => item.item_type === 'income')
     .reduce((total, item) => total + moneyToMinorUnits(item.amount), 0);
-  const expenseMinorUnits = activeItems
+  const expenseMinorUnits = items
     .filter((item) => item.item_type === 'expense')
     .reduce((total, item) => total + moneyToMinorUnits(item.amount), 0);
+  const remainingMinorUnits = incomeMinorUnits - expenseMinorUnits;
+  return {
+    incomeMinorUnits,
+    expenseMinorUnits,
+    remainingMinorUnits,
+    savingsRate: incomeMinorUnits > 0 ? (remainingMinorUnits / incomeMinorUnits) * 100 : null,
+  };
+};
+
+export const calculateTotals = (items: BudgetMonthItem[]) => {
+  const activeItems = items.filter((item) => item.archived_at === null && !item.is_disabled);
+  const { incomeMinorUnits, expenseMinorUnits, remainingMinorUnits, savingsRate } =
+    calculatePlannedMinorTotals(activeItems);
   const income = minorUnitsToMoney(incomeMinorUnits);
   const expenses = minorUnitsToMoney(expenseMinorUnits);
-  const remaining = minorUnitsToMoney(incomeMinorUnits - expenseMinorUnits);
-  const savingsRate = income > 0 ? (remaining / income) * 100 : null;
+  const remaining = minorUnitsToMoney(remainingMinorUnits);
   return { income, expenses, remaining, savingsRate };
 };
 

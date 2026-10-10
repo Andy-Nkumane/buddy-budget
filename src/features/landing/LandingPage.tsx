@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarCheck, Play, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Calculator, CalendarCheck, Play, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BrandMark } from '../../shared/ui/BrandMark';
 
@@ -15,6 +15,9 @@ export const LandingPage = () => (
         </Link>
         <a className="button button--demo" href={`${import.meta.env.BASE_URL}demo`}>
           <Play aria-hidden="true" size={17} /> Try demo
+        </a>
+        <a className="button button--secondary" href={`${import.meta.env.BASE_URL}calculator`}>
+          <Calculator aria-hidden="true" size={17} /> Budget calculator
         </a>
       </div>
     </header>
@@ -38,6 +41,12 @@ export const LandingPage = () => (
           </Link>
           <a className="button button--demo button--large" href={`${import.meta.env.BASE_URL}demo`}>
             <Play aria-hidden="true" size={19} /> Try the interactive demo
+          </a>
+          <a
+            className="button button--secondary button--large"
+            href={`${import.meta.env.BASE_URL}calculator`}
+          >
+            <Calculator aria-hidden="true" size={19} /> Calculate my monthly budget
           </a>
           <Link className="button button--ghost button--large" to="/auth/sign-in">
             I already have an account
