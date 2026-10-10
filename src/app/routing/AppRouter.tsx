@@ -100,6 +100,11 @@ const HouseholdInvitationPage = lazy(() =>
 const DemoPage = lazy(() =>
   import('../../features/demo/DemoPage').then((module) => ({ default: module.DemoPage })),
 );
+const PublicBudgetCalculatorPage = lazy(() =>
+  import('../../features/calculator/PublicBudgetCalculatorPage').then((module) => ({
+    default: module.PublicBudgetCalculatorPage,
+  })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -124,6 +129,7 @@ export const AppRouter = () => (
     <Suspense fallback={<LoadingState />}>
       <Routes>
         <Route path="/demo" element={<DemoPage />} />
+        <Route path="/calculator" element={<PublicBudgetCalculatorPage />} />
         <Route element={<RedirectAuthenticated />}>
           <Route path="/" element={<LandingPage />} />
         </Route>

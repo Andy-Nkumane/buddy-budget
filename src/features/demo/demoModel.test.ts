@@ -5,6 +5,7 @@ import {
   createDemoState,
   DEMO_STARTER_PLAN_KEY,
   retrieveApprovedStarterPlan,
+  saveApprovedLocalPlan,
   saveApprovedStarterPlan,
 } from './demoModel';
 
@@ -61,5 +62,25 @@ describe('demo model', () => {
     saveApprovedStarterPlan(localStorage, state.items);
     clearApprovedStarterPlan(localStorage);
     expect(localStorage.getItem(DEMO_STARTER_PLAN_KEY)).toBeNull();
+  });
+
+  it('preserves an explicitly approved calculator currency and locale', () => {
+    saveApprovedLocalPlan(localStorage, {
+      currencyCode: 'USD',
+      locale: 'en-US',
+      templateName: 'My monthly plan',
+      items: [
+        {
+          name: 'Income',
+          categoryName: 'Earnings',
+          itemType: 'income',
+          amountMinor: 100_000,
+        },
+      ],
+    });
+    expect(retrieveApprovedStarterPlan(localStorage)).toMatchObject({
+      currencyCode: 'USD',
+      locale: 'en-US',
+    });
   });
 });

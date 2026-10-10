@@ -37,6 +37,8 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 
 The `/demo` entry path renders outside `AuthProvider`, `HouseholdProvider`, and TanStack Query. Links into and out of the demo use full-page navigation so a direct demo session cannot inherit authenticated financial caches. Its editable state and sample transactions live only in React memory. The conversion handoff is a versioned local-storage record containing template fields only, expires after 24 hours, and is deleted after successful onboarding. No analytics or third-party tracking is emitted.
 
+The `/calculator` entry path uses the same provider-free boundary. Calculator rows remain in React memory, totals reuse the authenticated integer-minor-unit parser, and no request or durable write occurs before explicit conversion consent. The expiring onboarding handoff contains only the approved plan, currency, and locale.
+
 ## Historical correctness
 
 `budget_month_items` copy template name, category name, default amount, item type, and order. They retain optional source IDs for lineage, but render and calculate from snapshot fields. A paused item retains its amount while being excluded from planned totals. No trigger propagates later template updates into a month.

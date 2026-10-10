@@ -24,7 +24,8 @@ export type DemoState = {
 export type DemoStarterPlan = {
   version: 1;
   expiresAt: string;
-  currencyCode: 'ZAR';
+  currencyCode: string;
+  locale?: string;
   templateName: string;
   items: Array<{
     name: string;
@@ -37,6 +38,15 @@ export type DemoStarterPlan = {
 export const DEMO_STARTER_PLAN_KEY = 'buddy-budget-approved-demo-plan';
 const MAX_STARTER_ITEMS = 20;
 const STARTER_LIFETIME_MS = 24 * 60 * 60 * 1000;
+const MAX_STARTER_AMOUNT_MINOR = 99_999_999_999_999;
+
+const isSupportedLocale = (value: string) => {
+  try {
+    return Intl.getCanonicalLocales(value).length === 1;
+  } catch {
+    return false;
+  }
+};
 
 export const createDemoState = (): DemoState => ({
   items: [
@@ -157,8 +167,16 @@ const isStarterPlan = (value: unknown, now: Date): value is DemoStarterPlan => {
   const candidate = value as Partial<DemoStarterPlan>;
   return (
     candidate.version === 1 &&
-    candidate.currencyCode === 'ZAR' &&
-    candidate.templateName === 'My monthly plan' &&
+    typeof candidate.currencyCode === 'string' &&
+    /^[A-Z]{3}$/.test(candidate.currencyCode) &&
+    (candidate.locale === undefined ||
+      (typeof candidate.locale === 'string' &&
+        candidate.locale.length >= 2 &&
+        candidate.locale.length <= 35 &&
+        isSupportedLocale(candidate.locale))) &&
+    typeof candidate.templateName === 'string' &&
+    candidate.templateName.trim().length > 0 &&
+    candidate.templateName.length <= 80 &&
     typeof candidate.expiresAt === 'string' &&
     Date.parse(candidate.expiresAt) > now.getTime() &&
     Array.isArray(candidate.items) &&
@@ -175,7 +193,8 @@ const isStarterPlan = (value: unknown, now: Date): value is DemoStarterPlan => {
         item.categoryName.length <= 80 &&
         (item.itemType === 'income' || item.itemType === 'expense') &&
         Number.isSafeInteger(item.amountMinor) &&
-        item.amountMinor >= 0,
+        item.amountMinor >= 0 &&
+        item.amountMinor <= MAX_STARTER_AMOUNT_MINOR,
     )
   );
 };
@@ -186,6 +205,21 @@ export const saveApprovedStarterPlan = (
   now = new Date(),
 ): void => {
   storage.setItem(DEMO_STARTER_PLAN_KEY, JSON.stringify(createStarterPlan(items, now)));
+};
+
+export const saveApprovedLocalPlan = (
+  storage: Pick<Storage, 'setItem'>,
+  plan: Pick<DemoStarterPlan, 'currencyCode' | 'locale' | 'templateName' | 'items'>,
+  now = new Date(),
+): void => {
+  storage.setItem(
+    DEMO_STARTER_PLAN_KEY,
+    JSON.stringify({
+      ...plan,
+      version: 1,
+      expiresAt: new Date(now.getTime() + STARTER_LIFETIME_MS).toISOString(),
+    } satisfies DemoStarterPlan),
+  );
 };
 
 export const retrieveApprovedStarterPlan = (

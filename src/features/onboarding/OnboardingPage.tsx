@@ -99,6 +99,7 @@ export const OnboardingPage = () => {
         ? {
             ...defaults,
             currencyCode: starterPlan.currencyCode,
+            locale: starterPlan.locale ?? defaults.locale,
             templateName: starterPlan.templateName,
             items: starterPlan.items.map((item) => ({
               name: item.name,
