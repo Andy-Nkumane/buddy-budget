@@ -720,6 +720,23 @@ export interface Database {
         };
         Returns: BudgetMonth[];
       };
+      complete_first_budget_onboarding: {
+        Args: {
+          requested_setup_key: string;
+          requested_path: string;
+          requested_display_name: string;
+          requested_currency_code: string;
+          requested_locale: string;
+          requested_timezone: string;
+          requested_template_name: string;
+          requested_template_items: unknown;
+          requested_starter_id?: string;
+          requested_starter_version?: number;
+          requested_starter_copy_key?: string;
+          requested_import?: unknown;
+        };
+        Returns: BudgetMonth[];
+      };
       setup_first_budget_from_starter: {
         Args: {
           requested_display_name: string;

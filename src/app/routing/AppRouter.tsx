@@ -5,6 +5,7 @@ import {
   AppHome,
   RedirectAuthenticated,
   RequireAuthentication,
+  RequireIncompleteOnboarding,
   RequireOnboarding,
 } from '../../features/auth/RouteGuards';
 import { AuthLayout } from '../../features/auth/AuthLayout';
@@ -150,7 +151,9 @@ export const AppRouter = () => (
           <Route path="callback" element={<AuthCallbackPage />} />
         </Route>
         <Route element={<RequireAuthentication />}>
-          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route element={<RequireIncompleteOnboarding />}>
+            <Route path="/onboarding" element={<OnboardingPage />} />
+          </Route>
           <Route path="/app/household/invite" element={<HouseholdInvitationPage />} />
           <Route path="/app" element={<AppHome />} />
           <Route element={<RequireOnboarding />}>

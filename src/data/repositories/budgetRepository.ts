@@ -265,11 +265,12 @@ export const markNotificationDeliveryRead = async (id: string): Promise<void> =>
 };
 
 export const setupFirstBudget = async (input: {
+  setupKey: string;
+  path: 'starter' | 'csv' | 'transfer' | 'blank';
   displayName: string;
   currencyCode: string;
   locale: string;
   timezone: string;
-  theme: ThemePreference;
   templateName: string;
   starter?: { id: string; version: number; copyKey: string };
   items: Array<{
@@ -279,25 +280,37 @@ export const setupFirstBudget = async (input: {
     default_amount: string;
     starter_item_key?: string;
   }>;
+  csvImport?: {
+    file_name: string;
+    batch_key: string;
+    mapping_metadata: Record<string, unknown>;
+    rows: Array<{
+      transaction_date: string;
+      description: string;
+      amount_minor: number;
+      transaction_type: ItemType;
+      external_reference: string | null;
+      external_fingerprint: string;
+      category_name: string;
+    }>;
+    invalid_count: number;
+    excluded_count: number;
+  };
 }): Promise<BudgetMonth> => {
-  const common = {
+  const { data, error } = await requireSupabase().rpc('complete_first_budget_onboarding', {
+    requested_setup_key: input.setupKey,
+    requested_path: input.path,
     requested_display_name: input.displayName,
     requested_currency_code: input.currencyCode,
     requested_locale: input.locale,
     requested_timezone: input.timezone,
-    requested_theme: input.theme,
     requested_template_name: input.templateName,
     requested_template_items: input.items,
-  };
-  const result = input.starter
-    ? await requireSupabase().rpc('setup_first_budget_from_starter', {
-        ...common,
-        requested_starter_id: input.starter.id,
-        requested_starter_version: input.starter.version,
-        requested_copy_key: input.starter.copyKey,
-      })
-    : await requireSupabase().rpc('setup_first_budget', common);
-  const { data, error } = result;
+    requested_starter_id: input.starter?.id,
+    requested_starter_version: input.starter?.version,
+    requested_starter_copy_key: input.starter?.copyKey,
+    requested_import: input.csvImport,
+  });
   throwWhenError(error);
   const month = data?.[0];
   if (!month) throw new Error('Your first month could not be created.');

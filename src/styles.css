@@ -1672,6 +1672,54 @@ p {
   max-width: 40.625rem;
 }
 
+.onboarding-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.onboarding-path {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1.125rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink-900);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.onboarding-path:hover:not(:disabled),
+.onboarding-path:focus-visible {
+  border-color: var(--accent-fill);
+  background: var(--accent-soft);
+}
+
+.onboarding-path:disabled {
+  color: var(--ink-500);
+  background: var(--canvas);
+  cursor: not-allowed;
+}
+
+.onboarding-path span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.onboarding-path small {
+  color: var(--ink-500);
+  line-height: 1.4;
+}
+
+.onboarding-csv {
+  display: grid;
+  gap: 1rem;
+}
+
 .onboarding__actions {
   display: flex;
   justify-content: flex-end;
@@ -4895,6 +4943,9 @@ p {
   }
   .onboarding__card {
     padding: 1.5rem 1.125rem;
+  }
+  .onboarding-paths {
+    grid-template-columns: 1fr;
   }
   .onboarding-item {
     grid-template-columns: 6.25rem minmax(0, 1fr) 3rem;
