@@ -31,8 +31,8 @@ const topics = [
   },
   {
     icon: Library,
-    title: 'Start from a plan that fits',
-    body: 'During setup or from Templates, preview a curated starter for a student, first salary, household, freelancer, or minimal essentials. Include only useful items and enter your own amounts. Suggestions start at zero and copying never changes an existing template or past month.',
+    title: 'Reach your first dashboard quickly',
+    body: 'During setup, choose a curated starter, an approved demo or calculator plan, a current-month CSV statement, or a simple blank plan. Review everything before saving; interrupted setup resumes safely and repeated submission does not duplicate your first month.',
   },
   {
     icon: Laptop,

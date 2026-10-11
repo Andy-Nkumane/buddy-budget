@@ -76,6 +76,8 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 
 `setup_first_budget(...)` serializes per user with an advisory transaction lock and creates/updates the profile, preferences, default categories, default template, initial items, onboarding timestamp, and current month in one database transaction.
 
+`complete_first_budget_onboarding(...)` is the public onboarding completion boundary. It serializes per household, records one idempotent activation, creates missing valid categories, delegates the established first-budget/starter contracts, and optionally invokes the bounded CSV import inside the same transaction. Retrying returns the already-created month.
+
 `set_default_template(uuid)` serializes the switch and respects the partial unique index.
 
 `delete_own_account()` derives `auth.uid()` and deletes only that Auth user; cascading foreign keys remove owned data. Test this in staging and confirm backup/retention policy before enabling production use.

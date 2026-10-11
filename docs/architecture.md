@@ -24,7 +24,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 
 - `auth`: registration, verification callback, sign-in/out, recovery, session restoration.
 - `demo`: provider-free, route-lazy fictional planning state. It imports no repository or Supabase module and hands off only an explicitly approved, validated starter template.
-- `onboarding`: transactional first profile/template/current-month setup.
+- `onboarding`: resumable path selection and transactional, idempotent first profile/template/current-month setup, with optional normalized CSV actuals.
 - `budgets`: independent monthly plans, planned-versus-actual progress, temporary item pausing, inline drafts, debounced saves, one-offs.
 - `month close`: explicit open/closed workflow state, immutable close summaries, append-only lifecycle activity, and current-month adjustments that interpret but never rewrite age-locked reports.
 - `insights`: bounded server-side aggregates, explicit metric definitions, accessible evidence, and deterministic next actions.
