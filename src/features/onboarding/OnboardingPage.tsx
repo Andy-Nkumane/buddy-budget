@@ -53,6 +53,7 @@ import {
   saveOnboardingDraft,
   type OnboardingPath,
 } from './onboardingState';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 
 const itemSchema = z.object({
   name: z.string().trim().min(1, 'Enter an item name.').max(100),
@@ -383,6 +384,7 @@ export const OnboardingPage = () => {
       });
       clearOnboardingDraft(window.localStorage, userId);
       if (path === 'transfer') clearApprovedStarterPlan(window.localStorage);
+      void claimAndAnnounceMilestone('first_budget').catch(() => undefined);
       void navigate(`/app/budget/${month.month_start}`, { replace: true });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Setup failed. Please try again.');

@@ -16,6 +16,7 @@ import {
   reopenBudgetMonth,
 } from '../../data/repositories/budgetRepository';
 import { buildMonthCloseChecklist, parseAdjustmentAmount } from './monthClose';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 
 export const MonthClosePanel = ({
   month,
@@ -47,6 +48,8 @@ export const MonthClosePanel = ({
     setError(null);
     try {
       await action();
+      if (dialog === 'close')
+        void claimAndAnnounceMilestone('first_month_close').catch(() => undefined);
       if (dialog === 'adjust') setAdjustmentKey(crypto.randomUUID());
       setDialog(null);
       onChanged();

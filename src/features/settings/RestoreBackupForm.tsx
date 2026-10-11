@@ -6,6 +6,7 @@ import {
   restoreBackup,
   type BackupRestoreReport,
 } from '../../data/repositories/budgetRepository';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 import { downloadJson } from '../../shared/utilities/download';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
@@ -69,6 +70,7 @@ export const RestoreBackupForm = ({ onComplete }: RestoreBackupFormProps) => {
         confirmation,
       });
       setReport(result);
+      void claimAndAnnounceMilestone('first_restore').catch(() => undefined);
       await queryClient.invalidateQueries();
     } catch (restoreError) {
       setError(

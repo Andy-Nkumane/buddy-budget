@@ -4,6 +4,7 @@ import type { BudgetMonthWithItems } from '../../shared/types/domain';
 import { MonthClosePanel } from './MonthClosePanel';
 
 vi.mock('../../data/repositories/budgetRepository', () => ({
+  claimActivationMilestone: vi.fn().mockResolvedValue(true),
   closeBudgetMonth: vi.fn(),
   createMonthAdjustment: vi.fn(),
   reopenBudgetMonth: vi.fn(),

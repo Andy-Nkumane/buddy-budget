@@ -39,6 +39,7 @@ import { SelectField } from '../../shared/ui/SelectField';
 import { GoalForm } from './GoalForm';
 import { calculateGoalProgress } from './goalCalculations';
 import { formatGoalPriority } from '../../shared/reporting/budgetReport';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 
 const goalTypeLabel = {
   savings: 'Savings',
@@ -122,6 +123,7 @@ export const GoalsPage = () => {
       });
     },
     onSuccess: () => {
+      void claimAndAnnounceMilestone('first_goal_contribution').catch(() => undefined);
       setContributing(null);
       setAmount('');
       setNotes('');

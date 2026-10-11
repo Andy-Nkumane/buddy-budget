@@ -25,6 +25,7 @@ import { Modal } from '../../shared/ui/Modal';
 import { BudgetReportPreview } from '../reports/BudgetReportPreview';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 
 type MonthExportFormat = 'csv' | 'json' | 'pdf';
 
@@ -62,7 +63,9 @@ export const MonthsPage = () => {
       } else {
         setIncludeForecast(false);
         setReportMonth(month);
+        return;
       }
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : 'The month could not be exported.');
     } finally {
@@ -82,6 +85,7 @@ export const MonthsPage = () => {
         reportMonth.month_start.slice(0, 7),
         includeForecast,
       );
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
       setReportMonth(null);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : 'The PDF could not be downloaded.');

@@ -5686,3 +5686,42 @@ p {
     padding: 1rem;
   }
 }
+.milestone-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.875rem;
+  margin-bottom: 1rem;
+  padding: 0.875rem 1rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.milestone-notice > svg {
+  color: var(--success);
+}
+
+.milestone-notice p {
+  margin: 0.2rem 0 0;
+  color: var(--ink-500);
+}
+
+@media (max-width: 40rem) {
+  .milestone-notice {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .milestone-notice .button {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .milestone-notice {
+    animation: none;
+    transition: none;
+  }
+}

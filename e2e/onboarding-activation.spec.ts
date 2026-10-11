@@ -38,6 +38,10 @@ test.describe('onboarding activation paths', () => {
     await page.getByRole('button', { name: /Build a simple plan/ }).click();
     await continueToPlan(page);
     await finish(page);
+    await expect(page.getByText('Your first budget is ready')).toBeVisible();
+    await page.getByRole('button', { name: 'Dismiss milestone' }).click();
+    await page.reload();
+    await expect(page.getByText('Your first budget is ready')).toBeHidden();
   });
 
   test('creates a dashboard from a curated starter', async ({ page }) => {

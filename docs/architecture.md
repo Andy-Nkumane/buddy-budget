@@ -38,6 +38,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `settings`: display preferences, versioned export, validated merge/replacement restore, deletion.
 - `households`: active-household selection, verified invitations, role management, cache isolation, and append-only shared activity.
 - `pwa`: install prompt, connectivity status, safe explicit update lifecycle.
+- `milestones`: server-claimed, one-time completion acknowledgements with non-financial copy and a useful next action.
 
 The `/demo` entry path renders outside `AuthProvider`, `HouseholdProvider`, and TanStack Query. Links into and out of the demo use full-page navigation so a direct demo session cannot inherit authenticated financial caches. Its editable state and sample transactions live only in React memory. The conversion handoff is a versioned local-storage record containing template fields only, expires after 24 hours, and is deleted after successful onboarding. No analytics or third-party tracking is emitted.
 

@@ -17,6 +17,7 @@ import {
   upsertCategorisationRule,
   type CategorisationProcessResult,
 } from '../../data/repositories/budgetRepository';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 import type { CategorisationRule } from '../../shared/types/domain';
 import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { Button } from '../../shared/ui/Button';
@@ -104,6 +105,8 @@ export const RulesPage = () => {
     await act(
       async () => {
         const result = await processCategorisationRules(ids, false);
+        if (result.changed_count > 0)
+          void claimAndAnnounceMilestone('first_categorisation').catch(() => undefined);
         setPreview(null);
         return result;
       },
