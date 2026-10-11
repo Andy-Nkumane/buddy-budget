@@ -20,6 +20,11 @@ import {
 
 const topics = [
   {
+    icon: LockKeyhole,
+    title: 'Share a deliberately limited report',
+    body: 'Household owners can open Settings, choose Share limited report, preview exactly which totals and details are included, and create an expiring link. Links can have an access code or view limit and can be revoked at any time.',
+  },
+  {
     icon: BarChart3,
     title: 'Calculate a monthly plan before signing up',
     body: 'The public calculator totals income, expenses, remaining money, and savings rate entirely in your browser. Nothing is sent to Buddy Budget unless you explicitly choose to create an account and transfer the approved plan once.',

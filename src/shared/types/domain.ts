@@ -17,6 +17,17 @@ export type MonthLifecycleStatus = 'open' | 'closed';
 export type MonthAdjustmentDirection = 'increase' | 'decrease';
 export type HouseholdRole = 'owner' | 'editor' | 'viewer';
 
+export type SharedReportRecord = {
+  id: string;
+  rangeLabel: string;
+  expiresAt: string;
+  maxViews: number | null;
+  viewCount: number;
+  lastViewedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+};
+
 export type HouseholdSummary = {
   id: string;
   name: string;

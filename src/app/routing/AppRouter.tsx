@@ -105,6 +105,11 @@ const PublicBudgetCalculatorPage = lazy(() =>
     default: module.PublicBudgetCalculatorPage,
   })),
 );
+const SharedReportPage = lazy(() =>
+  import('../../features/reports/SharedReportPage').then((module) => ({
+    default: module.SharedReportPage,
+  })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -130,6 +135,7 @@ export const AppRouter = () => (
       <Routes>
         <Route path="/demo" element={<DemoPage />} />
         <Route path="/calculator" element={<PublicBudgetCalculatorPage />} />
+        <Route path="/shared-report" element={<SharedReportPage />} />
         <Route element={<RedirectAuthenticated />}>
           <Route path="/" element={<LandingPage />} />
         </Route>
