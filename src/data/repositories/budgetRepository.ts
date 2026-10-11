@@ -264,6 +264,14 @@ export const markNotificationDeliveryRead = async (id: string): Promise<void> =>
   throwWhenError(error);
 };
 
+export const claimActivationMilestone = async (requestedKey: string): Promise<boolean> => {
+  const { data, error } = await requireSupabase().rpc('claim_activation_milestone', {
+    requested_key: requestedKey,
+  });
+  throwWhenError(error);
+  return data ?? false;
+};
+
 export const setupFirstBudget = async (input: {
   setupKey: string;
   path: 'starter' | 'csv' | 'transfer' | 'blank';

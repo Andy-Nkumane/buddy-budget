@@ -34,6 +34,7 @@ import { queryKeys } from '../../data/queryKeys';
 import type { WeeklyCheckInSummary } from '../../shared/checkins/checkin';
 import { useQueryClient } from '@tanstack/react-query';
 import { useHousehold } from '../providers/HouseholdProvider';
+import { MilestoneNotice } from '../../shared/milestones/MilestoneNotice';
 
 const navigation = [
   { to: '/app/budget/current', label: 'Budget', icon: CircleDollarSign },
@@ -219,6 +220,7 @@ export const AppLayout = () => {
             {accountError}
           </div>
         )}
+        <MilestoneNotice />
         {unreadCheckIn && checkInSummary?.recommendation && (
           <aside className="checkin-banner" aria-label="Weekly budget check-in">
             <BellRing aria-hidden="true" size={22} />

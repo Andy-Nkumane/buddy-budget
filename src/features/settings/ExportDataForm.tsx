@@ -17,6 +17,7 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import { BudgetReportPreview } from '../reports/BudgetReportPreview';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 
 type ExportFormat = 'csv' | 'json' | 'pdf';
 type ExportPreset =
@@ -135,6 +136,7 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
           return;
         }
       }
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
       onComplete();
     } catch (exportError) {
       setError(
@@ -158,6 +160,7 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
         reportPreview.includeForecast,
         reportPreview.insights,
       );
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
       onComplete();
     } catch (exportError) {
       setError(

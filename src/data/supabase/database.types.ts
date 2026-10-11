@@ -35,6 +35,26 @@ type UpdateShape<T> = Partial<T>;
 export interface Database {
   public: {
     Tables: {
+      activation_milestones: {
+        Row: {
+          id: string;
+          milestone_key:
+            | 'first_budget'
+            | 'first_categorisation'
+            | 'first_month_close'
+            | 'first_goal_contribution'
+            | 'first_export'
+            | 'first_restore';
+          scope_type: 'user' | 'household';
+          scope_id: string;
+          user_id: string;
+          household_id: string | null;
+          completed_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       profiles: {
         Row: Profile;
         Insert: OptionalInsert<
@@ -385,6 +405,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      claim_activation_milestone: {
+        Args: { requested_key: string };
+        Returns: boolean;
+      };
       restore_backup: {
         Args: {
           requested_payload: Record<string, unknown>;

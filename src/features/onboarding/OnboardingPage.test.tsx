@@ -30,7 +30,10 @@ Object.defineProperty(globalThis, 'crypto', {
 });
 
 vi.mock('../../app/providers/AuthProvider', () => ({ useAuth: vi.fn() }));
-vi.mock('../../data/repositories/budgetRepository', () => ({ setupFirstBudget: vi.fn() }));
+vi.mock('../../data/repositories/budgetRepository', () => ({
+  claimActivationMilestone: vi.fn().mockResolvedValue(true),
+  setupFirstBudget: vi.fn(),
+}));
 vi.mock('../templates/StarterTemplatePicker', () => ({
   StarterTemplatePicker: ({ onSubmit }: { onSubmit: (value: unknown) => void }) => (
     <button

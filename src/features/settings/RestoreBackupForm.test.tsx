@@ -5,6 +5,7 @@ import { reauthenticateForRestore, restoreBackup } from '../../data/repositories
 import { RestoreBackupForm } from './RestoreBackupForm';
 
 vi.mock('../../data/repositories/budgetRepository', () => ({
+  claimActivationMilestone: vi.fn().mockResolvedValue(true),
   reauthenticateForRestore: vi.fn(),
   restoreBackup: vi.fn(),
 }));

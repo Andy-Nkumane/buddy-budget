@@ -20,6 +20,11 @@ import {
 
 const topics = [
   {
+    icon: ListChecks,
+    title: 'Know when useful work is complete',
+    body: 'Buddy Budget acknowledges a small set of first-time budgeting actions once, then points to a practical next step. These notices are dismissible, contain no financial amounts, and never use streaks, rankings, or overspending shame.',
+  },
+  {
     icon: LockKeyhole,
     title: 'Share a deliberately limited report',
     body: 'Household owners can open Settings, choose Share limited report, preview exactly which totals and details are included, and create an expiring link. Links can have an access code or view limit and can be revoked at any time.',

@@ -29,6 +29,7 @@ import {
   undoTransactionImportBatch,
   type BudgetTransactionInput,
 } from '../../data/repositories/budgetRepository';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 import { currentMonthStart, formatMoney, isMonthReadOnly } from '../../shared/formatting/money';
 import type {
   BudgetTransaction,
@@ -108,6 +109,8 @@ export const TransactionsPage = () => {
     const previousMonthId = editing?.budget_month_id;
     if (editing) await updateBudgetTransaction(editing.id, input);
     else await createBudgetTransaction(input);
+    if (input.categoryId)
+      void claimAndAnnounceMilestone('first_categorisation').catch(() => undefined);
     notifyMonthChanged(input.budgetMonthId);
     if (previousMonthId && previousMonthId !== input.budgetMonthId) {
       notifyMonthChanged(previousMonthId);
