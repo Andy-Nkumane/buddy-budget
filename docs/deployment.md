@@ -1,5 +1,9 @@
 # Deployment
 
+## Shareable report Edge Function
+
+After applying database migrations, deploy `share-report` with `supabase functions deploy share-report --no-verify-jwt`. Public snapshot viewing has no JWT, while the function explicitly authenticates and authorizes create, list, and revoke requests. See `docs/shareable-reports.md` for threat controls and manual checks.
+
 ## GitHub Pages
 
 1. Link the intended Supabase project and run `npx supabase db push` before deploying the frontend. Confirm migrations through `202610040001_add_household_collaboration.sql` are applied successfully. Rehearse existing-user adoption against staging and compare per-table row counts before production.

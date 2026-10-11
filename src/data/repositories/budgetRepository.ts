@@ -1683,3 +1683,62 @@ export const requestAccountDeletion = async (): Promise<void> => {
   const { error } = await requireSupabase().rpc('delete_own_account');
   throwWhenError(error);
 };
+
+export type CreatedSharedReport = { id: string; token: string; expiresAt: string };
+
+const invokeSharedReport = async <T>(body: Record<string, unknown>): Promise<T> => {
+  const response = (await requireSupabase().functions.invoke('share-report', { body })) as {
+    data: unknown;
+    error: { message: string } | null;
+  };
+  throwWhenError(response.error);
+  const data = response.data;
+  if (!data || typeof data !== 'object' || 'error' in data)
+    throw new Error('The shared report request could not be completed.');
+  return data as T;
+};
+
+export const createSharedReport = async (input: {
+  snapshot: Record<string, unknown>;
+  expiryHours: number;
+  maxViews: number | null;
+  accessCode: string;
+}): Promise<CreatedSharedReport> => invokeSharedReport({ action: 'create', ...input });
+
+export const retrieveSharedReports = async (): Promise<
+  import('../../shared/types/domain').SharedReportRecord[]
+> => {
+  const result = await invokeSharedReport<{
+    reports: import('../../shared/types/domain').SharedReportRecord[];
+  }>({ action: 'list' });
+  return result.reports;
+};
+
+export const revokeSharedReport = async (id: string): Promise<void> => {
+  await invokeSharedReport({ action: 'revoke', id });
+};
+
+type PublicSharedReportResult =
+  | {
+      snapshot: import('../../features/reports/sharedReport').SharedReportSnapshot;
+      expires_at: string;
+      remaining_views: number | null;
+    }
+  | { accessCodeRequired: true };
+
+const publicShareRequests = new Map<string, Promise<PublicSharedReportResult>>();
+
+export const retrievePublicSharedReport = (token: string, accessCode = '') => {
+  const key = `${token}:${accessCode}`;
+  const existing = publicShareRequests.get(key);
+  if (existing) return existing;
+  const request = invokeSharedReport<PublicSharedReportResult>({
+    action: 'view',
+    token,
+    accessCode,
+  }).finally(() => {
+    publicShareRequests.delete(key);
+  });
+  publicShareRequests.set(key, request);
+  return request;
+};

@@ -1,11 +1,21 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BellRing, Download, ListChecks, LogOut, ShieldAlert, Trash2, Upload } from 'lucide-react';
+import {
+  BellRing,
+  Download,
+  ListChecks,
+  LogOut,
+  Share2,
+  ShieldAlert,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
+import { useHousehold } from '../../app/providers/HouseholdProvider';
 import {
   requestAccountDeletion,
   retrievePreferences,
@@ -26,6 +36,7 @@ import { SelectField } from '../../shared/ui/SelectField';
 import { profileSchema } from '../../shared/validation/schemas';
 import { ExportDataForm } from './ExportDataForm';
 import { RestoreBackupForm } from './RestoreBackupForm';
+import { ShareReportForm } from '../reports/ShareReportForm';
 import { queryKeys } from '../../data/queryKeys';
 
 type SettingsValues = z.infer<typeof profileSchema>;
@@ -33,6 +44,7 @@ type SettingsValues = z.infer<typeof profileSchema>;
 export const SettingsPage = () => {
   const queryClient = useQueryClient();
   const { session, signOut } = useAuth();
+  const household = useHousehold();
   const userId = session?.user.id ?? '';
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const preferences = useQuery({
@@ -44,6 +56,7 @@ export const SettingsPage = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -217,6 +230,15 @@ export const SettingsPage = () => {
             >
               Create export
             </Button>
+            {household.role === 'owner' && (
+              <Button
+                variant="secondary"
+                icon={<Share2 size={18} />}
+                onClick={() => setShareOpen(true)}
+              >
+                Share limited report
+              </Button>
+            )}
             <Button
               variant="secondary"
               icon={<Upload size={18} />}
@@ -255,6 +277,16 @@ export const SettingsPage = () => {
           )}
         </section>
       </div>
+      <Modal
+        open={shareOpen}
+        title="Share a limited report"
+        description="Choose exactly what another person can see. The original budget remains private."
+        onClose={() => setShareOpen(false)}
+      >
+        {shareOpen && (
+          <ShareReportForm profile={profile.data} onComplete={() => setShareOpen(false)} />
+        )}
+      </Modal>
       <Modal
         open={restoreOpen}
         title="Restore a JSON backup"

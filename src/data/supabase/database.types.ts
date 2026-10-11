@@ -363,6 +363,25 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      shared_budget_reports: {
+        Row: {
+          id: string;
+          household_id: string;
+          created_by: string;
+          token_hash: string;
+          access_code_hash: string | null;
+          snapshot: Record<string, unknown>;
+          expires_at: string;
+          max_views: number | null;
+          view_count: number;
+          last_viewed_at: string | null;
+          revoked_at: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -414,6 +433,14 @@ export interface Database {
           requested_category_id?: string | null;
         };
         Returns: BudgetInsights;
+      };
+      consume_shared_budget_report: {
+        Args: { requested_token_hash: string; requested_access_code_hash?: string | null };
+        Returns: {
+          snapshot: Record<string, unknown>;
+          expires_at: string;
+          remaining_views: number | null;
+        } | null;
       };
       create_month_from_template: {
         Args: { requested_month_start: string; requested_template_id: string };

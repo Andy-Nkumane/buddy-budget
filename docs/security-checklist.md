@@ -1,5 +1,11 @@
 # Security checklist
 
+## Shared reports
+
+- Shared snapshots use hash-only 256-bit tokens, bounded expiry, optional token-bound access-code hashes, atomic view limits, and immediate revocation.
+- Anonymous users cannot query private or shared-report tables; the Edge Function returns only a validated immutable snapshot.
+- Shared URLs keep tokens in fragments and shared responses disable indexing, referrers, framing, MIME sniffing, and browser caching.
+
 ## Before each release
 
 - [ ] `npm run audit`, lint, type check, tests, database tests, and production build pass.

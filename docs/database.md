@@ -1,5 +1,9 @@
 # Database and Supabase setup
 
+## Shared budget reports
+
+`shared_budget_reports` belongs to one household and records its creator, SHA-256 token hash, optional token-bound access-code hash, immutable JSON snapshot, expiry, revocation, and bounded view counters. Anonymous clients cannot query it. `consume_shared_budget_report` is service-role-only and locks the record while validating and incrementing its view count.
+
 ## Environments
 
 Use separate Supabase projects for staging and production. Local development uses the CLI-managed Docker stack. Never point automated or seed workflows at production.

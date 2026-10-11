@@ -1,5 +1,9 @@
 # Architecture
 
+## Shared-report boundary
+
+Private budget tables remain authenticated and household-scoped. Sharing materializes a versioned, immutable, field-whitelisted snapshot behind a hash-only token. The `share-report` Edge Function is the sole public read boundary; it atomically applies expiry, revocation, access-code, and view-limit controls before returning the snapshot.
+
 ## Runtime shape
 
 BuddyBudget is a static React SPA deployed from Vite output. There is no custom application server in V1.
