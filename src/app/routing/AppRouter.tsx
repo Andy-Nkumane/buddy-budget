@@ -111,6 +111,11 @@ const SharedReportPage = lazy(() =>
     default: module.SharedReportPage,
   })),
 );
+const SharedTemplatePage = lazy(() =>
+  import('../../features/templates/SharedTemplatePage').then((module) => ({
+    default: module.SharedTemplatePage,
+  })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -137,6 +142,7 @@ export const AppRouter = () => (
         <Route path="/demo" element={<DemoPage />} />
         <Route path="/calculator" element={<PublicBudgetCalculatorPage />} />
         <Route path="/shared-report" element={<SharedReportPage />} />
+        <Route path="/template" element={<SharedTemplatePage />} />
         <Route element={<RedirectAuthenticated />}>
           <Route path="/" element={<LandingPage />} />
         </Route>

@@ -12,7 +12,7 @@ const demoPath = `${import.meta.env.BASE_URL}demo`.replace(/\/+$/, '');
 const calculatorPath = `${import.meta.env.BASE_URL}calculator`.replace(/\/+$/, '');
 const sharedReportPath = `${import.meta.env.BASE_URL}shared-report`.replace(/\/+$/, '');
 const publicRoute = window.location.search.match(
-  /^\?\/(demo|calculator|shared-report)\/?(?:&|$)/,
+  /^\?\/(demo|calculator|shared-report|template)\/?(?:&|$)/,
 )?.[1];
 const isDirectPublicVisit =
   normalizedPath === demoPath ||

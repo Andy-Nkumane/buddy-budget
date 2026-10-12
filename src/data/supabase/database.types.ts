@@ -402,6 +402,48 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      shared_template_links: {
+        Row: {
+          id: string;
+          household_id: string;
+          created_by: string;
+          source_template_id: string;
+          version: number;
+          token_hash: string;
+          snapshot: Record<string, unknown>;
+          includes_amounts: boolean;
+          created_at: string;
+          expires_at: string;
+          revoked_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      shared_template_rate_limits: {
+        Row: {
+          link_id: string;
+          visitor_hash: string;
+          window_start: string;
+          request_count: number;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      shared_template_copies: {
+        Row: {
+          link_id: string;
+          recipient_user_id: string;
+          recipient_household_id: string;
+          copy_key: string;
+          created_template_id: string;
+          copied_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -465,6 +507,38 @@ export interface Database {
           expires_at: string;
           remaining_views: number | null;
         } | null;
+      };
+      create_shared_template_link: {
+        Args: {
+          requested_user_id: string;
+          requested_template_id: string;
+          requested_token_hash: string;
+          requested_include_amounts: boolean;
+          requested_expires_at: string;
+        };
+        Returns: { id: string; expires_at: string }[];
+      };
+      consume_shared_template_link: {
+        Args: { requested_token_hash: string; requested_visitor_hash: string };
+        Returns: { snapshot: Record<string, unknown>; expires_at: string } | null;
+      };
+      copy_shared_template_link: {
+        Args: {
+          requested_user_id: string;
+          requested_token_hash: string;
+          requested_copy_key: string;
+          requested_template_name: string;
+          requested_items: Record<string, unknown>[];
+        };
+        Returns: BudgetTemplate[];
+      };
+      retrieve_shared_template_links: {
+        Args: { requested_user_id: string };
+        Returns: Record<string, unknown>[];
+      };
+      revoke_shared_template_link: {
+        Args: { requested_user_id: string; requested_link_id: string };
+        Returns: boolean;
       };
       create_month_from_template: {
         Args: { requested_month_start: string; requested_template_id: string };
