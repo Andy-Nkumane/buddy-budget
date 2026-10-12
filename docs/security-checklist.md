@@ -6,6 +6,12 @@
 - Anonymous users cannot query private or shared-report tables; the Edge Function returns only a validated immutable snapshot.
 - Shared URLs keep tokens in fragments and shared responses disable indexing, referrers, framing, MIME sniffing, and browser caching.
 
+## Shared templates
+
+- Template snapshots default to omitting amount keys and whitelist only names, categories, types, and ordering.
+- Tokens are hash-only, high entropy, fragment-carried, expiring, revocable, and consumed through a rate-limited Edge action.
+- Copy RPCs remap ownership and categories, validate items against the immutable snapshot, and use a recipient copy key for transactional idempotency.
+
 ## Before each release
 
 - [ ] `npm run audit`, lint, type check, tests, database tests, and production build pass.

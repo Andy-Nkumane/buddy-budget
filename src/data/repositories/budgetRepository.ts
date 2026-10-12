@@ -1763,3 +1763,59 @@ export const retrievePublicSharedReport = (token: string, accessCode = '') => {
   publicShareRequests.set(key, request);
   return request;
 };
+
+export type CreatedSharedTemplateLink = { id: string; token: string; expiresAt: string };
+export type SharedTemplateLinkRecord = {
+  id: string;
+  templateId: string;
+  version: number;
+  name: string;
+  includesAmounts: boolean;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+};
+
+export const createSharedTemplateLink = (input: {
+  templateId: string;
+  includeAmounts: boolean;
+  expiryHours: number;
+}): Promise<CreatedSharedTemplateLink> =>
+  invokeSharedReport({ action: 'templateCreate', ...input });
+
+export const retrieveSharedTemplateLinks = async (): Promise<SharedTemplateLinkRecord[]> => {
+  const result = await invokeSharedReport<{ links: SharedTemplateLinkRecord[] }>({
+    action: 'templateList',
+  });
+  return result.links;
+};
+
+export const revokeSharedTemplateLink = async (id: string): Promise<void> => {
+  await invokeSharedReport({ action: 'templateRevoke', id });
+};
+
+export const retrievePublicSharedTemplate = (
+  token: string,
+): Promise<{
+  snapshot: import('../../features/templates/sharedTemplate').SharedTemplateSnapshot;
+  expires_at: string;
+}> => invokeSharedReport({ action: 'templateView', token });
+
+export const copySharedTemplate = async (input: {
+  token: string;
+  copyKey: string;
+  templateName: string;
+  items: Array<{
+    key: string;
+    name: string;
+    itemType: ItemType;
+    categoryName: string;
+    amount: string;
+  }>;
+}): Promise<string> => {
+  const result = await invokeSharedReport<{ templateId: string }>({
+    action: 'templateCopy',
+    ...input,
+  });
+  return result.templateId;
+};

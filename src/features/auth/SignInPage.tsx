@@ -31,7 +31,12 @@ export const SignInPage = () => {
       return;
     }
     const candidate = (location.state as { from?: string } | null)?.from;
-    void navigate(candidate?.startsWith('/app/') ? candidate : '/app', { replace: true });
+    void navigate(
+      candidate?.startsWith('/app/') || candidate === '/template' ? candidate : '/app',
+      {
+        replace: true,
+      },
+    );
   };
 
   return (

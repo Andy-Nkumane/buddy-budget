@@ -20,6 +20,11 @@ import {
 
 const topics = [
   {
+    icon: Library,
+    title: 'Share a reusable template safely',
+    body: 'Household owners can share an expiring template snapshot from Templates. Amounts are hidden unless explicitly enabled, and transactions, notes, goals, household members, profiles, and month history are never included. Recipients can preview and customise before copying.',
+  },
+  {
     icon: ListChecks,
     title: 'Know when useful work is complete',
     body: 'Buddy Budget acknowledges a small set of first-time budgeting actions once, then points to a practical next step. These notices are dismissible, contain no financial amounts, and never use streaks, rankings, or overspending shame.',

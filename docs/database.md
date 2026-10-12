@@ -80,6 +80,8 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 
 `set_default_template(uuid)` serializes the switch and respects the partial unique index.
 
+`shared_template_links` stores versioned snapshots and SHA-256 token hashes; direct anonymous table access is revoked. Service-only RPCs publish, rate-limit preview access, revoke, and idempotently copy a validated subset into newly owned categories/template items. Snapshot rows are immutable except for one-way revocation. Operational link and copy records are excluded from portable backups, while the resulting ordinary template remains exportable.
+
 `delete_own_account()` derives `auth.uid()` and deletes only that Auth user; cascading foreign keys remove owned data. Test this in staging and confirm backup/retention policy before enabling production use.
 
 `create_budget_transaction(...)`, `update_budget_transaction(...)`, and `delete_budget_transaction(uuid)` derive ownership from `auth.uid()`. Composite foreign keys and validation triggers keep month, item, category, account, type, currency, and transaction date aligned. The historical-month trigger calls the same profile-timezone-aware lock as budget item mutations.

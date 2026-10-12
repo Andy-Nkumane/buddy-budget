@@ -8,6 +8,7 @@ import {
   Library,
   Pencil,
   Plus,
+  Share2,
   Star,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -36,6 +37,7 @@ import { calculateGoalProgress } from '../goals/goalCalculations';
 import { formatMoney } from '../../shared/formatting/money';
 import { useHousehold } from '../../app/providers/HouseholdProvider';
 import { StarterTemplatePicker, type StarterTemplateSelection } from './StarterTemplatePicker';
+import { ShareTemplateForm } from './ShareTemplateForm';
 
 const TemplateItemRow = ({
   item,
@@ -178,6 +180,7 @@ export const TemplatesPage = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [starterOpen, setStarterOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [addType, setAddType] = useState<ItemType | null>(null);
   const [itemName, setItemName] = useState('');
@@ -372,6 +375,15 @@ export const TemplatesPage = () => {
                   <h2>{selected.name}</h2>
                   <p>{selected.template_items.length} recurring items</p>
                 </div>
+                {role === 'owner' && (
+                  <Button
+                    variant="secondary"
+                    icon={<Share2 size={17} />}
+                    onClick={() => setShareOpen(true)}
+                  >
+                    Share template
+                  </Button>
+                )}
                 {!selected.is_default && (
                   <Button
                     variant="secondary"
@@ -442,6 +454,15 @@ export const TemplatesPage = () => {
             Create template
           </Button>
         </div>
+      </Modal>
+      <Modal
+        open={shareOpen && Boolean(selected)}
+        title="Publish template link"
+        description="Recipients receive only the fields shown in the preview."
+        className="modal--share-template"
+        onClose={() => setShareOpen(false)}
+      >
+        {selected && <ShareTemplateForm template={selected} categories={categories.data ?? []} />}
       </Modal>
       <Modal
         open={addType !== null}
