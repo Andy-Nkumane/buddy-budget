@@ -73,7 +73,13 @@ export default defineConfig(({ mode }) => {
             },
           ],
           shortcuts: [
+            { name: 'Budget calculator', short_name: 'Calculator', url: `${base}calculator` },
             { name: 'Current month', short_name: 'Current', url: `${base}app/budget/current` },
+            {
+              name: 'Record transaction',
+              short_name: 'Record',
+              url: `${base}app/transactions?add=transaction`,
+            },
             { name: 'Months', short_name: 'Months', url: `${base}app/months` },
             { name: 'Templates', short_name: 'Templates', url: `${base}app/templates` },
             {

@@ -1,12 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowDown, ArrowUp, Check, Pencil, Plus, Star } from 'lucide-react';
+import {
+  Archive,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Landmark,
+  Library,
+  Pencil,
+  Plus,
+  Share2,
+  Star,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import {
   createTemplate,
   createTemplateItem,
+  copyStarterTemplate,
   moveTemplateItem,
   retrieveProfile,
   searchCategories,
+  searchFinancialGoals,
   searchTemplates,
   setDefaultTemplate,
   updateTemplateItem,
@@ -19,6 +33,11 @@ import { Modal } from '../../shared/ui/Modal';
 import { parseMoney, toDatabaseMoney } from '../../shared/validation/schemas';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import { calculateGoalProgress } from '../goals/goalCalculations';
+import { formatMoney } from '../../shared/formatting/money';
+import { useHousehold } from '../../app/providers/HouseholdProvider';
+import { StarterTemplatePicker, type StarterTemplateSelection } from './StarterTemplatePicker';
+import { ShareTemplateForm } from './ShareTemplateForm';
 
 const TemplateItemRow = ({
   item,
@@ -145,6 +164,7 @@ const TemplateItemRow = ({
 
 export const TemplatesPage = () => {
   const { session } = useAuth();
+  const { role } = useHousehold();
   const userId = session?.user.id ?? '';
   const queryClient = useQueryClient();
   const templates = useQuery({ queryKey: queryKeys.templates(userId), queryFn: searchTemplates });
@@ -153,8 +173,14 @@ export const TemplatesPage = () => {
     queryKey: queryKeys.categories(userId),
     queryFn: () => searchCategories(),
   });
+  const goals = useQuery({
+    queryKey: queryKeys.goals(userId),
+    queryFn: () => searchFinancialGoals(),
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [starterOpen, setStarterOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [addType, setAddType] = useState<ItemType | null>(null);
   const [itemName, setItemName] = useState('');
@@ -173,6 +199,22 @@ export const TemplatesPage = () => {
     onSuccess: (template) => {
       setCreateOpen(false);
       setNewTemplateName('');
+      setSelectedId(template.id);
+      refresh();
+    },
+  });
+  const starterMutation = useMutation({
+    mutationFn: (selection: StarterTemplateSelection) =>
+      copyStarterTemplate({
+        starterId: selection.id,
+        starterVersion: selection.version,
+        templateName: selection.templateName,
+        copyKey: selection.copyKey,
+        makeDefault: !templates.data?.length,
+        items: selection.items.map((item) => ({ item_key: item.itemKey, amount: item.amount })),
+      }),
+    onSuccess: (template) => {
+      setStarterOpen(false);
       setSelectedId(template.id);
       refresh();
     },
@@ -202,13 +244,13 @@ export const TemplatesPage = () => {
     }
   };
 
-  if (templates.isLoading || categories.isLoading || profile.isLoading)
+  if (templates.isLoading || categories.isLoading || profile.isLoading || goals.isLoading)
     return <LoadingState label="Loading templates…" />;
-  if (templates.error || categories.error || profile.error)
+  if (templates.error || categories.error || profile.error || goals.error)
     return (
       <ErrorState
         message={
-          (templates.error ?? categories.error ?? profile.error)?.message ??
+          (templates.error ?? categories.error ?? profile.error ?? goals.error)?.message ??
           'Templates are unavailable.'
         }
         retry={refresh}
@@ -223,10 +265,46 @@ export const TemplatesPage = () => {
           <h1>Budget templates</h1>
           <p>Changes here apply only to months you create later. Existing months never change.</p>
         </div>
-        <Button icon={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
-          New template
-        </Button>
+        <div className="page-heading__actions">
+          {role !== 'viewer' && (
+            <Button
+              variant="secondary"
+              icon={<Library size={18} />}
+              onClick={() => setStarterOpen(true)}
+            >
+              Use a starter
+            </Button>
+          )}
+          <Button icon={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
+            New template
+          </Button>
+        </div>
       </div>
+      {starterOpen && (
+        <section className="starter-library-panel" aria-labelledby="starter-library-title">
+          <header>
+            <div>
+              <p className="eyebrow">Choose a starting point</p>
+              <h2 id="starter-library-title">Starter template library</h2>
+            </div>
+            <Button variant="ghost" onClick={() => setStarterOpen(false)}>
+              Close
+            </Button>
+          </header>
+          <StarterTemplatePicker
+            currency={profile.data?.currency_code ?? 'ZAR'}
+            locale={profile.data?.locale ?? 'en-ZA'}
+            submitLabel="Create this template"
+            submitting={starterMutation.isPending}
+            onSubmit={(selection) => starterMutation.mutate(selection)}
+          />
+          {starterMutation.error && (
+            <p className="field__error" role="alert">
+              {starterMutation.error.message}
+            </p>
+          )}
+        </section>
+      )}
       <div className="notice-card">
         <Check aria-hidden="true" />
         <div>
@@ -234,6 +312,38 @@ export const TemplatesPage = () => {
           <p>Editing amounts, names, or categories below will not rewrite any existing month.</p>
         </div>
       </div>
+      <aside className="template-goals" aria-labelledby="template-goals-heading">
+        <Landmark aria-hidden="true" />
+        <div>
+          <h2 id="template-goals-heading">Goal allocations</h2>
+          <p>
+            These transfers sit beside your recurring income and expenses and flow into new monthly
+            plans.
+          </p>
+          {(goals.data ?? []).filter((goal) => goal.status === 'active').length ? (
+            <ul>
+              {(goals.data ?? [])
+                .filter((goal) => goal.status === 'active')
+                .map((goal) => (
+                  <li key={goal.id}>
+                    <span>{goal.name}</span>
+                    <strong>
+                      {formatMoney(
+                        calculateGoalProgress(goal, goal.goal_contributions)
+                          .recommendedMonthlyMinor / 100,
+                        profile.data?.currency_code,
+                        profile.data?.locale,
+                      )}
+                    </strong>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p className="muted">No active goals yet.</p>
+          )}
+        </div>
+        <Link to="/app/goals">Manage goals</Link>
+      </aside>
       {!templates.data?.length ? (
         <div className="empty-card">
           <h2>Create your recurring plan</h2>
@@ -265,6 +375,15 @@ export const TemplatesPage = () => {
                   <h2>{selected.name}</h2>
                   <p>{selected.template_items.length} recurring items</p>
                 </div>
+                {role === 'owner' && (
+                  <Button
+                    variant="secondary"
+                    icon={<Share2 size={17} />}
+                    onClick={() => setShareOpen(true)}
+                  >
+                    Share template
+                  </Button>
+                )}
                 {!selected.is_default && (
                   <Button
                     variant="secondary"
@@ -335,6 +454,15 @@ export const TemplatesPage = () => {
             Create template
           </Button>
         </div>
+      </Modal>
+      <Modal
+        open={shareOpen && Boolean(selected)}
+        title="Publish template link"
+        description="Recipients receive only the fields shown in the preview."
+        className="modal--share-template"
+        onClose={() => setShareOpen(false)}
+      >
+        {selected && <ShareTemplateForm template={selected} categories={categories.data ?? []} />}
       </Modal>
       <Modal
         open={addType !== null}

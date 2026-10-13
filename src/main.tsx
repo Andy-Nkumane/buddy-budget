@@ -7,10 +7,29 @@ import './styles.css';
 const root = document.getElementById('root');
 if (!root) throw new Error('BuddyBudget root element is missing.');
 
+const normalizedPath = window.location.pathname.replace(/\/+$/, '');
+const demoPath = `${import.meta.env.BASE_URL}demo`.replace(/\/+$/, '');
+const calculatorPath = `${import.meta.env.BASE_URL}calculator`.replace(/\/+$/, '');
+const sharedReportPath = `${import.meta.env.BASE_URL}shared-report`.replace(/\/+$/, '');
+const publicRoute = window.location.search.match(
+  /^\?\/(demo|calculator|shared-report|template)\/?(?:&|$)/,
+)?.[1];
+const isDirectPublicVisit =
+  normalizedPath === demoPath ||
+  normalizedPath === calculatorPath ||
+  normalizedPath === sharedReportPath ||
+  publicRoute === 'demo' ||
+  publicRoute === 'calculator' ||
+  publicRoute === 'shared-report';
+
 createRoot(root).render(
   <StrictMode>
-    <AppProviders>
+    {isDirectPublicVisit ? (
       <AppRouter />
-    </AppProviders>
+    ) : (
+      <AppProviders>
+        <AppRouter />
+      </AppProviders>
+    )}
   </StrictMode>,
 );

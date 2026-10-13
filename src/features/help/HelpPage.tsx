@@ -2,16 +2,94 @@ import {
   BookOpen,
   Download,
   History,
+  CalendarClock,
   Laptop,
   ListPlus,
+  Library,
   LockKeyhole,
+  ListChecks,
   PencilLine,
   Smartphone,
   WalletCards,
+  Landmark,
   WifiOff,
+  BellRing,
+  BarChart3,
+  ShieldCheck,
+  Users,
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: ShieldCheck,
+    title: 'Give an adviser temporary read-only access',
+    body: 'Household owners can choose exact dates, sections, and expiry from Household. Advisers use their own verified account in a clearly marked read-only mode. Export is disabled unless the owner explicitly enables the scoped JSON download, and revocation applies immediately.',
+  },
+  {
+    icon: Library,
+    title: 'Share a reusable template safely',
+    body: 'Household owners can share an expiring template snapshot from Templates. Amounts are hidden unless explicitly enabled, and transactions, notes, goals, household members, profiles, and month history are never included. Recipients can preview and customise before copying.',
+  },
+  {
+    icon: ListChecks,
+    title: 'Know when useful work is complete',
+    body: 'Buddy Budget acknowledges a small set of first-time budgeting actions once, then points to a practical next step. These notices are dismissible, contain no financial amounts, and never use streaks, rankings, or overspending shame.',
+  },
+  {
+    icon: LockKeyhole,
+    title: 'Share a deliberately limited report',
+    body: 'Household owners can open Settings, choose Share limited report, preview exactly which totals and details are included, and create an expiring link. Links can have an access code or view limit and can be revoked at any time.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Calculate a monthly plan before signing up',
+    body: 'The public calculator totals income, expenses, remaining money, and savings rate entirely in your browser. Nothing is sent to Buddy Budget unless you explicitly choose to create an account and transfer the approved plan once.',
+  },
+  {
+    icon: Library,
+    title: 'Reach your first dashboard quickly',
+    body: 'During setup, choose a curated starter, an approved demo or calculator plan, a current-month CSV statement, or a simple blank plan. Review everything before saving; interrupted setup resumes safely and repeated submission does not duplicate your first month.',
+  },
+  {
+    icon: Laptop,
+    title: 'Try the fictional demo safely',
+    body: 'The public interactive demo uses deterministic fictional data in browser memory and never reads or writes an account. If you choose “Start with this setup”, only the plan you approve is kept locally for up to 24 hours; sample transactions are never transferred.',
+  },
+  {
+    icon: Users,
+    title: 'Share a household safely',
+    body: 'Household owners can invite a verified email as an editor or read-only viewer. Invitations expire after seven days and work once. Use the household switcher to change budgets; Buddy Budget clears cached financial data before loading the selected household.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Turn history into decisions',
+    body: 'Insights compares plans with posted actuals, identifies repeated changes, and gives an evidence-based next action. Missing evidence is labelled as insufficient, currencies stay separate, and locked-month adjustments never rewrite history.',
+  },
+  {
+    icon: LockKeyhole,
+    title: 'Close a month without losing history',
+    body: 'Review the close checklist, save an immutable summary, and reopen before the automatic age lock if needed. For a legitimately late correction to a locked report, record a current-month adjustment; Buddy Budget keeps the original totals visible and labels the adjusted interpretation separately.',
+  },
+  {
+    icon: BellRing,
+    title: 'Choose a weekly check-in',
+    body: 'In Settings, opt in to one weekly in-app reminder, email, or both. Emails hide financial values unless you explicitly enable them. You can preview, pause, test, or opt out at any time.',
+  },
+  {
+    icon: Landmark,
+    title: 'Plan goals without hiding spending',
+    body: 'Create savings, sinking-fund, or debt-payoff goals in Goals. Recommended contributions appear beside templates and monthly budgets as transfers, not expenses. Record contributions to update progress; pausing a goal keeps its history and stops future recommendations.',
+  },
+  {
+    icon: CalendarClock,
+    title: 'Forecast upcoming cash flow',
+    body: 'Add once or recurring income and expense schedules in Cash flow. The seven-day list and calendar distinguish expected, paid, received, skipped, and disabled items while showing the projected balance. Forecasts become actual only when you confirm them.',
+  },
+  {
+    icon: ListChecks,
+    title: 'Use categorisation rules',
+    body: 'Create and reorder transparent rules in Settings. Test them first to see each proposed field change and winning rule. Suggestions appear only after three consistently categorised transactions and are never created automatically.',
+  },
   {
     icon: ListPlus,
     title: '1. Create a template',
@@ -35,21 +113,36 @@ const topics = [
   {
     icon: WalletCards,
     title: '5. Understand totals',
-    body: 'Remaining equals total income minus total expenses. Savings rate is remaining divided by income and is hidden when income is zero.',
+    body: 'Planned values come from the month snapshot. Actual values come from posted transactions. Pending and void entries do not change actuals.',
   },
   {
-    icon: History,
-    title: '6. Review previous months',
-    body: 'Month history shows each independent snapshot. Opening an older month never changes the current template.',
+    icon: PencilLine,
+    title: '6. Record actual activity',
+    body: 'Add real income and expenses in Transactions and optionally assign an account, category, and budget item. Use Expense refund or Income reversal instead of entering a negative amount.',
   },
   {
     icon: Download,
-    title: '7. Export your data',
-    body: 'Choose a preset or custom month range in Settings, then export CSV, a portable JSON backup, or a printable PDF report. One-month CSV exports remain available in Month history.',
+    title: 'Import a bank CSV',
+    body: 'In Transactions, choose Import CSV, map your statement columns, review every valid, invalid, duplicate, or excluded row, then confirm. Files must be UTF-8, no larger than 2 MiB or 2,000 rows. The raw file stays in browser memory and is never uploaded or retained.',
+  },
+  {
+    icon: History,
+    title: '7. Review previous months',
+    body: 'Month history shows each independent snapshot. Reports two or more calendar months old are read-only, including their transactions.',
+  },
+  {
+    icon: Download,
+    title: '8. Export your data',
+    body: 'Choose a preset or custom month range in Settings, then export planned and actual details as CSV, JSON, or a PDF report. One-month exports remain available in Month history.',
+  },
+  {
+    icon: History,
+    title: 'Restore a JSON backup',
+    body: 'Settings validates the backup before upload. Merge adds missing data without rewriting existing months. Full replacement requires your current password and typed confirmation, and creates a recovery snapshot first.',
   },
   {
     icon: Smartphone,
-    title: '8. Install on Android or iOS',
+    title: '9. Install on Android or iOS',
     body: 'On Android Chrome, open the browser menu and choose Install app or Add to Home screen. On iPhone or iPad Safari, tap Share, then Add to Home Screen.',
   },
   {
@@ -59,12 +152,12 @@ const topics = [
   },
   {
     icon: WifiOff,
-    title: '9. What works offline',
+    title: '10. What works offline',
     body: 'The installed app can open its shell and public help while offline. Financial edits are not stored offline in V1; wait for a connection and retry.',
   },
   {
     icon: LockKeyhole,
-    title: '10. Protect your account',
+    title: '11. Protect your account',
     body: 'Use a unique password, protect your email account, sign out on shared devices, and never share password-reset links or exported data.',
   },
 ];

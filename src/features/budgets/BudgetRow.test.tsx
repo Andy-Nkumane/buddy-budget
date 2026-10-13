@@ -41,14 +41,18 @@ describe('BudgetRow', () => {
       <BudgetRow
         item={item}
         currencyCode="ZAR"
+        locale="en-ZA"
         readOnly={false}
+        progress={{ planned: 100, actual: 25, variance: -75, remaining: 75 }}
         onArchive={vi.fn()}
         onToggleDisabled={vi.fn()}
         onChanged={vi.fn()}
         onDraft={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByLabelText('Groceries amount'), { target: { value: '125.5' } });
+    fireEvent.change(screen.getByLabelText('Groceries planned amount'), {
+      target: { value: '125.5' },
+    });
     await act(async () => {
       vi.advanceTimersByTime(700);
       await Promise.resolve();
@@ -62,14 +66,18 @@ describe('BudgetRow', () => {
       <BudgetRow
         item={item}
         currencyCode="ZAR"
+        locale="en-ZA"
         readOnly={false}
+        progress={{ planned: 100, actual: 25, variance: -75, remaining: 75 }}
         onArchive={vi.fn()}
         onToggleDisabled={vi.fn()}
         onChanged={vi.fn()}
         onDraft={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByLabelText('Groceries amount'), { target: { value: '12.345' } });
+    fireEvent.change(screen.getByLabelText('Groceries planned amount'), {
+      target: { value: '12.345' },
+    });
     await act(async () => {
       vi.advanceTimersByTime(700);
       await Promise.resolve();
@@ -84,14 +92,16 @@ describe('BudgetRow', () => {
       <BudgetRow
         item={{ ...item, is_disabled: true }}
         currencyCode="ZAR"
+        locale="en-ZA"
         readOnly={false}
+        progress={{ planned: 0, actual: 25, variance: 25, remaining: -25 }}
         onArchive={vi.fn()}
         onToggleDisabled={onToggleDisabled}
         onChanged={vi.fn()}
         onDraft={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText('Groceries amount')).toBeDisabled();
+    expect(screen.getByLabelText('Groceries planned amount')).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Resume Groceries' }));
     expect(onToggleDisabled).toHaveBeenCalledWith(expect.objectContaining({ id: 'item-id' }));
   });
@@ -101,14 +111,16 @@ describe('BudgetRow', () => {
       <BudgetRow
         item={item}
         currencyCode="ZAR"
+        locale="en-ZA"
         readOnly
+        progress={{ planned: 100, actual: 25, variance: -75, remaining: 75 }}
         onArchive={vi.fn()}
         onToggleDisabled={vi.fn()}
         onChanged={vi.fn()}
         onDraft={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText('Groceries amount')).toBeDisabled();
+    expect(screen.getByLabelText('Groceries planned amount')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Pause Groceries' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rename Groceries' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Archive Groceries' })).not.toBeInTheDocument();

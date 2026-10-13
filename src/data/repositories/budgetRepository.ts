@@ -1,19 +1,46 @@
 import type { User } from '@supabase/supabase-js';
-import { calculateTotals } from '../../shared/formatting/money';
+import { adjacentMonthStart, calculateBudgetProgress } from '../../shared/formatting/money';
+import { removePortableOwnership } from '../../shared/utilities/portableBackup';
 import type {
   BudgetMonth,
+  BudgetInsights,
   BudgetMonthItem,
+  BudgetMonthLifecycle,
   BudgetMonthWithItems,
   BudgetTemplate,
+  BudgetTransaction,
+  CategorisationRule,
+  CategorisationRuleSuggestion,
   Category,
+  FinancialAccount,
+  FinancialAccountType,
+  FinancialAccountWithBalance,
+  FinancialGoal,
+  FinancialGoalStatus,
+  FinancialGoalType,
+  FinancialGoalWithContributions,
+  GoalContribution,
+  GoalMonthRecommendation,
   ItemType,
   MonthSummary,
+  MonthAdjustment,
+  MonthAdjustmentDirection,
+  MonthCloseSummary,
+  MonthLifecycleEvent,
+  NotificationDelivery,
+  PaymentSchedule,
+  PaymentScheduleOccurrence,
   Profile,
+  StarterTemplate,
   TemplateItem,
   TemplateWithItems,
   ThemePreference,
+  TransactionStatus,
+  TransactionImportBatch,
   UserPreferences,
+  WeeklyCheckInPreferences,
 } from '../../shared/types/domain';
+import type { WeeklyCheckInSummary } from '../../shared/checkins/checkin';
 import { requireSupabase } from '../supabase/client';
 
 const throwWhenError = (error: { message: string } | null): void => {
@@ -21,6 +48,7 @@ const throwWhenError = (error: { message: string } | null): void => {
 };
 
 const EXPORT_PAGE_SIZE = 1000;
+export const TRANSACTION_PAGE_SIZE = 50;
 type PageResult<T> = { data: T[] | null; error: { message: string } | null };
 
 const retrieveAllPages = async <T>(
@@ -76,6 +104,73 @@ export const retrievePreferences = async (): Promise<UserPreferences | null> => 
   return data;
 };
 
+export const retrieveBudgetInsights = async (input: {
+  fromMonth: string;
+  toMonth: string;
+  categoryIds?: string[];
+}): Promise<BudgetInsights> => {
+  const categoryIds = [...new Set(input.categoryIds ?? [])].sort();
+  const retrieveCategory = async (categoryId: string | null) => {
+    const { data, error } = await requireSupabase().rpc('retrieve_budget_insights', {
+      requested_from_month: input.fromMonth,
+      requested_to_month: input.toMonth,
+      requested_category_id: categoryId,
+    });
+    throwWhenError(error);
+    if (!data) throw new Error('Insights could not be calculated.');
+    return data;
+  };
+  if (!categoryIds.length) return retrieveCategory(null);
+  const results = await Promise.all(categoryIds.map(retrieveCategory));
+  const monthly = new Map<string, BudgetInsights['monthly'][number]>();
+  results
+    .flatMap((result) => result.monthly)
+    .forEach((entry) => {
+      const key = `${entry.month_start}:${entry.currency_code}`;
+      const previous = monthly.get(key);
+      const combined = {
+        ...entry,
+        planned_income_minor: entry.planned_income_minor + (previous?.planned_income_minor ?? 0),
+        planned_expenses_minor:
+          entry.planned_expenses_minor + (previous?.planned_expenses_minor ?? 0),
+        actual_income_minor: entry.actual_income_minor + (previous?.actual_income_minor ?? 0),
+        actual_expenses_minor: entry.actual_expenses_minor + (previous?.actual_expenses_minor ?? 0),
+        adjustment_income_minor: 0,
+        adjustment_expenses_minor: 0,
+        savings_rate_basis_points: null,
+      };
+      combined.income_variance_minor = combined.actual_income_minor - combined.planned_income_minor;
+      combined.expense_variance_minor =
+        combined.actual_expenses_minor - combined.planned_expenses_minor;
+      combined.savings_minor = combined.actual_income_minor - combined.actual_expenses_minor;
+      monthly.set(key, combined);
+    });
+  const discretionary = results
+    .flatMap((result) => result.largest_discretionary)
+    .sort((left, right) => right.amount_minor - left.amount_minor)
+    .filter(
+      (entry, index, entries) =>
+        entries
+          .slice(0, index)
+          .filter((candidate) => candidate.currency_code === entry.currency_code).length < 10,
+    );
+  return {
+    ...results[0],
+    category_id: null,
+    currencies: [...new Set(results.flatMap((result) => result.currencies))].sort(),
+    monthly: [...monthly.values()].sort(
+      (left, right) =>
+        left.month_start.localeCompare(right.month_start) ||
+        left.currency_code.localeCompare(right.currency_code),
+    ),
+    categories: results.flatMap((result) => result.categories),
+    recurring_changes: results.flatMap((result) => result.recurring_changes),
+    largest_discretionary: discretionary,
+    income_stability: [],
+    goals: results.flatMap((result) => result.goals),
+  };
+};
+
 export const updateProfileAndPreferences = async (input: {
   displayName: string;
   currencyCode: string;
@@ -93,28 +188,136 @@ export const updateProfileAndPreferences = async (input: {
   throwWhenError(error);
 };
 
+export const retrieveWeeklyCheckInPreferences =
+  async (): Promise<WeeklyCheckInPreferences | null> => {
+    const user = await retrieveAuthenticatedUser();
+    const { data, error } = await requireSupabase()
+      .from('weekly_checkin_preferences')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    throwWhenError(error);
+    return data;
+  };
+
+export const updateWeeklyCheckInPreferences = async (input: {
+  optedIn: boolean;
+  weekday: number;
+  deliveryTime: string;
+  timezone: string;
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+  emailDetailEnabled: boolean;
+  paused: boolean;
+}): Promise<WeeklyCheckInPreferences> => {
+  const { data, error } = await requireSupabase().rpc('update_weekly_checkin_preferences', {
+    requested_preferences: {
+      opted_in: input.optedIn,
+      weekday: input.weekday,
+      delivery_time: input.deliveryTime,
+      timezone: input.timezone,
+      in_app_enabled: input.inAppEnabled,
+      email_enabled: input.emailEnabled,
+      email_detail_enabled: input.emailDetailEnabled,
+      paused: input.paused,
+    },
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('Check-in preferences could not be saved.');
+  return data[0];
+};
+
+export const searchNotificationDeliveries = async (): Promise<NotificationDelivery[]> => {
+  const { data, error } = await requireSupabase()
+    .from('notification_deliveries')
+    .select('*')
+    .order('scheduled_for', { ascending: false })
+    .limit(12);
+  throwWhenError(error);
+  return data ?? [];
+};
+
+const invokeWeeklyCheckIn = async <T>(body: Record<string, unknown>): Promise<T> => {
+  const response = (await requireSupabase().functions.invoke('weekly-checkin', {
+    body,
+  })) as unknown as {
+    data: unknown;
+    error: { message: string } | null;
+  };
+  throwWhenError(response.error);
+  return response.data as T;
+};
+
+export const previewWeeklyCheckIn = async (): Promise<WeeklyCheckInSummary> => {
+  const result = await invokeWeeklyCheckIn<{ summary: WeeklyCheckInSummary }>({ mode: 'preview' });
+  return result.summary;
+};
+
+export const sendTestWeeklyCheckIn = async (channel: 'in_app' | 'email'): Promise<void> => {
+  await invokeWeeklyCheckIn({ mode: 'test', channel });
+};
+
+export const markNotificationDeliveryRead = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('mark_notification_delivery_read', {
+    requested_delivery_id: id,
+  });
+  throwWhenError(error);
+};
+
+export const claimActivationMilestone = async (requestedKey: string): Promise<boolean> => {
+  const { data, error } = await requireSupabase().rpc('claim_activation_milestone', {
+    requested_key: requestedKey,
+  });
+  throwWhenError(error);
+  return data ?? false;
+};
+
 export const setupFirstBudget = async (input: {
+  setupKey: string;
+  path: 'starter' | 'csv' | 'transfer' | 'blank';
   displayName: string;
   currencyCode: string;
   locale: string;
   timezone: string;
-  theme: ThemePreference;
   templateName: string;
+  starter?: { id: string; version: number; copyKey: string };
   items: Array<{
     name: string;
     item_type: ItemType;
     category_name: string;
     default_amount: string;
+    starter_item_key?: string;
   }>;
+  csvImport?: {
+    file_name: string;
+    batch_key: string;
+    mapping_metadata: Record<string, unknown>;
+    rows: Array<{
+      transaction_date: string;
+      description: string;
+      amount_minor: number;
+      transaction_type: ItemType;
+      external_reference: string | null;
+      external_fingerprint: string;
+      category_name: string;
+    }>;
+    invalid_count: number;
+    excluded_count: number;
+  };
 }): Promise<BudgetMonth> => {
-  const { data, error } = await requireSupabase().rpc('setup_first_budget', {
+  const { data, error } = await requireSupabase().rpc('complete_first_budget_onboarding', {
+    requested_setup_key: input.setupKey,
+    requested_path: input.path,
     requested_display_name: input.displayName,
     requested_currency_code: input.currencyCode,
     requested_locale: input.locale,
     requested_timezone: input.timezone,
-    requested_theme: input.theme,
     requested_template_name: input.templateName,
     requested_template_items: input.items,
+    requested_starter_id: input.starter?.id,
+    requested_starter_version: input.starter?.version,
+    requested_starter_copy_key: input.starter?.copyKey,
+    requested_import: input.csvImport,
   });
   throwWhenError(error);
   const month = data?.[0];
@@ -245,6 +448,49 @@ export const searchTemplates = async (): Promise<TemplateWithItems[]> => {
   }));
 };
 
+export const retrieveStarterTemplates = async (): Promise<StarterTemplate[]> => {
+  const client = requireSupabase();
+  const [{ data: templates, error: templatesError }, { data: items, error: itemsError }] =
+    await Promise.all([
+      client.from('starter_budget_templates').select('*').eq('is_active', true).order('sort_order'),
+      client
+        .from('starter_budget_template_items')
+        .select('*')
+        .order('item_type', { ascending: false })
+        .order('sort_order'),
+    ]);
+  throwWhenError(templatesError ?? itemsError);
+  return (templates ?? []).map((template) => ({
+    ...template,
+    items: (items ?? []).filter(
+      (item) =>
+        item.starter_template_id === template.id &&
+        item.starter_template_version === template.version,
+    ),
+  }));
+};
+
+export const copyStarterTemplate = async (input: {
+  starterId: string;
+  starterVersion: number;
+  templateName: string;
+  copyKey: string;
+  makeDefault: boolean;
+  items: Array<{ item_key: string; amount: string }>;
+}): Promise<BudgetTemplate> => {
+  const { data, error } = await requireSupabase().rpc('copy_starter_budget_template', {
+    requested_starter_id: input.starterId,
+    requested_starter_version: input.starterVersion,
+    requested_template_name: input.templateName,
+    requested_items: input.items,
+    requested_copy_key: input.copyKey,
+    requested_make_default: input.makeDefault,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The starter template could not be copied.');
+  return data[0];
+};
+
 export const createTemplate = async (
   name: string,
   makeDefault = false,
@@ -320,10 +566,146 @@ const retrieveMonthItems = async (monthId: string): Promise<BudgetMonthItem[]> =
   );
 };
 
-const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => ({
-  ...month,
-  budget_month_items: await retrieveMonthItems(month.id),
-});
+const retrieveMonthTransactions = async (monthId: string): Promise<BudgetTransaction[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<BudgetTransaction>((from, to) =>
+    client
+      .from('budget_transactions')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const retrieveMonthScheduleOccurrences = async (
+  monthId: string,
+): Promise<PaymentScheduleOccurrence[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<PaymentScheduleOccurrence>((from, to) =>
+    client
+      .from('payment_schedule_occurrences')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('due_date')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const retrieveMonthGoalRecommendations = async (
+  monthId: string,
+): Promise<GoalMonthRecommendation[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<GoalMonthRecommendation>((from, to) =>
+    client
+      .from('goal_month_recommendations')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('priority')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const retrieveMonthGoalContributions = async (monthId: string): Promise<GoalContribution[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<GoalContribution>((from, to) =>
+    client
+      .from('goal_contributions')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('contribution_date')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const retrieveMonthLifecycle = async (monthId: string): Promise<BudgetMonthLifecycle | null> => {
+  const { data, error } = await requireSupabase()
+    .from('budget_month_lifecycle')
+    .select('*')
+    .eq('budget_month_id', monthId)
+    .maybeSingle();
+  throwWhenError(error);
+  return data;
+};
+
+const retrieveMonthCloseSummaries = async (monthId: string): Promise<MonthCloseSummary[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<MonthCloseSummary>((from, to) =>
+    client
+      .from('month_close_summaries')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('close_sequence', { ascending: false })
+      .range(from, to),
+  );
+};
+
+const retrieveMonthAdjustments = async (monthId: string): Promise<MonthAdjustment[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<MonthAdjustment>((from, to) =>
+    client
+      .from('month_adjustments')
+      .select('*')
+      .eq('original_budget_month_id', monthId)
+      .order('created_at')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const retrieveMonthLifecycleEvents = async (monthId: string): Promise<MonthLifecycleEvent[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<MonthLifecycleEvent>((from, to) =>
+    client
+      .from('month_lifecycle_events')
+      .select('*')
+      .eq('budget_month_id', monthId)
+      .order('created_at')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => {
+  const [
+    items,
+    transactions,
+    scheduleOccurrences,
+    goalRecommendations,
+    goalContributions,
+    lifecycle,
+    closeSummaries,
+    adjustments,
+    lifecycleEvents,
+  ] = await Promise.all([
+    retrieveMonthItems(month.id),
+    retrieveMonthTransactions(month.id),
+    retrieveMonthScheduleOccurrences(month.id),
+    retrieveMonthGoalRecommendations(month.id),
+    retrieveMonthGoalContributions(month.id),
+    retrieveMonthLifecycle(month.id),
+    retrieveMonthCloseSummaries(month.id),
+    retrieveMonthAdjustments(month.id),
+    retrieveMonthLifecycleEvents(month.id),
+  ]);
+  return {
+    ...month,
+    budget_month_items: items,
+    budget_transactions: transactions,
+    payment_schedule_occurrences: scheduleOccurrences,
+    goal_month_recommendations: goalRecommendations,
+    goal_contributions: goalContributions,
+    lifecycle,
+    close_summaries: closeSummaries,
+    adjustments,
+    lifecycle_events: lifecycleEvents,
+  };
+};
 
 export const retrieveMonthByStart = async (
   monthStart: string,
@@ -348,25 +730,67 @@ export const retrieveMonthById = async (id: string): Promise<BudgetMonthWithItem
 };
 
 export const searchMonths = async (): Promise<MonthSummary[]> => {
-  const client = requireSupabase();
-  const [months, monthItems] = await Promise.all([
-    retrieveAllPages<BudgetMonth>((from, to) =>
-      client
-        .from('budget_months')
-        .select('*')
-        .order('month_start', { ascending: false })
-        .range(from, to),
-    ),
-    retrieveAllPages<BudgetMonthItem>((from, to) =>
-      client.from('budget_month_items').select('*').is('archived_at', null).range(from, to),
-    ),
-  ]);
-  if (!months.length) return [];
-  const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
-  return months.map((month) => ({
-    ...month,
-    ...calculateTotals(itemsByMonth.get(month.id) ?? []),
-  }));
+  const { data, error } = await requireSupabase().rpc('retrieve_budget_month_summaries');
+  throwWhenError(error);
+  return (data ?? []).map(
+    ({
+      actual_income,
+      actual_expenses,
+      actual_remaining,
+      lifecycle_state,
+      closed_at,
+      ...month
+    }) => ({
+      ...month,
+      actualIncome: actual_income,
+      actualExpenses: actual_expenses,
+      actualRemaining: actual_remaining,
+      lifecycleState: lifecycle_state,
+      closedAt: closed_at,
+    }),
+  );
+};
+
+export const closeBudgetMonth = async (monthId: string): Promise<MonthCloseSummary> => {
+  const { data, error } = await requireSupabase().rpc('close_budget_month', {
+    requested_month_id: monthId,
+    requested_acknowledged: true,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The month could not be closed.');
+  return data[0];
+};
+
+export const reopenBudgetMonth = async (monthId: string): Promise<BudgetMonthLifecycle> => {
+  const { data, error } = await requireSupabase().rpc('reopen_budget_month', {
+    requested_month_id: monthId,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The month could not be reopened.');
+  return data[0];
+};
+
+export const createMonthAdjustment = async (input: {
+  originalMonthId: string;
+  appliedMonthId: string;
+  itemType: ItemType;
+  direction: MonthAdjustmentDirection;
+  amountMinor: number;
+  reason: string;
+  idempotencyKey: string;
+}): Promise<MonthAdjustment> => {
+  const { data, error } = await requireSupabase().rpc('create_month_adjustment', {
+    requested_original_month_id: input.originalMonthId,
+    requested_applied_month_id: input.appliedMonthId,
+    requested_item_type: input.itemType,
+    requested_direction: input.direction,
+    requested_amount_minor: input.amountMinor,
+    requested_reason: input.reason,
+    requested_idempotency_key: input.idempotencyKey,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The adjustment could not be created.');
+  return data[0];
 };
 
 export interface MonthExportRange {
@@ -378,7 +802,18 @@ export const retrieveMonthsForExport = async (
   range: MonthExportRange = {},
 ): Promise<BudgetMonthWithItems[]> => {
   const client = requireSupabase();
-  const [months, monthItems] = await Promise.all([
+  const [
+    months,
+    monthItems,
+    transactions,
+    scheduleOccurrences,
+    goalRecommendations,
+    goalContributions,
+    monthLifecycles,
+    closeSummaries,
+    monthAdjustments,
+    lifecycleEvents,
+  ] = await Promise.all([
     retrieveAllPages<BudgetMonth>((from, to) => {
       let query = client.from('budget_months').select('*').order('month_start').range(from, to);
       if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
@@ -396,12 +831,90 @@ export const retrieveMonthsForExport = async (
         .order('id')
         .range(from, to),
     ),
+    retrieveAllPages<BudgetTransaction>((from, to) => {
+      let query = client
+        .from('budget_transactions')
+        .select('*')
+        .order('transaction_date')
+        .order('created_at')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('transaction_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('transaction_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
+    retrieveAllPages<PaymentScheduleOccurrence>((from, to) => {
+      let query = client
+        .from('payment_schedule_occurrences')
+        .select('*')
+        .order('due_date')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('due_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('due_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
+    retrieveAllPages<GoalMonthRecommendation>((from, to) =>
+      client
+        .from('goal_month_recommendations')
+        .select('*')
+        .order('priority')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<GoalContribution>((from, to) =>
+      client
+        .from('goal_contributions')
+        .select('*')
+        .order('contribution_date')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<BudgetMonthLifecycle>((from, to) =>
+      client.from('budget_month_lifecycle').select('*').order('updated_at').range(from, to),
+    ),
+    retrieveAllPages<MonthCloseSummary>((from, to) =>
+      client
+        .from('month_close_summaries')
+        .select('*')
+        .order('close_sequence', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(from, to),
+    ),
+    retrieveAllPages<MonthAdjustment>((from, to) =>
+      client.from('month_adjustments').select('*').order('created_at').range(from, to),
+    ),
+    retrieveAllPages<MonthLifecycleEvent>((from, to) =>
+      client.from('month_lifecycle_events').select('*').order('created_at').range(from, to),
+    ),
   ]);
   if (!months.length) return [];
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
+  const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
+  const occurrencesByMonth = groupRecordsBy(scheduleOccurrences, (entry) => entry.budget_month_id);
+  const goalsByMonth = groupRecordsBy(goalRecommendations, (entry) => entry.budget_month_id);
+  const goalContributionsByMonth = groupRecordsBy(
+    goalContributions,
+    (entry) => entry.budget_month_id,
+  );
+  const lifecycleByMonth = new Map(monthLifecycles.map((entry) => [entry.budget_month_id, entry]));
+  const summariesByMonth = groupRecordsBy(closeSummaries, (entry) => entry.budget_month_id);
+  const adjustmentsByMonth = groupRecordsBy(
+    monthAdjustments,
+    (entry) => entry.original_budget_month_id,
+  );
+  const eventsByMonth = groupRecordsBy(lifecycleEvents, (entry) => entry.budget_month_id);
   return months.map((month) => ({
     ...month,
     budget_month_items: itemsByMonth.get(month.id) ?? [],
+    budget_transactions: transactionsByMonth.get(month.id) ?? [],
+    payment_schedule_occurrences: occurrencesByMonth.get(month.id) ?? [],
+    goal_month_recommendations: goalsByMonth.get(month.id) ?? [],
+    goal_contributions: goalContributionsByMonth.get(month.id) ?? [],
+    lifecycle: lifecycleByMonth.get(month.id) ?? null,
+    close_summaries: summariesByMonth.get(month.id) ?? [],
+    adjustments: adjustmentsByMonth.get(month.id) ?? [],
+    lifecycle_events: eventsByMonth.get(month.id) ?? [],
   }));
 };
 
@@ -459,55 +972,850 @@ export const createMonthItem = async (input: {
   return data[0];
 };
 
+export const searchFinancialAccounts = async (
+  includeArchived = false,
+): Promise<FinancialAccountWithBalance[]> => {
+  const { data, error } = await requireSupabase().rpc('retrieve_financial_accounts', {
+    requested_include_archived: includeArchived,
+  });
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const createFinancialAccount = async (input: {
+  name: string;
+  accountType: FinancialAccountType;
+  currencyCode: string;
+  openingBalanceMinor: number;
+}): Promise<FinancialAccount> => {
+  const { data, error } = await requireSupabase().rpc('create_financial_account', {
+    requested_name: input.name,
+    requested_account_type: input.accountType,
+    requested_currency_code: input.currencyCode,
+    requested_opening_balance_minor: input.openingBalanceMinor,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The account could not be created.');
+  return data[0];
+};
+
+export const updateFinancialAccount = async (
+  account: FinancialAccount,
+  archived: boolean,
+): Promise<FinancialAccount> => {
+  const { data, error } = await requireSupabase().rpc('update_financial_account', {
+    requested_account_id: account.id,
+    requested_name: account.name,
+    requested_account_type: account.account_type,
+    requested_currency_code: account.currency_code,
+    requested_opening_balance_minor: account.opening_balance_minor,
+    requested_archived: archived,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The account could not be updated.');
+  return data[0];
+};
+
+export interface BudgetTransactionInput {
+  budgetMonthId: string;
+  transactionDate: string;
+  description: string;
+  amountMinor: number;
+  transactionType: ItemType;
+  isRefund: boolean;
+  accountId: string | null;
+  budgetMonthItemId: string | null;
+  categoryId: string | null;
+  notes: string;
+  status: TransactionStatus;
+}
+
+const transactionRpcArguments = (input: BudgetTransactionInput) => ({
+  requested_budget_month_id: input.budgetMonthId,
+  requested_transaction_date: input.transactionDate,
+  requested_description: input.description,
+  requested_amount_minor: input.amountMinor,
+  requested_transaction_type: input.transactionType,
+  requested_is_refund: input.isRefund,
+  requested_account_id: input.accountId,
+  requested_budget_month_item_id: input.budgetMonthItemId,
+  requested_category_id: input.categoryId,
+  requested_notes: input.notes,
+  requested_status: input.status,
+});
+
+export const createBudgetTransaction = async (
+  input: BudgetTransactionInput,
+): Promise<BudgetTransaction> => {
+  const { data, error } = await requireSupabase().rpc(
+    'create_budget_transaction',
+    transactionRpcArguments(input),
+  );
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The transaction could not be created.');
+  return data[0];
+};
+
+export const updateBudgetTransaction = async (
+  id: string,
+  input: BudgetTransactionInput,
+): Promise<BudgetTransaction> => {
+  const { data, error } = await requireSupabase().rpc('update_budget_transaction', {
+    requested_transaction_id: id,
+    ...transactionRpcArguments(input),
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The transaction could not be updated.');
+  return data[0];
+};
+
+export const deleteBudgetTransaction = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('delete_budget_transaction', {
+    requested_transaction_id: id,
+  });
+  throwWhenError(error);
+};
+
+export const searchBudgetTransactions = async (
+  page: number,
+): Promise<{ records: BudgetTransaction[]; total: number }> => {
+  const from = page * TRANSACTION_PAGE_SIZE;
+  const { data, error, count } = await requireSupabase()
+    .from('budget_transactions')
+    .select('*', { count: 'exact' })
+    .order('transaction_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id')
+    .range(from, from + TRANSACTION_PAGE_SIZE - 1);
+  throwWhenError(error);
+  return { records: data ?? [], total: count ?? 0 };
+};
+
+export type TransactionImportInput = {
+  budgetMonthId: string;
+  accountId: string | null;
+  fileName: string;
+  batchKey: string;
+  mappingMetadata: Record<string, unknown>;
+  rows: Array<{
+    transaction_date: string;
+    description: string;
+    amount_minor: number;
+    transaction_type: ItemType;
+    external_reference: string | null;
+    external_fingerprint: string;
+  }>;
+  invalidCount: number;
+  excludedCount: number;
+};
+
+export const searchExistingTransactionFingerprints = async (
+  fingerprints: string[],
+): Promise<Set<string>> => {
+  const matches = new Set<string>();
+  const chunks = Array.from({ length: Math.ceil(fingerprints.length / 75) }, (_, index) =>
+    fingerprints.slice(index * 75, index * 75 + 75),
+  );
+  for (let index = 0; index < chunks.length; index += 4) {
+    const pages = await Promise.all(
+      chunks
+        .slice(index, index + 4)
+        .map((chunk) =>
+          requireSupabase()
+            .from('budget_transactions')
+            .select('external_fingerprint')
+            .eq('source', 'csv_import')
+            .in('external_fingerprint', chunk),
+        ),
+    );
+    pages.forEach(({ data, error }) => {
+      throwWhenError(error);
+      data?.forEach((entry) => {
+        if (entry.external_fingerprint) matches.add(entry.external_fingerprint);
+      });
+    });
+  }
+  return matches;
+};
+
+export const importBudgetTransactions = async (input: TransactionImportInput) => {
+  const { data, error } = await requireSupabase().rpc('import_budget_transactions_with_rules', {
+    requested_budget_month_id: input.budgetMonthId,
+    requested_account_id: input.accountId,
+    requested_file_name: input.fileName,
+    requested_batch_key: input.batchKey,
+    requested_mapping_metadata: input.mappingMetadata,
+    requested_rows: input.rows,
+    requested_invalid_count: input.invalidCount,
+    requested_excluded_count: input.excludedCount,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The CSV transactions could not be imported.');
+  return data[0];
+};
+
+export const searchTransactionImportBatches = async (): Promise<TransactionImportBatch[]> => {
+  const { data, error } = await requireSupabase()
+    .from('transaction_import_batches')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const undoTransactionImportBatch = async (
+  batchId: string,
+): Promise<TransactionImportBatch> => {
+  const { data, error } = await requireSupabase().rpc('undo_transaction_import_batch', {
+    requested_batch_id: batchId,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The CSV import could not be undone.');
+  return data[0];
+};
+
+export const searchCategorisationRules = async (): Promise<CategorisationRule[]> => {
+  const { data, error } = await requireSupabase()
+    .from('transaction_categorisation_rules')
+    .select('*')
+    .order('sort_order')
+    .order('id');
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const upsertCategorisationRule = async (
+  rule: Partial<CategorisationRule>,
+): Promise<CategorisationRule> => {
+  const requestedRule = {
+    id: rule.id,
+    name: rule.name,
+    enabled: rule.enabled,
+    description_match: rule.description_match,
+    description_value: rule.description_value,
+    amount_min_minor: rule.amount_min_minor,
+    amount_max_minor: rule.amount_max_minor,
+    transaction_type: rule.transaction_type,
+    date_from: rule.date_from,
+    date_to: rule.date_to,
+    days_of_week: rule.days_of_week,
+    action_category_id: rule.action_category_id,
+    action_budget_item_name: rule.action_budget_item_name,
+    action_description: rule.action_description,
+    action_notes: rule.action_notes,
+    action_recurring_candidate: rule.action_recurring_candidate,
+  };
+  const { data, error } = await requireSupabase().rpc('upsert_categorisation_rule', {
+    requested_rule: requestedRule,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The rule could not be saved.');
+  return data[0];
+};
+
+export const moveCategorisationRule = async (id: string, direction: -1 | 1): Promise<void> => {
+  const { error } = await requireSupabase().rpc('move_categorisation_rule', {
+    requested_rule_id: id,
+    requested_direction: direction,
+  });
+  throwWhenError(error);
+};
+
+export const deleteCategorisationRule = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('delete_categorisation_rule', {
+    requested_rule_id: id,
+  });
+  throwWhenError(error);
+};
+
+export type CategorisationProcessResult = {
+  dry_run: boolean;
+  selected_count: number;
+  changed_count: number;
+  changes: Array<{
+    transaction_id: string;
+    winning_rules: string[];
+    [field: string]: unknown;
+  }>;
+};
+
+export const processCategorisationRules = async (
+  transactionIds: string[],
+  dryRun = true,
+): Promise<CategorisationProcessResult> => {
+  const { data, error } = await requireSupabase().rpc('process_categorisation_rules', {
+    requested_transaction_ids: transactionIds,
+    requested_dry_run: dryRun,
+  });
+  throwWhenError(error);
+  return data as unknown as CategorisationProcessResult;
+};
+
+export const retrieveCategorisationSuggestions = async (): Promise<
+  CategorisationRuleSuggestion[]
+> => {
+  const { data, error } = await requireSupabase().rpc('retrieve_categorisation_suggestions', {});
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const dismissCategorisationSuggestion = async (
+  suggestion: CategorisationRuleSuggestion,
+): Promise<void> => {
+  const { error } = await requireSupabase().rpc('dismiss_categorisation_suggestion', {
+    requested_description: suggestion.normalized_description,
+    requested_transaction_type: suggestion.transaction_type,
+    requested_category_id: suggestion.category_id,
+    requested_budget_item_name: suggestion.budget_item_name,
+  });
+  throwWhenError(error);
+};
+
+export type PaymentScheduleInput = Pick<
+  PaymentSchedule,
+  | 'name'
+  | 'item_type'
+  | 'amount_minor'
+  | 'amount_is_approximate'
+  | 'start_date'
+  | 'end_date'
+  | 'recurrence'
+  | 'selected_days'
+  | 'timezone'
+  | 'enabled'
+  | 'template_id'
+  | 'template_item_id'
+  | 'category_id'
+  | 'notes'
+>;
+
+export const searchPaymentSchedules = async (): Promise<PaymentSchedule[]> => {
+  const { data, error } = await requireSupabase()
+    .from('payment_schedules')
+    .select('*')
+    .order('enabled', { ascending: false })
+    .order('next_occurrence', { nullsFirst: false })
+    .order('id');
+  throwWhenError(error);
+  return data ?? [];
+};
+
+export const searchPaymentScheduleOccurrences = async (
+  fromDate: string,
+  toDate: string,
+): Promise<PaymentScheduleOccurrence[]> => {
+  const client = requireSupabase();
+  return retrieveAllPages<PaymentScheduleOccurrence>((from, to) =>
+    client
+      .from('payment_schedule_occurrences')
+      .select('*')
+      .gte('due_date', fromDate)
+      .lte('due_date', toDate)
+      .order('due_date')
+      .order('id')
+      .range(from, to),
+  );
+};
+
+export const createPaymentSchedule = async (
+  input: PaymentScheduleInput,
+): Promise<PaymentSchedule> => {
+  const { data, error } = await requireSupabase().rpc('create_payment_schedule', {
+    requested_schedule: input,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The payment schedule could not be created.');
+  return data[0];
+};
+
+export const updatePaymentSchedule = async (
+  id: string,
+  input: PaymentScheduleInput,
+): Promise<PaymentSchedule> => {
+  const { data, error } = await requireSupabase().rpc('update_payment_schedule', {
+    requested_schedule_id: id,
+    requested_schedule: input,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The payment schedule could not be updated.');
+  return data[0];
+};
+
+export const confirmPaymentOccurrence = async (
+  id: string,
+  status: PaymentScheduleOccurrence['status'],
+  transactionId: string | null = null,
+): Promise<PaymentScheduleOccurrence> => {
+  const { data, error } = await requireSupabase().rpc('confirm_payment_occurrence', {
+    requested_occurrence_id: id,
+    requested_status: status,
+    requested_transaction_id: transactionId,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The scheduled payment could not be updated.');
+  return data[0];
+};
+
+export interface FinancialGoalInput {
+  name: string;
+  goal_type: FinancialGoalType;
+  target_amount_minor: number;
+  target_date: string | null;
+  starting_balance_minor: number;
+  desired_monthly_contribution_minor: number | null;
+  priority: number;
+  status: FinancialGoalStatus;
+  category_id: string | null;
+  account_id: string | null;
+}
+
+export const searchFinancialGoals = async (
+  includeArchived = false,
+): Promise<FinancialGoalWithContributions[]> => {
+  const client = requireSupabase();
+  let query = client
+    .from('financial_goals')
+    .select('*')
+    .order('priority')
+    .order('target_date', { nullsFirst: false })
+    .order('id');
+  if (!includeArchived) query = query.neq('status', 'archived');
+  const [{ data: goals, error }, contributions] = await Promise.all([
+    query,
+    retrieveAllPages<GoalContribution>((from, to) =>
+      client
+        .from('goal_contributions')
+        .select('*')
+        .order('contribution_date', { ascending: false })
+        .order('id')
+        .range(from, to),
+    ),
+  ]);
+  throwWhenError(error);
+  const byGoal = groupRecordsBy(contributions, (entry) => entry.goal_id);
+  return (goals ?? []).map((goal) => ({
+    ...goal,
+    goal_contributions: byGoal.get(goal.id) ?? [],
+  }));
+};
+
+export const searchGoalRecommendations = async (
+  monthId: string,
+): Promise<GoalMonthRecommendation[]> => retrieveMonthGoalRecommendations(monthId);
+
+export const createFinancialGoal = async (input: FinancialGoalInput): Promise<FinancialGoal> => {
+  const { data, error } = await requireSupabase().rpc('create_financial_goal', {
+    requested_goal: { ...input },
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The goal could not be created.');
+  return data[0];
+};
+
+export const updateFinancialGoal = async (
+  id: string,
+  input: FinancialGoalInput,
+): Promise<FinancialGoal> => {
+  const { data, error } = await requireSupabase().rpc('update_financial_goal', {
+    requested_goal_id: id,
+    requested_goal: { ...input },
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The goal could not be updated.');
+  return data[0];
+};
+
+export const createGoalContribution = async (input: {
+  goalId: string;
+  budgetMonthId: string;
+  transactionId: string | null;
+  contributionDate: string;
+  amountMinor: number;
+  notes: string;
+}): Promise<GoalContribution> => {
+  const { data, error } = await requireSupabase().rpc('create_goal_contribution', {
+    requested_goal_id: input.goalId,
+    requested_budget_month_id: input.budgetMonthId,
+    requested_transaction_id: input.transactionId,
+    requested_contribution_date: input.contributionDate,
+    requested_amount_minor: input.amountMinor,
+    requested_notes: input.notes,
+  });
+  throwWhenError(error);
+  if (!data?.[0]) throw new Error('The contribution could not be recorded.');
+  return data[0];
+};
+
+export const deleteGoalContribution = async (id: string): Promise<void> => {
+  const { error } = await requireSupabase().rpc('delete_goal_contribution', {
+    requested_contribution_id: id,
+  });
+  throwWhenError(error);
+};
+
 export const exportAllData = async (range: MonthExportRange = {}) => {
   const client = requireSupabase();
-  const [profile, preferences, categories, templates, templateItems, budgetMonths] =
-    await Promise.all([
-      retrieveProfile(),
-      retrievePreferences(),
-      retrieveAllPages<Category>((from, to) =>
-        client.from('categories').select('*').order('created_at').order('id').range(from, to),
-      ),
-      retrieveAllPages<BudgetTemplate>((from, to) =>
-        client.from('budget_templates').select('*').order('created_at').order('id').range(from, to),
-      ),
-      retrieveAllPages<TemplateItem>((from, to) =>
-        client.from('template_items').select('*').order('created_at').order('id').range(from, to),
-      ),
-      retrieveAllPages<BudgetMonth>((from, to) => {
-        let query = client.from('budget_months').select('*').order('month_start').range(from, to);
-        if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
-        if (range.toMonth) query = query.lte('month_start', range.toMonth);
-        return query;
-      }),
-    ]);
+  const [
+    profile,
+    preferences,
+    categories,
+    templates,
+    templateItems,
+    budgetMonths,
+    financialAccounts,
+    transactions,
+    transactionImportBatches,
+    categorisationRules,
+    categorisationSuggestionDismissals,
+    paymentSchedules,
+    paymentScheduleOccurrences,
+    financialGoals,
+    goalContributions,
+    goalRecommendations,
+    weeklyCheckInPreferences,
+    monthLifecycles,
+    closeSummaries,
+    monthAdjustments,
+    lifecycleEvents,
+  ] = await Promise.all([
+    retrieveProfile(),
+    retrievePreferences(),
+    retrieveAllPages<Category>((from, to) =>
+      client.from('categories').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<BudgetTemplate>((from, to) =>
+      client.from('budget_templates').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<TemplateItem>((from, to) =>
+      client.from('template_items').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<BudgetMonth>((from, to) => {
+      let query = client.from('budget_months').select('*').order('month_start').range(from, to);
+      if (range.fromMonth) query = query.gte('month_start', range.fromMonth);
+      if (range.toMonth) query = query.lte('month_start', range.toMonth);
+      return query;
+    }),
+    retrieveAllPages<FinancialAccount>((from, to) =>
+      client.from('financial_accounts').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<BudgetTransaction>((from, to) => {
+      let query = client
+        .from('budget_transactions')
+        .select('*')
+        .order('transaction_date')
+        .order('created_at')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('transaction_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('transaction_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
+    retrieveAllPages<TransactionImportBatch>((from, to) =>
+      client
+        .from('transaction_import_batches')
+        .select('*')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<CategorisationRule>((from, to) =>
+      client
+        .from('transaction_categorisation_rules')
+        .select('*')
+        .order('sort_order')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<{
+      user_id: string;
+      normalized_description: string;
+      transaction_type: string;
+      category_id: string | null;
+      budget_item_name: string | null;
+      dismissed_at: string;
+    }>((from, to) =>
+      client
+        .from('categorisation_suggestion_dismissals')
+        .select('*')
+        .order('dismissed_at')
+        .range(from, to),
+    ),
+    retrieveAllPages<PaymentSchedule>((from, to) =>
+      client.from('payment_schedules').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<PaymentScheduleOccurrence>((from, to) => {
+      let query = client
+        .from('payment_schedule_occurrences')
+        .select('*')
+        .order('due_date')
+        .order('id')
+        .range(from, to);
+      if (range.fromMonth) query = query.gte('due_date', range.fromMonth);
+      if (range.toMonth) query = query.lt('due_date', adjacentMonthStart(range.toMonth, 1));
+      return query;
+    }),
+    retrieveAllPages<FinancialGoal>((from, to) =>
+      client.from('financial_goals').select('*').order('created_at').order('id').range(from, to),
+    ),
+    retrieveAllPages<GoalContribution>((from, to) =>
+      client
+        .from('goal_contributions')
+        .select('*')
+        .order('contribution_date')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveAllPages<GoalMonthRecommendation>((from, to) =>
+      client
+        .from('goal_month_recommendations')
+        .select('*')
+        .order('created_at')
+        .order('id')
+        .range(from, to),
+    ),
+    retrieveWeeklyCheckInPreferences(),
+    retrieveAllPages<BudgetMonthLifecycle>((from, to) =>
+      client.from('budget_month_lifecycle').select('*').order('updated_at').range(from, to),
+    ),
+    retrieveAllPages<MonthCloseSummary>((from, to) =>
+      client
+        .from('month_close_summaries')
+        .select('*')
+        .order('close_sequence', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(from, to),
+    ),
+    retrieveAllPages<MonthAdjustment>((from, to) =>
+      client.from('month_adjustments').select('*').order('created_at').range(from, to),
+    ),
+    retrieveAllPages<MonthLifecycleEvent>((from, to) =>
+      client.from('month_lifecycle_events').select('*').order('created_at').range(from, to),
+    ),
+  ]);
   const monthItems = await retrieveAllPages<BudgetMonthItem>((from, to) =>
     client.from('budget_month_items').select('*').order('created_at').order('id').range(from, to),
   );
   const itemsByTemplate = groupRecordsBy(templateItems, (item) => item.template_id);
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
-  return {
+  const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
+  const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
+  return removePortableOwnership({
     exported_at: new Date().toISOString(),
-    schema_version: 2,
+    schema_version: 11,
     range: {
       from_month: range.fromMonth ?? null,
       to_month: range.toMonth ?? null,
     },
     profile,
     preferences,
+    weekly_checkin_preferences: weeklyCheckInPreferences,
+    budget_month_lifecycle: monthLifecycles.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
+    month_close_summaries: closeSummaries.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
+    month_adjustments: monthAdjustments.filter((entry) =>
+      exportedMonthIds.has(entry.original_budget_month_id),
+    ),
+    month_lifecycle_events: lifecycleEvents.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
     categories,
+    financial_accounts: financialAccounts,
+    transaction_import_batches: transactionImportBatches.filter((batch) =>
+      exportedMonthIds.has(batch.budget_month_id),
+    ),
+    transaction_categorisation_rules: categorisationRules,
+    categorisation_suggestion_dismissals: categorisationSuggestionDismissals,
+    payment_schedules: paymentSchedules,
+    payment_schedule_occurrences: paymentScheduleOccurrences.filter((occurrence) =>
+      exportedMonthIds.has(occurrence.budget_month_id),
+    ),
+    financial_goals: financialGoals,
+    goal_contributions: goalContributions.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
+    goal_month_recommendations: goalRecommendations.filter((entry) =>
+      exportedMonthIds.has(entry.budget_month_id),
+    ),
     templates: templates.map((template) => ({
       ...template,
       template_items: itemsByTemplate.get(template.id) ?? [],
     })),
-    budget_months: budgetMonths.map((month) => ({
-      ...month,
-      budget_month_items: itemsByMonth.get(month.id) ?? [],
-    })),
-  };
+    budget_months: budgetMonths.map((month) => {
+      const budgetMonthItems = itemsByMonth.get(month.id) ?? [];
+      const budgetTransactions = transactionsByMonth.get(month.id) ?? [];
+      return {
+        ...month,
+        budget_month_items: budgetMonthItems,
+        budget_transactions: budgetTransactions,
+        planned_versus_actual: calculateBudgetProgress(budgetMonthItems, budgetTransactions),
+      };
+    }),
+  });
+};
+
+export interface BackupRestoreReport {
+  restore_id: string;
+  mode: 'merge' | 'replace';
+  status: 'completed';
+  recovery_snapshot_id: string | null;
+  inserted: Record<string, number>;
+  matched: Record<string, number>;
+  skipped: Record<string, number>;
+  failed: Record<string, number>;
+  warnings: string[];
+  completed_at: string;
+}
+
+export const reauthenticateForRestore = async (password: string): Promise<void> => {
+  const client = requireSupabase();
+  const { data: userData, error: userError } = await client.auth.getUser();
+  throwWhenError(userError);
+  if (!userData.user?.email)
+    throw new Error('Password re-authentication is unavailable for this account.');
+  const { error } = await client.auth.signInWithPassword({
+    email: userData.user.email,
+    password,
+  });
+  throwWhenError(error);
+};
+
+export const restoreBackup = async (input: {
+  payload: Record<string, unknown>;
+  mode: 'merge' | 'replace';
+  fingerprint: string;
+  confirmation: string;
+}): Promise<BackupRestoreReport> => {
+  const { data, error } = await requireSupabase().rpc('restore_backup', {
+    requested_payload: input.payload,
+    requested_mode: input.mode,
+    requested_fingerprint: input.fingerprint,
+    requested_confirmation: input.confirmation,
+  });
+  throwWhenError(error);
+  if (!data) throw new Error('The restore did not return a report.');
+  return data;
 };
 
 export const requestAccountDeletion = async (): Promise<void> => {
   const { error } = await requireSupabase().rpc('delete_own_account');
   throwWhenError(error);
+};
+
+export type CreatedSharedReport = { id: string; token: string; expiresAt: string };
+
+const invokeSharedReport = async <T>(body: Record<string, unknown>): Promise<T> => {
+  const response = (await requireSupabase().functions.invoke('share-report', { body })) as {
+    data: unknown;
+    error: { message: string } | null;
+  };
+  throwWhenError(response.error);
+  const data = response.data;
+  if (!data || typeof data !== 'object' || 'error' in data)
+    throw new Error('The shared report request could not be completed.');
+  return data as T;
+};
+
+export const createSharedReport = async (input: {
+  snapshot: Record<string, unknown>;
+  expiryHours: number;
+  maxViews: number | null;
+  accessCode: string;
+}): Promise<CreatedSharedReport> => invokeSharedReport({ action: 'create', ...input });
+
+export const retrieveSharedReports = async (): Promise<
+  import('../../shared/types/domain').SharedReportRecord[]
+> => {
+  const result = await invokeSharedReport<{
+    reports: import('../../shared/types/domain').SharedReportRecord[];
+  }>({ action: 'list' });
+  return result.reports;
+};
+
+export const revokeSharedReport = async (id: string): Promise<void> => {
+  await invokeSharedReport({ action: 'revoke', id });
+};
+
+type PublicSharedReportResult =
+  | {
+      snapshot: import('../../features/reports/sharedReport').SharedReportSnapshot;
+      expires_at: string;
+      remaining_views: number | null;
+    }
+  | { accessCodeRequired: true };
+
+const publicShareRequests = new Map<string, Promise<PublicSharedReportResult>>();
+
+export const retrievePublicSharedReport = (token: string, accessCode = '') => {
+  const key = `${token}:${accessCode}`;
+  const existing = publicShareRequests.get(key);
+  if (existing) return existing;
+  const request = invokeSharedReport<PublicSharedReportResult>({
+    action: 'view',
+    token,
+    accessCode,
+  }).finally(() => {
+    publicShareRequests.delete(key);
+  });
+  publicShareRequests.set(key, request);
+  return request;
+};
+
+export type CreatedSharedTemplateLink = { id: string; token: string; expiresAt: string };
+export type SharedTemplateLinkRecord = {
+  id: string;
+  templateId: string;
+  version: number;
+  name: string;
+  includesAmounts: boolean;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+};
+
+export const createSharedTemplateLink = (input: {
+  templateId: string;
+  includeAmounts: boolean;
+  expiryHours: number;
+}): Promise<CreatedSharedTemplateLink> =>
+  invokeSharedReport({ action: 'templateCreate', ...input });
+
+export const retrieveSharedTemplateLinks = async (): Promise<SharedTemplateLinkRecord[]> => {
+  const result = await invokeSharedReport<{ links: SharedTemplateLinkRecord[] }>({
+    action: 'templateList',
+  });
+  return result.links;
+};
+
+export const revokeSharedTemplateLink = async (id: string): Promise<void> => {
+  await invokeSharedReport({ action: 'templateRevoke', id });
+};
+
+export const retrievePublicSharedTemplate = (
+  token: string,
+): Promise<{
+  snapshot: import('../../features/templates/sharedTemplate').SharedTemplateSnapshot;
+  expires_at: string;
+}> => invokeSharedReport({ action: 'templateView', token });
+
+export const copySharedTemplate = async (input: {
+  token: string;
+  copyKey: string;
+  templateName: string;
+  items: Array<{
+    key: string;
+    name: string;
+    itemType: ItemType;
+    categoryName: string;
+    amount: string;
+  }>;
+}): Promise<string> => {
+  const result = await invokeSharedReport<{ templateId: string }>({
+    action: 'templateCopy',
+    ...input,
+  });
+  return result.templateId;
 };

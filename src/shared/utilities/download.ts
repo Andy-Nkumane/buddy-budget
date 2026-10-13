@@ -1,9 +1,17 @@
-import { calculateTotals, formatMoney, formatMonth } from '../formatting/money';
+import {
+  calculateBudgetProgress,
+  calculateItemProgress,
+  formatMoney,
+  formatMonth,
+} from '../formatting/money';
 import {
   calculateReportTotalsByCurrency,
+  calculateAdjustedActuals,
+  formatGoalPriority,
   formatSignedReportAmount,
+  formatSignedTransactionAmount,
 } from '../reporting/budgetReport';
-import type { BudgetMonthWithItems, Profile } from '../types/domain';
+import type { BudgetInsights, BudgetMonthWithItems, Profile } from '../types/domain';
 
 const saveBlob = (filename: string, type: string, content: string): void => {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -27,21 +35,214 @@ export const escapeCsv = (value: string | number): string => {
   return `"${safeValue.replace(/"/g, '""')}"`;
 };
 
-export const downloadMonthsCsv = (months: BudgetMonthWithItems[], filenameRange: string): void => {
+export const downloadMonthsCsv = (
+  months: BudgetMonthWithItems[],
+  filenameRange: string,
+  includeForecast = false,
+): void => {
   const rows = [
-    ['month', 'currency', 'type', 'name', 'category', 'amount', 'status', 'recurring'],
-    ...months.flatMap((month) =>
-      month.budget_month_items.map((item) => [
-        month.month_start,
-        month.currency_code,
-        item.item_type,
-        item.name_snapshot,
-        item.category_snapshot ?? '',
-        item.amount,
-        item.is_disabled ? 'paused' : 'active',
-        item.source_template_item_id ? 'yes' : 'no',
-      ]),
-    ),
+    [
+      'record_type',
+      'month',
+      'currency',
+      'type',
+      'name',
+      'category',
+      'budget_item',
+      'planned_amount',
+      'actual_amount',
+      'variance',
+      'remaining',
+      'transaction_date',
+      'status',
+      'source',
+      'refund_or_reversal',
+      'external_reference',
+      'import_batch_id',
+    ],
+    ...months.flatMap((month) => {
+      const summary = calculateBudgetProgress(month.budget_month_items, month.budget_transactions);
+      return [
+        [
+          'month_summary',
+          month.month_start,
+          month.currency_code,
+          'income',
+          'Month income summary',
+          '',
+          '',
+          summary.planned.income.toFixed(2),
+          summary.actual.income.toFixed(2),
+          summary.incomeVariance.toFixed(2),
+          summary.incomeRemaining.toFixed(2),
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+        ],
+        [
+          'month_summary',
+          month.month_start,
+          month.currency_code,
+          'expense',
+          'Month expense summary',
+          '',
+          '',
+          summary.planned.expenses.toFixed(2),
+          summary.actual.expenses.toFixed(2),
+          summary.expenseVariance.toFixed(2),
+          summary.expenseRemaining.toFixed(2),
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+        ],
+        ...month.budget_month_items.map((item) => {
+          const progress = calculateItemProgress(item, month.budget_transactions);
+          return [
+            'budget_item',
+            month.month_start,
+            month.currency_code,
+            item.item_type,
+            item.name_snapshot,
+            item.category_snapshot ?? '',
+            item.name_snapshot,
+            progress.planned.toFixed(2),
+            progress.actual.toFixed(2),
+            progress.variance.toFixed(2),
+            progress.remaining.toFixed(2),
+            '',
+            item.is_disabled ? 'paused' : 'active',
+            item.source_template_item_id ? 'recurring' : 'one-off',
+            '',
+            '',
+            '',
+          ];
+        }),
+        ...month.budget_transactions.map((transaction) => [
+          'transaction',
+          month.month_start,
+          month.currency_code,
+          transaction.transaction_type,
+          transaction.external_reference
+            ? `${transaction.description} · ${transaction.external_reference}`
+            : transaction.description,
+          transaction.category_snapshot ?? '',
+          transaction.budget_item_snapshot ?? '',
+          '',
+          (transaction.amount_minor / 100).toFixed(2),
+          '',
+          '',
+          transaction.transaction_date,
+          transaction.status,
+          transaction.source,
+          transaction.is_refund ? 'yes' : 'no',
+          transaction.external_reference ?? '',
+          transaction.import_batch_id ?? '',
+        ]),
+        ...(month.close_summaries ?? []).map((summary) => [
+          'month_close_summary',
+          month.month_start,
+          month.currency_code,
+          'snapshot',
+          `Immutable close snapshot ${summary.close_sequence}`,
+          '',
+          '',
+          (summary.planned_income_minor / 100).toFixed(2),
+          (summary.actual_income_minor / 100).toFixed(2),
+          (summary.income_variance_minor / 100).toFixed(2),
+          (summary.actual_balance_minor / 100).toFixed(2),
+          summary.completed_at,
+          'closed',
+          'immutable close summary',
+          '',
+          '',
+          summary.id,
+        ]),
+        ...(month.adjustments ?? []).map((adjustment) => [
+          'historical_adjustment',
+          month.month_start,
+          month.currency_code,
+          adjustment.item_type,
+          adjustment.reason,
+          '',
+          '',
+          '',
+          `${adjustment.direction === 'increase' ? '' : '-'}${(adjustment.amount_minor / 100).toFixed(2)}`,
+          '',
+          '',
+          adjustment.created_at,
+          adjustment.direction,
+          'subsequent adjustment; original unchanged',
+          '',
+          '',
+          adjustment.id,
+        ]),
+        ...(month.goal_month_recommendations ?? []).map((recommendation) => [
+          'goal_contribution_plan',
+          month.month_start,
+          month.currency_code,
+          recommendation.goal_type,
+          recommendation.name_snapshot,
+          '',
+          '',
+          (recommendation.recommended_amount_minor / 100).toFixed(2),
+          '',
+          '',
+          '',
+          '',
+          `recommended · ${formatGoalPriority(recommendation.priority)} priority`,
+          'goal',
+          '',
+          '',
+          recommendation.goal_id,
+        ]),
+        ...(month.goal_contributions ?? []).map((contribution) => [
+          'goal_contribution',
+          month.month_start,
+          month.currency_code,
+          'transfer',
+          contribution.goal_name_snapshot,
+          '',
+          '',
+          '',
+          (contribution.amount_minor / 100).toFixed(2),
+          '',
+          '',
+          contribution.contribution_date,
+          'recorded',
+          contribution.transaction_id ? 'linked transaction' : 'manual goal contribution',
+          '',
+          contribution.transaction_id ?? '',
+          contribution.goal_id,
+        ]),
+        ...(includeForecast
+          ? (month.payment_schedule_occurrences ?? []).map((occurrence) => [
+              'schedule_occurrence',
+              month.month_start,
+              month.currency_code,
+              occurrence.item_type,
+              occurrence.name_snapshot,
+              '',
+              '',
+              (occurrence.amount_minor / 100).toFixed(2),
+              '',
+              '',
+              '',
+              occurrence.due_date,
+              occurrence.status,
+              occurrence.matched_transaction_id ? 'matched forecast' : 'forecast',
+              '',
+              occurrence.matched_transaction_id ?? '',
+              occurrence.schedule_id,
+            ])
+          : []),
+      ];
+    }),
   ];
   saveBlob(
     `buddybudget-${filenameRange}.csv`,
@@ -59,6 +260,8 @@ export const downloadBudgetReportPdf = async (
   profile: Profile,
   rangeLabel: string,
   filenameRange: string,
+  includeForecast = false,
+  insights: BudgetInsights | null = null,
 ): Promise<void> => {
   const [{ jsPDF }, { autoTable }] = await Promise.all([
     import('jspdf'),
@@ -78,7 +281,7 @@ export const downloadBudgetReportPdf = async (
 
   document.setTextColor(25, 79, 71);
   document.setFontSize(10);
-  document.text('BUDDYBUDGET REPORT', margin, cursorY);
+  document.text('BUDDY BUDGET REPORT', margin, cursorY);
   cursorY += 24;
   document.setTextColor(23, 37, 34);
   document.setFontSize(22);
@@ -96,12 +299,13 @@ export const downloadBudgetReportPdf = async (
   const summaryTotals = calculateReportTotalsByCurrency(months);
   autoTable(document, {
     startY: cursorY,
-    head: [['Currency', 'Income', 'Expenses', 'Remaining']],
+    head: [['Currency', 'Planned income', 'Actual income', 'Planned expenses', 'Actual expenses']],
     body: summaryTotals.map((totals) => [
       totals.currency,
-      formatSignedReportAmount(totals.income, 'income', totals.currency, locale),
-      formatSignedReportAmount(totals.expenses, 'expense', totals.currency, locale),
-      formatMoney(totals.remaining, totals.currency, locale),
+      formatMoney(totals.plannedIncome, totals.currency, locale),
+      formatSignedReportAmount(totals.actualIncome, 'income', totals.currency, locale),
+      formatMoney(totals.plannedExpenses, totals.currency, locale),
+      formatSignedReportAmount(totals.actualExpenses, 'expense', totals.currency, locale),
     ]),
     theme: 'grid',
     headStyles: { fillColor: [25, 79, 71], textColor: [255, 255, 255] },
@@ -109,26 +313,51 @@ export const downloadBudgetReportPdf = async (
     didParseCell: (cell) => {
       if (cell.section !== 'body' || cell.column.index === 0) return;
       cell.cell.styles.fontStyle = 'bold';
-      if (cell.column.index === 1) cell.cell.styles.textColor = incomeColor;
-      if (cell.column.index === 2) cell.cell.styles.textColor = expenseColor;
-      if (cell.column.index === 3) {
-        cell.cell.styles.textColor =
-          summaryTotals[cell.row.index].remaining < 0 ? expenseColor : incomeColor;
-      }
+      if (cell.column.index === 2) cell.cell.styles.textColor = incomeColor;
+      if (cell.column.index === 4) cell.cell.styles.textColor = expenseColor;
     },
   });
   cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+
+  if (insights) {
+    autoTable(document, {
+      startY: cursorY,
+      head: [['Insight month', 'Currency', 'Expense variance', 'Savings', 'Savings rate']],
+      body: insights.monthly.map((month) => [
+        formatMonth(month.month_start, locale),
+        month.currency_code,
+        formatMoney(month.expense_variance_minor / 100, month.currency_code, locale),
+        formatMoney(month.savings_minor / 100, month.currency_code, locale),
+        month.savings_rate_basis_points === null
+          ? 'Not available'
+          : `${month.savings_rate_basis_points / 100}%`,
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [36, 103, 93], textColor: [255, 255, 255] },
+      styles: { fontSize: 8.5, cellPadding: 5 },
+    });
+    cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+  }
 
   months.forEach((month) => {
     if (cursorY > pageHeight - 160) {
       document.addPage();
       cursorY = 44;
     }
-    const totals = calculateTotals(month.budget_month_items);
+    const progress = calculateBudgetProgress(month.budget_month_items, month.budget_transactions);
+    const adjusted = calculateAdjustedActuals(month);
     document.setTextColor(23, 37, 34);
     document.setFontSize(15);
     document.text(formatMonth(month.month_start, locale), margin, cursorY);
     cursorY += 16;
+    document.setFontSize(8.5);
+    document.setTextColor(...bodyColor);
+    document.text(
+      `Report state: ${month.lifecycle?.state ?? 'open'}${month.close_summaries?.[0] ? ` · close snapshot ${month.close_summaries[0].close_sequence}` : ''}`,
+      margin,
+      cursorY,
+    );
+    cursorY += 14;
     document.setFontSize(9);
     let cursorX = margin;
     const drawTotal = (label: string, value: string, color: [number, number, number]) => {
@@ -143,30 +372,34 @@ export const downloadBudgetReportPdf = async (
     };
     drawTotal(
       'Income',
-      formatSignedReportAmount(totals.income, 'income', month.currency_code, locale),
+      `${formatMoney(progress.planned.income, month.currency_code, locale)} planned / ${formatSignedReportAmount(progress.actual.income, 'income', month.currency_code, locale)} actual`,
       incomeColor,
     );
     drawTotal(
       'Expenses',
-      formatSignedReportAmount(totals.expenses, 'expense', month.currency_code, locale),
+      `${formatMoney(progress.planned.expenses, month.currency_code, locale)} planned / ${formatSignedReportAmount(progress.actual.expenses, 'expense', month.currency_code, locale)} actual`,
       expenseColor,
     );
     drawTotal(
-      'Remaining',
-      formatMoney(totals.remaining, month.currency_code, locale),
-      totals.remaining < 0 ? expenseColor : incomeColor,
+      'Available',
+      formatMoney(progress.available, month.currency_code, locale),
+      progress.available < 0 ? expenseColor : incomeColor,
     );
     document.setFont('helvetica', 'normal');
     cursorY += 10;
     autoTable(document, {
       startY: cursorY,
-      head: [['Item', 'Category', 'Status', 'Amount']],
-      body: month.budget_month_items.map((item) => [
-        item.name_snapshot,
-        item.category_snapshot ?? 'Uncategorised',
-        item.is_disabled ? 'Paused' : 'Active',
-        formatSignedReportAmount(Number(item.amount), item.item_type, month.currency_code, locale),
-      ]),
+      head: [['Item', 'Status', 'Planned', 'Actual', 'Remaining']],
+      body: month.budget_month_items.map((item) => {
+        const itemProgress = calculateItemProgress(item, month.budget_transactions);
+        return [
+          `${item.name_snapshot} · ${item.category_snapshot ?? 'Uncategorised'}`,
+          item.is_disabled ? 'Paused' : 'Active',
+          formatMoney(itemProgress.planned, month.currency_code, locale),
+          formatMoney(itemProgress.actual, month.currency_code, locale),
+          formatMoney(itemProgress.remaining, month.currency_code, locale),
+        ];
+      }),
       theme: 'striped',
       headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
       styles: { fontSize: 8.5, cellPadding: 5 },
@@ -181,6 +414,125 @@ export const downloadBudgetReportPdf = async (
       },
     });
     cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    if (month.budget_transactions.length) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Date', 'Transaction', 'Assignment', 'Status', 'Amount']],
+        body: month.budget_transactions.map((transaction) => [
+          transaction.transaction_date,
+          transaction.description,
+          transaction.budget_item_snapshot ?? transaction.category_snapshot ?? 'Unassigned',
+          transaction.is_refund ? `${transaction.status} refund` : transaction.status,
+          formatSignedTransactionAmount(transaction, month.currency_code, locale),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+        columnStyles: { 4: { halign: 'right' } },
+        didParseCell: (cell) => {
+          if (cell.section !== 'body' || cell.column.index !== 4) return;
+          const transaction = month.budget_transactions[cell.row.index];
+          const positiveCashFlow =
+            (transaction.transaction_type === 'income' && !transaction.is_refund) ||
+            (transaction.transaction_type === 'expense' && transaction.is_refund);
+          cell.cell.styles.fontStyle = 'bold';
+          cell.cell.styles.textColor = positiveCashFlow ? incomeColor : expenseColor;
+        },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
+    if ((month.adjustments?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Recorded', 'Subsequent adjustment', 'Change', 'Amount']],
+        body: (month.adjustments ?? []).map((adjustment) => [
+          new Date(adjustment.created_at).toLocaleDateString(locale),
+          adjustment.reason,
+          `${adjustment.direction} ${adjustment.item_type}`,
+          formatSignedReportAmount(
+            (adjustment.direction === 'increase' ? 1 : -1) * (adjustment.amount_minor / 100),
+            adjustment.item_type,
+            month.currency_code,
+            locale,
+          ),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [240, 175, 69], textColor: [23, 37, 34] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 8;
+      document.setFontSize(9);
+      document.setTextColor(...bodyColor);
+      document.text(
+        `Original balance ${formatMoney(adjusted.original.remaining, month.currency_code, locale)} · adjusted interpretation ${formatMoney(adjusted.remaining, month.currency_code, locale)}. Original snapshot unchanged.`,
+        margin,
+        cursorY,
+      );
+      cursorY += 24;
+    }
+    if (includeForecast && (month.payment_schedule_occurrences?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Due', 'Forecast item', 'State', 'Amount']],
+        body: (month.payment_schedule_occurrences ?? []).map((occurrence) => [
+          occurrence.due_date,
+          `${occurrence.name_snapshot}${occurrence.amount_is_approximate ? ' (approx.)' : ''}`,
+          occurrence.matched_transaction_id ? `${occurrence.status} · matched` : occurrence.status,
+          formatSignedReportAmount(
+            occurrence.amount_minor / 100,
+            occurrence.item_type,
+            month.currency_code,
+            locale,
+          ),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+        columnStyles: { 3: { halign: 'right' } },
+        didParseCell: (cell) => {
+          if (cell.section !== 'body' || cell.column.index !== 3) return;
+          const occurrence = month.payment_schedule_occurrences?.[cell.row.index];
+          cell.cell.styles.fontStyle = 'bold';
+          cell.cell.styles.textColor =
+            occurrence?.item_type === 'income' ? incomeColor : expenseColor;
+        },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
+    if ((month.goal_month_recommendations?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Goal allocation', 'Type', 'Priority', 'Recommended']],
+        body: (month.goal_month_recommendations ?? []).map((recommendation) => [
+          recommendation.name_snapshot,
+          recommendation.goal_type.replace('_', ' '),
+          formatGoalPriority(recommendation.priority),
+          formatMoney(recommendation.recommended_amount_minor / 100, month.currency_code, locale),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [25, 79, 71], textColor: [255, 255, 255] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
+    if ((month.goal_contributions?.length ?? 0) > 0) {
+      autoTable(document, {
+        startY: cursorY,
+        head: [['Date', 'Goal contribution', 'Link', 'Amount']],
+        body: (month.goal_contributions ?? []).map((contribution) => [
+          contribution.contribution_date,
+          contribution.goal_name_snapshot,
+          contribution.transaction_id ? 'Transaction linked' : 'Manual record',
+          formatMoney(contribution.amount_minor / 100, month.currency_code, locale),
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [229, 239, 236], textColor: [23, 37, 34] },
+        styles: { fontSize: 8.5, cellPadding: 5 },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+      });
+      cursorY = (documentWithTable.lastAutoTable?.finalY ?? cursorY) + 24;
+    }
   });
 
   const pageCount = document.getNumberOfPages();
@@ -189,7 +541,7 @@ export const downloadBudgetReportPdf = async (
     document.setFontSize(8);
     document.setTextColor(109, 125, 121);
     document.text(
-      `Paused items are shown for context but excluded from totals.  Page ${page} of ${pageCount}`,
+      `Paused items are excluded from plans; posted transactions remain actual.  Page ${page} of ${pageCount}`,
       margin,
       pageHeight - 24,
     );

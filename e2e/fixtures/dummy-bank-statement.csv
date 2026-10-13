@@ -1,0 +1,14 @@
+Date,Description,Amount,Reference
+2026-09-01,Monthly salary,15000.00,SALARY-SEP-2026
+2026-09-02,"Coffee, breakfast",-85.50,CARD-1001
+2026-09-03,Supermarket groceries,-1234.56,CARD-1002
+2026-09-04,Electricity,-650.00,DEBIT-2001
+2026-09-05,Internet subscription,-799.00,DEBIT-2002
+2026-09-06,Transport,-320.75,CARD-1003
+2026-09-07,"Restaurant ""The Garden""",-450.00,CARD-1004
+2026-09-08,Savings transfer,-2000.00,TRANSFER-3001
+2026-09-09,Freelance payment,2750.00,INCOME-4001
+2026-09-10,Groceries refund,125.40,REFUND-5001
+2026-09-11,Coffee,-45.00,CARD-1005
+2026-09-11,Coffee,-45.00,CARD-1006
+2026-09-12,Formula reference test,-10.00,"=HYPERLINK(""https://example.invalid"",""Open"")"

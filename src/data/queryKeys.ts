@@ -1,12 +1,48 @@
-const userRoot = (userId: string) => ['user', userId] as const;
+const activeHouseholdScope = () =>
+  typeof window === 'undefined'
+    ? 'unresolved-household'
+    : (window.localStorage.getItem('buddy-budget-active-household') ?? 'unresolved-household');
+
+const userRoot = (userId: string) => ['user', userId, 'household', activeHouseholdScope()] as const;
 
 export const queryKeys = {
+  household: (userId: string) => ['user', userId, 'households'] as const,
   profile: (userId: string) => [...userRoot(userId), 'profile'] as const,
   preferences: (userId: string) => [...userRoot(userId), 'preferences'] as const,
-  categories: (userId: string) => [...userRoot(userId), 'categories'] as const,
+  weeklyCheckInPreferences: (userId: string) =>
+    [...userRoot(userId), 'weekly-check-in-preferences'] as const,
+  notificationDeliveries: (userId: string) =>
+    [...userRoot(userId), 'notification-deliveries'] as const,
+  categoryRoot: (userId: string) => [...userRoot(userId), 'categories'] as const,
+  categories: (userId: string, includeArchived = false) =>
+    [...userRoot(userId), 'categories', includeArchived ? 'all' : 'active'] as const,
   templates: (userId: string) => [...userRoot(userId), 'templates'] as const,
+  starterTemplates: () => ['starter-templates'] as const,
   defaultTemplate: (userId: string) => [...userRoot(userId), 'default-template'] as const,
   months: (userId: string) => [...userRoot(userId), 'months'] as const,
+  accounts: (userId: string) => [...userRoot(userId), 'accounts'] as const,
+  transactions: (userId: string, page: number) =>
+    [...userRoot(userId), 'transactions', page] as const,
+  transactionImports: (userId: string) => [...userRoot(userId), 'transaction-imports'] as const,
+  categorisationRules: (userId: string) => [...userRoot(userId), 'categorisation-rules'] as const,
+  categorisationSuggestions: (userId: string) =>
+    [...userRoot(userId), 'categorisation-rule-suggestions'] as const,
+  schedules: (userId: string) => [...userRoot(userId), 'payment-schedules'] as const,
+  goals: (userId: string, includeArchived = false) =>
+    [...userRoot(userId), 'financial-goals', includeArchived ? 'all' : 'current'] as const,
+  goalRecommendations: (userId: string, monthId: string) =>
+    [...userRoot(userId), 'goal-recommendations', monthId] as const,
+  scheduleOccurrences: (userId: string, fromDate: string, toDate: string) =>
+    [...userRoot(userId), 'payment-schedule-occurrences', fromDate, toDate] as const,
   month: (userId: string, monthStart: string) =>
     [...userRoot(userId), 'month', monthStart] as const,
+  insightsRoot: (userId: string) => [...userRoot(userId), 'insights'] as const,
+  insights: (userId: string, fromMonth: string, toMonth: string, categoryIds: string[]) =>
+    [
+      ...userRoot(userId),
+      'insights',
+      fromMonth,
+      toMonth,
+      categoryIds.length ? categoryIds : 'all',
+    ] as const,
 };

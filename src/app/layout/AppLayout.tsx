@@ -1,20 +1,28 @@
 import {
   BookOpen,
   CalendarDays,
+  CalendarClock,
   CircleDollarSign,
   LayoutTemplate,
+  Landmark,
   LogOut,
   Menu,
+  BellRing,
+  ReceiptText,
   Settings,
   Tags,
+  TrendingUp,
+  Users,
   X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   retrievePreferences,
   retrieveProfile,
+  searchNotificationDeliveries,
+  markNotificationDeliveryRead,
   updateLastLocation,
 } from '../../data/repositories/budgetRepository';
 import { PwaStatus } from '../../pwa/PwaStatus';
@@ -23,13 +31,22 @@ import { Button } from '../../shared/ui/Button';
 import { BrandMark } from '../../shared/ui/BrandMark';
 import { useAuth } from '../providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import type { WeeklyCheckInSummary } from '../../shared/checkins/checkin';
+import { useQueryClient } from '@tanstack/react-query';
+import { useHousehold } from '../providers/HouseholdProvider';
+import { MilestoneNotice } from '../../shared/milestones/MilestoneNotice';
 
 const navigation = [
   { to: '/app/budget/current', label: 'Budget', icon: CircleDollarSign },
+  { to: '/app/transactions', label: 'Transactions', icon: ReceiptText },
+  { to: '/app/goals', label: 'Goals', icon: Landmark },
+  { to: '/app/cash-flow', label: 'Cash flow', icon: CalendarClock },
   { to: '/app/months', label: 'Months', icon: CalendarDays },
+  { to: '/app/insights', label: 'Insights', icon: TrendingUp },
   { to: '/app/templates', label: 'Templates', icon: LayoutTemplate },
   { to: '/app/categories', label: 'Categories', icon: Tags },
   { to: '/app/settings', label: 'Settings', icon: Settings },
+  { to: '/app/household', label: 'Household', icon: Users },
   { to: '/app/help', label: 'How it works', icon: BookOpen },
 ];
 
@@ -50,7 +67,9 @@ const Navigation = ({ close }: { close?: () => void }) => (
 );
 
 export const AppLayout = () => {
+  const queryClient = useQueryClient();
   const { session, signOut } = useAuth();
+  const household = useHousehold();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -60,6 +79,15 @@ export const AppLayout = () => {
     queryFn: retrievePreferences,
   });
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
+  const deliveries = useQuery({
+    queryKey: queryKeys.notificationDeliveries(userId),
+    queryFn: searchNotificationDeliveries,
+  });
+  const unreadCheckIn = deliveries.data?.find(
+    (delivery) =>
+      delivery.channel === 'in_app' && delivery.status === 'delivered' && !delivery.read_at,
+  );
+  const checkInSummary = unreadCheckIn?.summary_payload as WeeklyCheckInSummary | undefined;
   useEnsureCurrentMonth();
   const accountName = profile.data?.display_name?.trim() || session?.user.email || 'Account';
   const handleSignOut = async () => {
@@ -82,7 +110,7 @@ export const AppLayout = () => {
   }, [preferences.data?.theme]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-household-role={household.role ?? undefined}>
       <aside className="sidebar">
         <NavLink className="brand" to="/app/budget/current" aria-label="Buddy Budget home">
           <BrandMark />
@@ -91,6 +119,25 @@ export const AppLayout = () => {
             <small>Your month. Under control.</small>
           </span>
         </NavLink>
+        {household.context && household.context.households.length > 0 && (
+          <label className="household-switcher">
+            <span>Household</span>
+            <select
+              value={household.context.active_household_id}
+              onChange={(event) => {
+                void household
+                  .switchHousehold(event.target.value)
+                  .catch((error: Error) => setAccountError(error.message));
+              }}
+            >
+              {household.context.households.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name} ({entry.role})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <Navigation />
         <footer className="sidebar__account">
           <span className="avatar" aria-hidden="true">
@@ -131,6 +178,26 @@ export const AppLayout = () => {
 
       {menuOpen && (
         <div className="mobile-drawer">
+          {household.context && household.context.households.length > 0 && (
+            <label className="household-switcher">
+              <span>Household</span>
+              <select
+                value={household.context.active_household_id}
+                onChange={(event) => {
+                  setMenuOpen(false);
+                  void household
+                    .switchHousehold(event.target.value)
+                    .catch((error: Error) => setAccountError(error.message));
+                }}
+              >
+                {household.context.households.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name} ({entry.role})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <Navigation close={() => setMenuOpen(false)} />
           <Button
             icon={<LogOut aria-hidden="true" size={18} />}
@@ -143,16 +210,58 @@ export const AppLayout = () => {
       )}
 
       <main className="app-main" id="main-content">
+        {household.role === 'viewer' && (
+          <aside className="inline-alert" role="status">
+            This household is read-only for you. Ask the owner for editor access to make changes.
+          </aside>
+        )}
         {accountError && (
           <div className="inline-alert inline-alert--error" role="alert">
             {accountError}
           </div>
         )}
-        <Outlet />
+        <MilestoneNotice />
+        {unreadCheckIn && checkInSummary?.recommendation && (
+          <aside className="checkin-banner" aria-label="Weekly budget check-in">
+            <BellRing aria-hidden="true" size={22} />
+            <div>
+              <strong>{checkInSummary.recommendation.title}</strong>
+              <p>{checkInSummary.recommendation.body}</p>
+            </div>
+            <Link className="button button--secondary" to={unreadCheckIn.action_path}>
+              Review
+            </Link>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Dismiss check-in"
+              onClick={() => {
+                void markNotificationDeliveryRead(unreadCheckIn.id)
+                  .then(() =>
+                    queryClient.invalidateQueries({
+                      queryKey: queryKeys.notificationDeliveries(userId),
+                    }),
+                  )
+                  .catch(() => setAccountError('The check-in could not be dismissed.'));
+              }}
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+          </aside>
+        )}
+        {household.role === 'viewer' &&
+        !location.pathname.startsWith('/app/household') &&
+        !location.pathname.startsWith('/app/insights') ? (
+          <fieldset className="viewer-read-only" disabled aria-label="Read-only household content">
+            <Outlet />
+          </fieldset>
+        ) : (
+          <Outlet />
+        )}
       </main>
 
       <nav className="bottom-nav" aria-label="Mobile navigation">
-        {navigation.slice(0, 4).map(({ to, label, icon: Icon }) => (
+        {navigation.slice(0, 5).map(({ to, label, icon: Icon }) => (
           <NavLink
             className={({ isActive }) =>
               `bottom-nav__link ${isActive ? 'bottom-nav__link--active' : ''}`

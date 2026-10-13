@@ -1,9 +1,201 @@
 export type ItemType = 'income' | 'expense';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
+export type FinancialAccountType = 'cash' | 'checking' | 'savings' | 'credit';
+export type TransactionStatus = 'pending' | 'posted' | 'void';
+export type TransactionSource = 'manual' | 'csv_import';
+export type TransactionImportStatus = 'completed' | 'undone';
+export type RuleDescriptionMatch = 'contains' | 'exact';
+export type ScheduleRecurrence = 'once' | 'weekly' | 'fortnightly' | 'monthly' | 'selected_days';
+export type ScheduleOccurrenceStatus = 'expected' | 'paid' | 'received' | 'skipped' | 'disabled';
+export type FinancialGoalType = 'savings' | 'sinking_fund' | 'debt_paydown';
+export type FinancialGoalStatus = 'active' | 'paused' | 'completed' | 'archived';
+export type CheckInDeliveryChannel = 'in_app' | 'email';
+export type CheckInDeliveryStatus =
+  'queued' | 'processing' | 'delivered' | 'failed' | 'failed_final' | 'skipped';
+export type MonthLifecycleStatus = 'open' | 'closed';
+export type MonthAdjustmentDirection = 'increase' | 'decrease';
+export type HouseholdRole = 'owner' | 'editor' | 'viewer';
+export type AdviserSection = 'summary' | 'categories' | 'transactions' | 'schedules' | 'goals';
+
+export type AdviserGrant = {
+  id: string;
+  householdId: string;
+  householdName: string;
+  adviserEmail: string;
+  dateFrom: string;
+  dateTo: string;
+  sections: AdviserSection[];
+  allowExport: boolean;
+  startsAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+  events: Array<{ action: string; createdAt: string; actor: string }>;
+  isOwner: boolean;
+};
+
+export type AdviserData = {
+  grantId: string;
+  householdId: string;
+  dateFrom: string;
+  dateTo: string;
+  sections: AdviserSection[];
+  allowExport: boolean;
+  expiresAt: string;
+  currencyCode: string;
+  summary?: Array<Record<string, string | number>>;
+  categories?: Array<Record<string, string | number>>;
+  transactions?: Array<Record<string, string | number | null>>;
+  schedules?: Array<Record<string, string | number | boolean | null>>;
+  goals?: Array<Record<string, string | number | null>>;
+};
+
+export type SharedReportRecord = {
+  id: string;
+  rangeLabel: string;
+  expiresAt: string;
+  maxViews: number | null;
+  viewCount: number;
+  lastViewedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+};
+
+export type HouseholdSummary = {
+  id: string;
+  name: string;
+  role: HouseholdRole;
+  created_at: string;
+};
+
+export type HouseholdMember = {
+  user_id: string;
+  display_name: string;
+  role: HouseholdRole;
+  joined_at: string;
+};
+
+export type HouseholdInvitation = {
+  id: string;
+  email: string;
+  role: Exclude<HouseholdRole, 'owner'>;
+  expires_at: string;
+  created_at: string;
+};
+
+export type HouseholdActivity = {
+  id: number;
+  actor_user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+};
+
+export type HouseholdContext = {
+  active_household_id: string;
+  households: HouseholdSummary[];
+  members: HouseholdMember[];
+  invitations: HouseholdInvitation[];
+  activity: HouseholdActivity[];
+};
+
+export type InsightMonthlyMetric = {
+  month_start: string;
+  currency_code: string;
+  planned_income_minor: number;
+  planned_expenses_minor: number;
+  actual_income_minor: number;
+  actual_expenses_minor: number;
+  income_variance_minor: number;
+  expense_variance_minor: number;
+  savings_minor: number;
+  savings_rate_basis_points: number | null;
+  adjustment_income_minor: number;
+  adjustment_expenses_minor: number;
+};
+
+export type InsightCategoryMetric = {
+  category_id: string | null;
+  category_name: string;
+  item_type: ItemType;
+  currency_code: string;
+  planned_minor: number;
+  actual_minor: number;
+  variance_minor: number;
+  average_actual_minor: number;
+  months_with_data: number;
+  overspent_months: number;
+};
+
+export type InsightRecurringChange = {
+  description: string;
+  transaction_type: ItemType;
+  currency_code: string;
+  previous_month: string;
+  current_month: string;
+  previous_amount_minor: number;
+  current_amount_minor: number;
+  change_minor: number;
+};
+
+export type InsightDiscretionaryExpense = {
+  id: string;
+  transaction_date: string;
+  description: string;
+  category_name: string;
+  currency_code: string;
+  amount_minor: number;
+};
+
+export type InsightIncomeStability = {
+  currency_code: string;
+  months_observed: number;
+  months_with_income: number;
+  average_income_minor: number;
+  minimum_income_minor: number;
+  maximum_income_minor: number;
+  range_basis_points: number | null;
+};
+
+export type InsightGoalProgress = {
+  goal_id: string;
+  name: string;
+  goal_type: FinancialGoalType;
+  status: FinancialGoalStatus;
+  priority: number;
+  currency_code: string;
+  target_amount_minor: number;
+  contributed_minor: number;
+  achieved_minor: number;
+  remaining_minor: number;
+  progress_basis_points: number;
+};
+
+export type BudgetInsights = {
+  definitions_version: number;
+  from_month: string;
+  to_month: string;
+  category_id: string | null;
+  month_count: number;
+  currencies: string[];
+  monthly: InsightMonthlyMetric[];
+  categories: InsightCategoryMetric[];
+  recurring_changes: InsightRecurringChange[];
+  largest_discretionary: InsightDiscretionaryExpense[];
+  income_stability: InsightIncomeStability[];
+  goals: InsightGoalProgress[];
+};
 
 export type Profile = {
   user_id: string;
+  active_household_id?: string | null;
   display_name: string | null;
   currency_code: string;
   locale: string;
@@ -37,9 +229,36 @@ export type BudgetTemplate = {
   user_id: string;
   name: string;
   is_default: boolean;
+  starter_template_id: string | null;
+  starter_template_version: number | null;
+  starter_copy_key: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type StarterTemplateItem = {
+  starter_template_id: string;
+  starter_template_version: number;
+  item_key: string;
+  item_type: ItemType;
+  name: string;
+  category_name: string;
+  default_amount: string;
+  sort_order: number;
+};
+
+export type StarterTemplate = {
+  id: string;
+  version: number;
+  name: string;
+  audience: string;
+  description: string;
+  template_name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  items: StarterTemplateItem[];
 };
 
 export type TemplateItem = {
@@ -73,6 +292,56 @@ export type BudgetMonth = {
   updated_at: string;
 };
 
+export type BudgetMonthLifecycle = {
+  budget_month_id: string;
+  user_id: string;
+  state: MonthLifecycleStatus;
+  closed_at: string | null;
+  updated_at: string;
+};
+
+export type MonthCloseSummary = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  close_sequence: number;
+  completed_at: string;
+  planned_income_minor: number;
+  planned_expenses_minor: number;
+  actual_income_minor: number;
+  actual_expenses_minor: number;
+  actual_balance_minor: number;
+  income_variance_minor: number;
+  expense_variance_minor: number;
+  uncategorised_count: number;
+  unmatched_schedule_count: number;
+  incomplete_goal_count: number;
+  created_at: string;
+};
+
+export type MonthAdjustment = {
+  id: string;
+  user_id: string;
+  original_budget_month_id: string;
+  applied_budget_month_id: string;
+  item_type: ItemType;
+  direction: MonthAdjustmentDirection;
+  amount_minor: number;
+  reason: string;
+  idempotency_key: string;
+  created_at: string;
+};
+
+export type MonthLifecycleEvent = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  event_type: 'closed' | 'reopened' | 'adjustment_created';
+  adjustment_id: string | null;
+  event_payload: Record<string, unknown>;
+  created_at: string;
+};
+
 export type BudgetMonthItem = {
   id: string;
   budget_month_id: string;
@@ -91,12 +360,245 @@ export type BudgetMonthItem = {
   updated_at: string;
 };
 
+export type FinancialAccount = {
+  id: string;
+  user_id: string;
+  name: string;
+  account_type: FinancialAccountType;
+  currency_code: string;
+  opening_balance_minor: number;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FinancialAccountWithBalance = FinancialAccount & {
+  balance_minor: number;
+};
+
+export type BudgetTransaction = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  budget_month_item_id: string | null;
+  category_id: string | null;
+  account_id: string | null;
+  transaction_date: string;
+  description: string;
+  amount_minor: number;
+  transaction_type: ItemType;
+  is_refund: boolean;
+  notes: string | null;
+  source: TransactionSource;
+  status: TransactionStatus;
+  external_fingerprint: string | null;
+  external_reference: string | null;
+  import_batch_id: string | null;
+  category_snapshot: string | null;
+  budget_item_snapshot: string | null;
+  is_recurring_candidate: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CategorisationRule = {
+  id: string;
+  user_id: string;
+  name: string;
+  sort_order: number;
+  enabled: boolean;
+  description_match: RuleDescriptionMatch | null;
+  description_value: string | null;
+  amount_min_minor: number | null;
+  amount_max_minor: number | null;
+  transaction_type: ItemType | null;
+  date_from: string | null;
+  date_to: string | null;
+  days_of_week: number[];
+  action_category_id: string | null;
+  action_budget_item_name: string | null;
+  action_description: string | null;
+  action_notes: string | null;
+  action_recurring_candidate: boolean | null;
+  match_count: number;
+  last_matched_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CategorisationRuleSuggestion = {
+  normalized_description: string;
+  transaction_type: ItemType;
+  category_id: string | null;
+  budget_item_name: string | null;
+  occurrence_count: number;
+};
+
+export type PaymentSchedule = {
+  id: string;
+  user_id: string;
+  name: string;
+  item_type: ItemType;
+  amount_minor: number;
+  amount_is_approximate: boolean;
+  start_date: string;
+  end_date: string | null;
+  recurrence: ScheduleRecurrence;
+  selected_days: number[];
+  timezone: string;
+  next_occurrence: string | null;
+  enabled: boolean;
+  template_id: string | null;
+  template_item_id: string | null;
+  category_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PaymentScheduleOccurrence = {
+  id: string;
+  user_id: string;
+  schedule_id: string;
+  budget_month_id: string;
+  budget_month_item_id: string | null;
+  category_id: string | null;
+  due_date: string;
+  name_snapshot: string;
+  item_type: ItemType;
+  amount_minor: number;
+  amount_is_approximate: boolean;
+  status: ScheduleOccurrenceStatus;
+  matched_transaction_id: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FinancialGoal = {
+  id: string;
+  user_id: string;
+  name: string;
+  goal_type: FinancialGoalType;
+  target_amount_minor: number;
+  target_date: string | null;
+  starting_balance_minor: number;
+  desired_monthly_contribution_minor: number | null;
+  priority: number;
+  status: FinancialGoalStatus;
+  category_id: string | null;
+  account_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GoalContribution = {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  budget_month_id: string;
+  transaction_id: string | null;
+  goal_name_snapshot: string;
+  contribution_date: string;
+  amount_minor: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GoalMonthRecommendation = {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  budget_month_id: string;
+  name_snapshot: string;
+  goal_type: FinancialGoalType;
+  recommended_amount_minor: number;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FinancialGoalWithContributions = FinancialGoal & {
+  goal_contributions: GoalContribution[];
+};
+
+export type WeeklyCheckInPreferences = {
+  user_id: string;
+  opted_in: boolean;
+  weekday: number;
+  delivery_time: string;
+  timezone: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  email_detail_enabled: boolean;
+  paused: boolean;
+  email_delivery_state: 'active' | 'bounced' | 'blocked';
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationDelivery = {
+  id: string;
+  user_id: string;
+  channel: CheckInDeliveryChannel;
+  delivery_kind: 'weekly' | 'test';
+  job_key: string;
+  period_start: string;
+  scheduled_for: string;
+  status: CheckInDeliveryStatus;
+  attempt_count: number;
+  last_attempt_at: string | null;
+  delivered_at: string | null;
+  next_attempt_at: string | null;
+  error_code: string | null;
+  error_summary: string | null;
+  provider_message_id: string | null;
+  action_path: string;
+  summary_payload: Record<string, unknown> | null;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TransactionImportBatch = {
+  id: string;
+  user_id: string;
+  budget_month_id: string;
+  account_id: string | null;
+  file_name: string;
+  batch_key: string;
+  mapping_metadata: Record<string, unknown>;
+  total_count: number;
+  accepted_count: number;
+  duplicate_count: number;
+  invalid_count: number;
+  excluded_count: number;
+  status: TransactionImportStatus;
+  created_at: string;
+  updated_at: string;
+  undone_at: string | null;
+};
+
 export type BudgetMonthWithItems = BudgetMonth & {
   budget_month_items: BudgetMonthItem[];
+  budget_transactions: BudgetTransaction[];
+  payment_schedule_occurrences?: PaymentScheduleOccurrence[];
+  goal_month_recommendations?: GoalMonthRecommendation[];
+  goal_contributions?: GoalContribution[];
+  lifecycle?: BudgetMonthLifecycle | null;
+  close_summaries?: MonthCloseSummary[];
+  adjustments?: MonthAdjustment[];
+  lifecycle_events?: MonthLifecycleEvent[];
 };
 
 export type MonthSummary = BudgetMonth & {
   income: number;
   expenses: number;
   remaining: number;
+  actualIncome: number;
+  actualExpenses: number;
+  actualRemaining: number;
+  lifecycleState?: MonthLifecycleStatus;
+  closedAt?: string | null;
 };

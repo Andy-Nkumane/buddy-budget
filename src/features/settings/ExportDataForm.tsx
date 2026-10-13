@@ -2,11 +2,12 @@ import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import {
   exportAllData,
+  retrieveBudgetInsights,
   retrieveMonthsForExport,
   type MonthExportRange,
 } from '../../data/repositories/budgetRepository';
 import { adjacentMonthStart, currentMonthStart, formatMonth } from '../../shared/formatting/money';
-import type { BudgetMonthWithItems, Profile } from '../../shared/types/domain';
+import type { BudgetInsights, BudgetMonthWithItems, Profile } from '../../shared/types/domain';
 import {
   downloadBudgetReportPdf,
   downloadJson,
@@ -16,6 +17,7 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import { BudgetReportPreview } from '../reports/BudgetReportPreview';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 
 type ExportFormat = 'csv' | 'json' | 'pdf';
 type ExportPreset =
@@ -30,6 +32,8 @@ interface ReportPreview {
   months: BudgetMonthWithItems[];
   rangeLabel: string;
   filenameRange: string;
+  includeForecast: boolean;
+  insights: BudgetInsights | null;
 }
 
 const resolveRange = (
@@ -88,6 +92,8 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportPreview, setReportPreview] = useState<ReportPreview | null>(null);
+  const [includeForecast, setIncludeForecast] = useState(false);
+  const [includeInsights, setIncludeInsights] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -112,16 +118,25 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
         const months = await retrieveMonthsForExport(range);
         if (!months.length) throw new Error('There are no budget months in this date range.');
         if (format === 'csv') {
-          downloadMonthsCsv(months, rangeDescription.filename);
+          downloadMonthsCsv(months, rangeDescription.filename, includeForecast);
         } else {
+          const insights = includeInsights
+            ? await retrieveBudgetInsights({
+                fromMonth: range.fromMonth ?? months[0].month_start,
+                toMonth: range.toMonth ?? months.at(-1)?.month_start ?? months[0].month_start,
+              })
+            : null;
           setReportPreview({
             months,
             rangeLabel: rangeDescription.label,
             filenameRange: rangeDescription.filename,
+            includeForecast,
+            insights,
           });
           return;
         }
       }
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
       onComplete();
     } catch (exportError) {
       setError(
@@ -142,7 +157,10 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
         profile,
         reportPreview.rangeLabel,
         reportPreview.filenameRange,
+        reportPreview.includeForecast,
+        reportPreview.insights,
       );
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
       onComplete();
     } catch (exportError) {
       setError(
@@ -160,6 +178,8 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
           months={reportPreview.months}
           profile={profile}
           rangeLabel={reportPreview.rangeLabel}
+          includeForecast={reportPreview.includeForecast}
+          insights={reportPreview.insights}
         />
         {error && (
           <div className="inline-alert inline-alert--error" role="alert">
@@ -231,12 +251,35 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
           />
         </div>
       )}
+      {format !== 'json' && (
+        <fieldset className="check-list">
+          <legend>Optional report sections</legend>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={includeForecast}
+              onChange={(event) => setIncludeForecast(event.target.checked)}
+            />
+            Include payment schedules and forecasts
+          </label>
+          {format === 'pdf' && (
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={includeInsights}
+                onChange={(event) => setIncludeInsights(event.target.checked)}
+              />
+              Include decision insights
+            </label>
+          )}
+        </fieldset>
+      )}
       <p className="export-form__hint">
         {format === 'pdf'
           ? 'Preview the formatted report, then download it directly as a PDF file.'
           : format === 'csv'
-            ? 'CSV includes each item and marks paused items so it can be analysed in a spreadsheet.'
-            : 'JSON includes your profile, preferences, templates, categories, and months in the selected range.'}
+            ? 'CSV includes planned items, actual transactions, assignments, and paused states for spreadsheet analysis.'
+            : 'JSON includes your profile, preferences, accounts, templates, categories, months, and transactions in the selected range.'}
       </p>
       {error && (
         <div className="inline-alert inline-alert--error" role="alert">

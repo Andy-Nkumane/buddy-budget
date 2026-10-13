@@ -3,9 +3,11 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarPlus,
+  CalendarClock,
   CheckCircle2,
   CircleAlert,
   LockKeyhole,
+  Landmark,
   Plus,
   TrendingDown,
   TrendingUp,
@@ -19,12 +21,14 @@ import {
   retrieveMonthByStart,
   retrieveProfile,
   searchCategories,
+  searchPaymentScheduleOccurrences,
   updateLastLocation,
   updateMonthItem,
 } from '../../data/repositories/budgetRepository';
 import {
   adjacentMonthStart,
-  calculateTotals,
+  calculateBudgetProgress,
+  calculateItemProgress,
   currentMonthStart,
   formatMoney,
   formatMonth,
@@ -38,8 +42,10 @@ import { parseMoney } from '../../shared/validation/schemas';
 import { hasActiveBudgetEditors } from '../../pwa/editState';
 import { AddMonthItemForm } from './AddMonthItemForm';
 import { BudgetRow } from './BudgetRow';
+import { MonthClosePanel } from './MonthClosePanel';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import { formatGoalPriority } from '../../shared/reporting/budgetReport';
 
 const validMonth = /^\d{4}-(0[1-9]|1[0-2])-01$/;
 
@@ -53,9 +59,9 @@ export const BudgetPage = () => {
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const current = currentMonthStart(profile.data?.timezone);
   const monthStart = routeMonth === 'current' || !routeMonth ? current : routeMonth;
-  const readOnly = validMonth.test(monthStart) && isMonthReadOnly(monthStart, current);
+  const ageLocked = validMonth.test(monthStart) && isMonthReadOnly(monthStart, current);
   const [addingType, setAddingType] = useState<ItemType | null>(() =>
-    !readOnly && searchParams.get('add') === 'expense' ? 'expense' : null,
+    !ageLocked && searchParams.get('add') === 'expense' ? 'expense' : null,
   );
   const [archivedItem, setArchivedItem] = useState<BudgetMonthItem | null>(null);
   const [archivingItemIds, setArchivingItemIds] = useState<Set<string>>(() => new Set());
@@ -67,17 +73,31 @@ export const BudgetPage = () => {
   const defaultTemplate = useQuery({
     queryKey: queryKeys.defaultTemplate(userId),
     queryFn: retrieveDefaultTemplate,
-    enabled: !readOnly,
+    enabled: !ageLocked,
   });
   const categories = useQuery({
     queryKey: queryKeys.categories(userId),
     queryFn: () => searchCategories(),
-    enabled: !readOnly,
+    enabled: !ageLocked,
   });
   const month = useQuery({
     queryKey: monthKey,
     queryFn: () => retrieveMonthByStart(monthStart),
     enabled: validMonth.test(monthStart) && profile.isSuccess,
+  });
+  const readOnly = ageLocked || month.data?.lifecycle?.state === 'closed';
+  const monthEndDate = new Date(`${adjacentMonthStart(monthStart, 1)}T00:00:00Z`);
+  monthEndDate.setUTCDate(monthEndDate.getUTCDate() - 1);
+  const monthEnd = monthEndDate.toISOString().slice(0, 10);
+  const scheduleOccurrences = useQuery({
+    queryKey: queryKeys.scheduleOccurrences(userId, monthStart, monthEnd),
+    queryFn: () => searchPaymentScheduleOccurrences(monthStart, monthEnd),
+    enabled: validMonth.test(monthStart) && profile.isSuccess,
+  });
+  const currentMonthForAdjustment = useQuery({
+    queryKey: queryKeys.month(userId, current),
+    queryFn: () => retrieveMonthByStart(current),
+    enabled: ageLocked && current !== monthStart,
   });
   const loadedMonthId = month.data?.id;
   const createMonth = useMutation({
@@ -87,7 +107,10 @@ export const BudgetPage = () => {
       if (!defaultTemplate.data) throw new Error('Create a default template first.');
       return createMonthFromTemplate(monthStart, defaultTemplate.data.id);
     },
-    onSuccess: (created) => queryClient.setQueryData(monthKey, created),
+    onSuccess: (created) => {
+      queryClient.setQueryData(monthKey, created);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
+    },
   });
 
   useEffect(() => {
@@ -127,14 +150,21 @@ export const BudgetPage = () => {
   if (
     month.isLoading ||
     profile.isLoading ||
+    scheduleOccurrences.isLoading ||
     (!readOnly && (defaultTemplate.isLoading || categories.isLoading))
   ) {
     return <LoadingState label="Opening your month…" />;
   }
-  if (month.error || profile.error || (!readOnly && (defaultTemplate.error || categories.error))) {
+  if (
+    month.error ||
+    profile.error ||
+    scheduleOccurrences.error ||
+    (!readOnly && (defaultTemplate.error || categories.error))
+  ) {
     const error =
       month.error ??
       profile.error ??
+      scheduleOccurrences.error ??
       (!readOnly ? (defaultTemplate.error ?? categories.error) : null);
     return (
       <ErrorState
@@ -184,7 +214,12 @@ export const BudgetPage = () => {
   const visibleBudgetItems = budgetMonth.budget_month_items.filter(
     (item) => !archivingItemIds.has(item.id),
   );
-  const totals = calculateTotals(visibleBudgetItems);
+  const progress = calculateBudgetProgress(visibleBudgetItems, budgetMonth.budget_transactions);
+  const goalRecommendations = budgetMonth.goal_month_recommendations ?? [];
+  const goalPlanMinor = goalRecommendations.reduce(
+    (total, recommendation) => total + recommendation.recommended_amount_minor,
+    0,
+  );
   const locale = profile.data?.locale ?? 'en-ZA';
   const currency = budgetMonth.currency_code;
   const itemsByType = (type: ItemType) =>
@@ -203,7 +238,10 @@ export const BudgetPage = () => {
         : existing,
     );
   };
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: monthKey });
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: monthKey });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
+  };
   const archive = async (item: BudgetMonthItem) => {
     if (readOnly) return;
     setArchivingItemIds((current) => new Set(current).add(item.id));
@@ -308,7 +346,9 @@ export const BudgetPage = () => {
       {readOnly && (
         <div className="inline-alert" role="status">
           <LockKeyhole aria-hidden="true" size={18} />
-          Months become read-only when they are two calendar months old.
+          {ageLocked
+            ? 'Months become permanently read-only when they are two calendar months old.'
+            : 'This month is closed. Reopen it to make changes before the automatic lock boundary.'}
         </div>
       )}
 
@@ -328,14 +368,78 @@ export const BudgetPage = () => {
         </div>
       )}
 
+      <MonthClosePanel
+        month={budgetMonth}
+        ageLocked={ageLocked}
+        currentMonthId={
+          monthStart === current ? budgetMonth.id : (currentMonthForAdjustment.data?.id ?? null)
+        }
+        locale={locale}
+        onChanged={() => {
+          void queryClient.invalidateQueries({ queryKey: monthKey });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.months(userId) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
+        }}
+      />
+
+      {(scheduleOccurrences.data?.length ?? 0) > 0 &&
+        (() => {
+          const expected = (scheduleOccurrences.data ?? []).filter(
+            (entry) => entry.status === 'expected',
+          );
+          const nextIncome = expected.find((entry) => entry.item_type === 'income');
+          const dueBeforeIncome = expected.filter(
+            (entry) =>
+              entry.item_type === 'expense' &&
+              (!nextIncome || entry.due_date < nextIncome.due_date),
+          );
+          return (
+            <aside className="budget-forecast-callout" aria-label="Upcoming cash flow">
+              <CalendarClock aria-hidden="true" />
+              <div>
+                <strong>
+                  {formatMoney(
+                    dueBeforeIncome.reduce((total, entry) => total + entry.amount_minor, 0) / 100,
+                    currency,
+                    locale,
+                  )}{' '}
+                  due before your next expected income
+                </strong>
+                <span>
+                  {nextIncome
+                    ? `Next income: ${nextIncome.due_date}`
+                    : 'No later income is scheduled this month.'}
+                </span>
+              </div>
+              <Link to="/app/cash-flow">View cash flow</Link>
+            </aside>
+          );
+        })()}
+
       <div className="summary-grid">
         <article className="summary-card">
           <span className="summary-icon summary-icon--income">
             <TrendingUp aria-hidden="true" />
           </span>
           <div>
-            <small>Total income</small>
-            <strong>{formatMoney(totals.income, currency, locale)}</strong>
+            <small>Income</small>
+            <strong className="actual-amount">
+              {formatMoney(progress.actual.income, currency, locale)} actual
+            </strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned</dt>
+                <dd>{formatMoney(progress.planned.income, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.incomeVariance, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd>{formatMoney(progress.incomeRemaining, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
         <article className="summary-card">
@@ -343,27 +447,95 @@ export const BudgetPage = () => {
             <TrendingDown aria-hidden="true" />
           </span>
           <div>
-            <small>Total expenses</small>
-            <strong>{formatMoney(totals.expenses, currency, locale)}</strong>
+            <small>Expenses</small>
+            <strong className="actual-amount">
+              {formatMoney(progress.actual.expenses, currency, locale)} actual
+            </strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned</dt>
+                <dd>{formatMoney(progress.planned.expenses, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.expenseVariance, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd>{formatMoney(progress.expenseRemaining, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
         <article
-          className={`summary-card summary-card--remaining ${totals.remaining < 0 ? 'summary-card--negative' : ''}`}
+          className={`summary-card summary-card--remaining ${progress.available < 0 ? 'summary-card--negative' : ''}`}
         >
           <span className="summary-icon">
             <WalletCards aria-hidden="true" />
           </span>
           <div>
-            <small>Remaining</small>
-            <strong>{formatMoney(totals.remaining, currency, locale)}</strong>
-            <span>
-              {totals.savingsRate === null
-                ? 'Savings rate unavailable with zero income'
-                : `${totals.savingsRate.toFixed(1)}% savings rate`}
-            </span>
+            <small>Available from your plan</small>
+            <strong>{formatMoney(progress.available, currency, locale)}</strong>
+            <dl className="progress-values">
+              <div>
+                <dt>Planned balance</dt>
+                <dd>{formatMoney(progress.planned.remaining, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Actual balance</dt>
+                <dd>{formatMoney(progress.actual.remaining, currency, locale)}</dd>
+              </div>
+              <div>
+                <dt>Variance</dt>
+                <dd>{formatMoney(progress.balanceVariance, currency, locale)}</dd>
+              </div>
+            </dl>
           </div>
         </article>
       </div>
+
+      <section className="goal-plan-card" aria-labelledby="monthly-goal-plan-heading">
+        <div className="goal-plan-card__heading">
+          <span className="summary-icon">
+            <Landmark aria-hidden="true" />
+          </span>
+          <div>
+            <h2 id="monthly-goal-plan-heading">Goal contributions</h2>
+            <p>Transfers toward goals are shown separately and are not counted as expenses.</p>
+          </div>
+          <Link to="/app/goals">Manage goals</Link>
+        </div>
+        {goalRecommendations.length ? (
+          <>
+            <ul className="goal-plan-list">
+              {goalRecommendations.map((recommendation) => (
+                <li key={recommendation.id}>
+                  <span>
+                    <strong>{recommendation.name_snapshot}</strong>
+                    <small>
+                      {recommendation.goal_type.replace('_', ' ')} ·{' '}
+                      {formatGoalPriority(recommendation.priority)} priority
+                    </small>
+                  </span>
+                  <strong>
+                    {formatMoney(recommendation.recommended_amount_minor / 100, currency, locale)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+            <footer>
+              <span>Recommended this month</span>
+              <strong>{formatMoney(goalPlanMinor / 100, currency, locale)}</strong>
+              <span>Plan available after goals</span>
+              <strong>
+                {formatMoney(progress.planned.remaining - goalPlanMinor / 100, currency, locale)}
+              </strong>
+            </footer>
+          </>
+        ) : (
+          <p className="muted">No active goal contribution is planned for this month.</p>
+        )}
+      </section>
 
       {(['income', 'expense'] as const).map((type) => {
         const sectionItems = itemsByType(type);
@@ -394,7 +566,9 @@ export const BudgetPage = () => {
                   <BudgetRow
                     key={item.id}
                     item={item}
+                    progress={calculateItemProgress(item, budgetMonth.budget_transactions)}
                     currencyCode={currency}
+                    locale={locale}
                     readOnly={readOnly}
                     onArchive={(entry) => void archive(entry)}
                     onToggleDisabled={(entry) => void toggleDisabled(entry)}

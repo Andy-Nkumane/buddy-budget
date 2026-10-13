@@ -25,6 +25,7 @@ import { Modal } from '../../shared/ui/Modal';
 import { BudgetReportPreview } from '../reports/BudgetReportPreview';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
+import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 
 type MonthExportFormat = 'csv' | 'json' | 'pdf';
 
@@ -35,6 +36,7 @@ export const MonthsPage = () => {
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const [exportFormats, setExportFormats] = useState<Record<string, MonthExportFormat>>({});
   const [reportMonth, setReportMonth] = useState<BudgetMonthWithItems | null>(null);
+  const [includeForecast, setIncludeForecast] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   if (months.isLoading || profile.isLoading) return <LoadingState label="Gathering your months…" />;
@@ -59,8 +61,11 @@ export const MonthsPage = () => {
       } else if (format === 'json') {
         downloadJson(`buddybudget-${month.month_start.slice(0, 7)}.json`, month);
       } else {
+        setIncludeForecast(false);
         setReportMonth(month);
+        return;
       }
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : 'The month could not be exported.');
     } finally {
@@ -78,7 +83,9 @@ export const MonthsPage = () => {
         profile.data,
         formatMonth(reportMonth.month_start, locale),
         reportMonth.month_start.slice(0, 7),
+        includeForecast,
       );
+      void claimAndAnnounceMilestone('first_export').catch(() => undefined);
       setReportMonth(null);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : 'The PDF could not be downloaded.');
@@ -121,6 +128,13 @@ export const MonthsPage = () => {
                   {month.month_start === current && (
                     <small className="current-pill">Current month</small>
                   )}
+                  <small className="month-state-pill">
+                    {isMonthReadOnly(month.month_start, current)
+                      ? 'Locked'
+                      : month.lifecycleState === 'closed'
+                        ? 'Closed'
+                        : 'Open'}
+                  </small>
                 </div>
               </div>
               <dl>
@@ -193,10 +207,22 @@ export const MonthsPage = () => {
       >
         {reportMonth && profile.data && (
           <section className="report-preview-shell" aria-label="PDF report preview">
+            <label className="check-row report-preview-shell__forecast-option">
+              <input
+                type="checkbox"
+                checked={includeForecast}
+                onChange={(event) => setIncludeForecast(event.target.checked)}
+              />
+              <span>
+                <strong>Include payment schedules and forecasts</strong>
+                <small>Add expected dates, statuses, and forecast amounts to this report.</small>
+              </span>
+            </label>
             <BudgetReportPreview
               months={[reportMonth]}
               profile={profile.data}
               rangeLabel={formatMonth(reportMonth.month_start, locale)}
+              includeForecast={includeForecast}
             />
             {exportError && (
               <div className="inline-alert inline-alert--error" role="alert">

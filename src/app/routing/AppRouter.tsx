@@ -5,6 +5,7 @@ import {
   AppHome,
   RedirectAuthenticated,
   RequireAuthentication,
+  RequireIncompleteOnboarding,
   RequireOnboarding,
 } from '../../features/auth/RouteGuards';
 import { AuthLayout } from '../../features/auth/AuthLayout';
@@ -56,9 +57,68 @@ const SettingsPage = lazy(() =>
     default: module.SettingsPage,
   })),
 );
+const WeeklyCheckInPage = lazy(() =>
+  import('../../features/settings/WeeklyCheckInPage').then((module) => ({
+    default: module.WeeklyCheckInPage,
+  })),
+);
 const TemplatesPage = lazy(() =>
   import('../../features/templates/TemplatesPage').then((module) => ({
     default: module.TemplatesPage,
+  })),
+);
+const TransactionsPage = lazy(() =>
+  import('../../features/transactions/TransactionsPage').then((module) => ({
+    default: module.TransactionsPage,
+  })),
+);
+const RulesPage = lazy(() =>
+  import('../../features/rules/RulesPage').then((module) => ({ default: module.RulesPage })),
+);
+const CashFlowPage = lazy(() =>
+  import('../../features/schedules/CashFlowPage').then((module) => ({
+    default: module.CashFlowPage,
+  })),
+);
+const GoalsPage = lazy(() =>
+  import('../../features/goals/GoalsPage').then((module) => ({ default: module.GoalsPage })),
+);
+const InsightsPage = lazy(() =>
+  import('../../features/insights/InsightsPage').then((module) => ({
+    default: module.InsightsPage,
+  })),
+);
+const HouseholdPage = lazy(() =>
+  import('../../features/households/HouseholdPage').then((module) => ({
+    default: module.HouseholdPage,
+  })),
+);
+const HouseholdInvitationPage = lazy(() =>
+  import('../../features/households/HouseholdInvitationPage').then((module) => ({
+    default: module.HouseholdInvitationPage,
+  })),
+);
+const AdviserPage = lazy(() =>
+  import('../../features/adviser/AdviserPage').then((module) => ({
+    default: module.AdviserPage,
+  })),
+);
+const DemoPage = lazy(() =>
+  import('../../features/demo/DemoPage').then((module) => ({ default: module.DemoPage })),
+);
+const PublicBudgetCalculatorPage = lazy(() =>
+  import('../../features/calculator/PublicBudgetCalculatorPage').then((module) => ({
+    default: module.PublicBudgetCalculatorPage,
+  })),
+);
+const SharedReportPage = lazy(() =>
+  import('../../features/reports/SharedReportPage').then((module) => ({
+    default: module.SharedReportPage,
+  })),
+);
+const SharedTemplatePage = lazy(() =>
+  import('../../features/templates/SharedTemplatePage').then((module) => ({
+    default: module.SharedTemplatePage,
   })),
 );
 
@@ -84,6 +144,10 @@ export const AppRouter = () => (
   <BrowserRouter basename={import.meta.env.BASE_URL}>
     <Suspense fallback={<LoadingState />}>
       <Routes>
+        <Route path="/demo" element={<DemoPage />} />
+        <Route path="/calculator" element={<PublicBudgetCalculatorPage />} />
+        <Route path="/shared-report" element={<SharedReportPage />} />
+        <Route path="/template" element={<SharedTemplatePage />} />
         <Route element={<RedirectAuthenticated />}>
           <Route path="/" element={<LandingPage />} />
         </Route>
@@ -98,15 +162,26 @@ export const AppRouter = () => (
           <Route path="callback" element={<AuthCallbackPage />} />
         </Route>
         <Route element={<RequireAuthentication />}>
-          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route element={<RequireIncompleteOnboarding />}>
+            <Route path="/onboarding" element={<OnboardingPage />} />
+          </Route>
+          <Route path="/app/household/invite" element={<HouseholdInvitationPage />} />
+          <Route path="/app/adviser" element={<AdviserPage />} />
           <Route path="/app" element={<AppHome />} />
           <Route element={<RequireOnboarding />}>
             <Route path="/app" element={<AppLayout />}>
               <Route path="budget/:monthStart" element={<BudgetPage />} />
+              <Route path="transactions" element={<TransactionsPage />} />
+              <Route path="cash-flow" element={<CashFlowPage />} />
+              <Route path="goals" element={<GoalsPage />} />
+              <Route path="insights" element={<InsightsPage />} />
               <Route path="months" element={<MonthsPage />} />
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="categories" element={<CategoriesPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="household" element={<HouseholdPage />} />
+              <Route path="settings/check-ins" element={<WeeklyCheckInPage />} />
+              <Route path="settings/rules" element={<RulesPage />} />
               <Route path="help" element={<HelpPage />} />
             </Route>
           </Route>

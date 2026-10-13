@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  merge_group:
 
 permissions:
   contents: read
@@ -57,3 +58,20 @@ jobs:
       - name: Stop local Supabase
         if: always()
         run: npx supabase stop --no-backup
+
+  quality-gate:
+    name: Quality gate
+    if: always()
+    needs: [web, database]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every quality job to pass
+        env:
+          WEB_RESULT: ${{ needs.web.result }}
+          DATABASE_RESULT: ${{ needs.database.result }}
+        run: |
+          if [[ "$WEB_RESULT" != "success" || "$DATABASE_RESULT" != "success" ]]; then
+            echo "Web checks: $WEB_RESULT"
+            echo "Database checks: $DATABASE_RESULT"
+            exit 1
+          fi
