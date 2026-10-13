@@ -16,6 +16,44 @@ export type CheckInDeliveryStatus =
 export type MonthLifecycleStatus = 'open' | 'closed';
 export type MonthAdjustmentDirection = 'increase' | 'decrease';
 export type HouseholdRole = 'owner' | 'editor' | 'viewer';
+export type AdviserSection = 'summary' | 'categories' | 'transactions' | 'schedules' | 'goals';
+
+export type AdviserGrant = {
+  id: string;
+  householdId: string;
+  householdName: string;
+  adviserEmail: string;
+  dateFrom: string;
+  dateTo: string;
+  sections: AdviserSection[];
+  allowExport: boolean;
+  startsAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+  events: Array<{ action: string; createdAt: string; actor: string }>;
+  isOwner: boolean;
+};
+
+export type AdviserData = {
+  grantId: string;
+  householdId: string;
+  dateFrom: string;
+  dateTo: string;
+  sections: AdviserSection[];
+  allowExport: boolean;
+  expiresAt: string;
+  currencyCode: string;
+  summary?: Array<Record<string, string | number>>;
+  categories?: Array<Record<string, string | number>>;
+  transactions?: Array<Record<string, string | number | null>>;
+  schedules?: Array<Record<string, string | number | boolean | null>>;
+  goals?: Array<Record<string, string | number | null>>;
+};
 
 export type SharedReportRecord = {
   id: string;

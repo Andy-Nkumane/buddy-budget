@@ -35,6 +35,7 @@ React UI → feature/application logic → repositories → Supabase JS → Auth
 - `templates`: recurring plans used only when creating a future snapshot.
 - `starter templates`: immutable-by-version, deployment-managed catalog content copied transactionally into ordinary household-owned templates.
 - `shared template links`: owner-published immutable snapshots served through the public Edge boundary and transactionally remapped into recipient-owned templates.
+- `adviser access`: non-membership, time-limited read grants served by one scoped RPC through a standalone read-only route, isolated from household caches and mutation repositories.
 - `categories`: user-owned classification independent from income/expense type.
 - `settings`: display preferences, versioned export, validated merge/replacement restore, deletion.
 - `households`: active-household selection, verified invitations, role management, cache isolation, and append-only shared activity.

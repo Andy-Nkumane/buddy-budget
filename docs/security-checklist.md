@@ -12,6 +12,12 @@
 - Tokens are hash-only, high entropy, fragment-carried, expiring, revocable, and consumed through a rate-limited Edge action.
 - Copy RPCs remap ownership and categories, validate items against the immutable snapshot, and use a recipient copy key for transactional idempotency.
 
+## Adviser access
+
+- Advisers never receive household membership or direct table privileges; every read is re-authorized by the scoped RPC.
+- Verify email, start, expiry, revocation, grantor ownership, date range, sections, and export permission on every request.
+- Grant hashes and append-only access events stay outside portable exports and browser query caches.
+
 ## Before each release
 
 - [ ] `npm run audit`, lint, type check, tests, database tests, and production build pass.

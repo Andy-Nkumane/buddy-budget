@@ -9,7 +9,14 @@ export const RequireAuthentication = () => {
   const { session, loading } = useAuth();
   const location = useLocation();
   if (loading) return <LoadingState label="Restoring your session…" />;
-  if (!session) return <Navigate replace state={{ from: location.pathname }} to="/auth/sign-in" />;
+  if (!session)
+    return (
+      <Navigate
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+        to="/auth/sign-in"
+      />
+    );
   return <Outlet />;
 };
 

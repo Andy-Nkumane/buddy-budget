@@ -447,6 +447,36 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      create_adviser_grant: {
+        Args: {
+          requested_email: string;
+          requested_token_hash: string;
+          requested_date_from: string;
+          requested_date_to: string;
+          requested_sections: string[];
+          requested_starts_at: string;
+          requested_expires_at: string;
+          requested_allow_export: boolean;
+          requested_renewed_from_id?: string | null;
+        };
+        Returns: string;
+      };
+      respond_to_adviser_grant: {
+        Args: { requested_token: string; requested_accept: boolean };
+        Returns: string;
+      };
+      revoke_adviser_grant: {
+        Args: { requested_grant_id: string };
+        Returns: boolean;
+      };
+      retrieve_adviser_grants: {
+        Args: Record<string, never>;
+        Returns: import('../../shared/types/domain').AdviserGrant[];
+      };
+      retrieve_adviser_data: {
+        Args: { requested_grant_id: string };
+        Returns: import('../../shared/types/domain').AdviserData;
+      };
       claim_activation_milestone: {
         Args: { requested_key: string };
         Returns: boolean;

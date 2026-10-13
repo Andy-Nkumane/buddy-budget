@@ -5893,3 +5893,340 @@ p {
     justify-self: start;
   }
 }
+
+.adviser-access,
+.adviser-grant-list,
+.adviser-mode__main {
+  display: grid;
+  gap: 1rem;
+}
+
+.adviser-access__dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+
+.adviser-access__scope {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.adviser-grant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.adviser-grant > div:first-child,
+.adviser-mode__header > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.adviser-grant > div:last-child {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.adviser-mode {
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+.adviser-mode__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem clamp(1rem, 4vw, 2rem);
+  border-bottom: 0.0625rem solid var(--line);
+  background: var(--surface);
+}
+
+.adviser-mode__main {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.adviser-mode__banner,
+.adviser-scope-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+
+.adviser-mode__banner p {
+  margin: 0.2rem 0 0;
+}
+
+.adviser-mode__controls {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.adviser-report-list,
+.adviser-report-list__cards,
+.adviser-report-links {
+  display: grid;
+  gap: 1rem;
+}
+
+.adviser-report-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.adviser-report-card--selected {
+  border-color: var(--accent-border);
+  box-shadow: inset 0.2rem 0 0 var(--accent-fill);
+}
+
+.adviser-report-card > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.adviser-report-card small {
+  color: var(--muted);
+}
+
+.adviser-data-section .table-scroll {
+  margin-top: 1rem;
+}
+
+.adviser-data-section__heading p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.adviser-data-section th,
+.adviser-data-section td {
+  padding: 0.8rem 1rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.adviser-data-section table {
+  min-width: 48rem;
+}
+
+.adviser-data-section th:last-child,
+.adviser-data-section td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adviser-report-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.adviser-summary__heading,
+.adviser-summary__month header,
+.adviser-summary__groups,
+.adviser-summary dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.adviser-summary__heading {
+  align-items: end;
+  padding-bottom: 1rem;
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.adviser-summary__heading h2,
+.adviser-summary__month h3,
+.adviser-summary dl {
+  margin: 0;
+}
+
+.adviser-summary__heading > span,
+.adviser-summary__month header span,
+.adviser-summary dt {
+  color: var(--muted);
+}
+
+.adviser-summary__months {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.adviser-summary__month {
+  overflow: hidden;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.adviser-summary__month header {
+  align-items: center;
+  padding: 0.875rem 1rem;
+  background: var(--accent-soft);
+}
+
+.adviser-summary__month header span {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.adviser-summary__groups {
+  padding: 1rem;
+}
+
+.adviser-summary__groups > div {
+  flex: 1;
+}
+
+.adviser-summary dl {
+  margin-top: 0.5rem;
+}
+
+.adviser-summary dl > div {
+  padding-block: 0.45rem;
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.adviser-summary dd {
+  margin: 0;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adviser-grant__audit {
+  margin-top: 0.65rem;
+}
+
+.adviser-grant__audit summary {
+  width: fit-content;
+  color: var(--accent-strong);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.adviser-grant__audit ol {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+}
+
+@media (max-width: 40rem) {
+  .adviser-access__dates,
+  .adviser-access__scope,
+  .adviser-grant {
+    grid-template-columns: 1fr;
+  }
+
+  .adviser-mode__header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .adviser-mode__header .button {
+    grid-column: 1 / -1;
+  }
+
+  .adviser-mode__controls,
+  .adviser-scope-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adviser-report-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adviser-report-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adviser-data-section .table-scroll {
+    overflow: visible;
+  }
+
+  .adviser-data-section table,
+  .adviser-data-section tbody,
+  .adviser-data-section tr,
+  .adviser-data-section td {
+    display: block;
+    width: 100%;
+  }
+
+  .adviser-data-section table {
+    min-width: 0;
+  }
+
+  .adviser-data-section thead {
+    position: absolute;
+    width: 0.0625rem;
+    height: 0.0625rem;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .adviser-data-section tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .adviser-data-section tr {
+    padding: 0.5rem 0.875rem;
+    border: 0.0625rem solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-muted);
+  }
+
+  .adviser-data-section td,
+  .adviser-data-section td:last-child {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.45rem 0;
+    border-bottom: 0.0625rem solid var(--line);
+    text-align: right;
+  }
+
+  .adviser-data-section td:last-child {
+    border-bottom: 0;
+  }
+
+  .adviser-data-section td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .adviser-summary__heading,
+  .adviser-summary__groups {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

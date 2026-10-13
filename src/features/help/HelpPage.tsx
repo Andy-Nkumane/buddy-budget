@@ -15,10 +15,16 @@ import {
   WifiOff,
   BellRing,
   BarChart3,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 
 const topics = [
+  {
+    icon: ShieldCheck,
+    title: 'Give an adviser temporary read-only access',
+    body: 'Household owners can choose exact dates, sections, and expiry from Household. Advisers use their own verified account in a clearly marked read-only mode. Export is disabled unless the owner explicitly enables the scoped JSON download, and revocation applies immediately.',
+  },
   {
     icon: Library,
     title: 'Share a reusable template safely',

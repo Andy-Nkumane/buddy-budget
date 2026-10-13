@@ -98,6 +98,11 @@ const HouseholdInvitationPage = lazy(() =>
     default: module.HouseholdInvitationPage,
   })),
 );
+const AdviserPage = lazy(() =>
+  import('../../features/adviser/AdviserPage').then((module) => ({
+    default: module.AdviserPage,
+  })),
+);
 const DemoPage = lazy(() =>
   import('../../features/demo/DemoPage').then((module) => ({ default: module.DemoPage })),
 );
@@ -161,6 +166,7 @@ export const AppRouter = () => (
             <Route path="/onboarding" element={<OnboardingPage />} />
           </Route>
           <Route path="/app/household/invite" element={<HouseholdInvitationPage />} />
+          <Route path="/app/adviser" element={<AdviserPage />} />
           <Route path="/app" element={<AppHome />} />
           <Route element={<RequireOnboarding />}>
             <Route path="/app" element={<AppLayout />}>
