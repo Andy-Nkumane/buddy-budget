@@ -4,15 +4,17 @@ Each account receives a private initial household. Existing records are adopted 
 
 ## Permission matrix
 
-| Capability                              | Owner          | Editor | Viewer |
-| --------------------------------------- | -------------- | ------ | ------ |
-| Read household financial data           | Yes            | Yes    | Yes    |
-| Create and edit financial records       | Yes            | Yes    | No     |
-| Read activity history                   | Yes            | Yes    | Yes    |
-| Invite, revoke, remove, or change roles | Yes            | No     | No     |
-| Transfer household ownership            | Yes            | No     | No     |
-| Restore or roll back a backup           | Yes            | No     | No     |
-| Leave household                         | After transfer | Yes    | Yes    |
+| Capability                              | Owner          | Editor | Viewer | Adviser grant                  |
+| --------------------------------------- | -------------- | ------ | ------ | ------------------------------ |
+| Read household financial data           | Yes            | Yes    | Yes    | Approved dates/sections only   |
+| Create and edit financial records       | Yes            | Yes    | No     | No                             |
+| Read activity history                   | Yes            | Yes    | Yes    | No                             |
+| Invite, revoke, remove, or change roles | Yes            | No     | No     | No                             |
+| Manage adviser grants                   | Yes            | No     | No     | Accept or decline own invite   |
+| Export                                  | Yes            | Yes    | Yes    | Only when explicitly permitted |
+| Transfer household ownership            | Yes            | No     | No     | No                             |
+| Restore or roll back a backup           | Yes            | No     | No     | No                             |
+| Leave household                         | After transfer | Yes    | Yes    | Not a member                   |
 
 PostgreSQL enforces the matrix through `has_household_role`; UI controls are explanatory rather than the security boundary. Membership is checked on every statement, so removal takes effect on the next request.
 

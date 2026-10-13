@@ -13,6 +13,7 @@ import { Button } from '../../shared/ui/Button';
 import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
+import { AdviserAccessPanel, AdviserReportLinks } from './AdviserAccessPanel';
 
 const HouseholdNameForm = ({
   name,
@@ -286,6 +287,8 @@ export const HouseholdPage = () => {
           ))}
         </section>
       )}
+      <AdviserReportLinks />
+      {isOwner && <AdviserAccessPanel />}
       <section className="settings-card">
         <h2>
           <ShieldCheck size={20} /> Recent household activity
