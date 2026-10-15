@@ -95,8 +95,10 @@ select lives_ok($$select public.manage_household_member('transfer','ca100000-000
 select is((select role from public.household_memberships where household_id='ca100000-0000-4000-8000-000000000001' and user_id='ca100000-0000-4000-8000-000000000002'),'owner','Transferred member becomes owner');
 select is((select data_owner_user_id from public.households where id='ca100000-0000-4000-8000-000000000001'),'ca100000-0000-4000-8000-000000000001'::uuid,'Ownership transfer preserves legacy data identity');
 select is((select count(*)::bigint from public.household_activity where household_id='ca100000-0000-4000-8000-000000000001' and action in ('insert','remove','transfer')),4::bigint,'Material financial and membership changes are audited');
-delete from public.household_activity where household_id='ca100000-0000-4000-8000-000000000001';
-select is((select count(*)::bigint from public.household_activity where household_id='ca100000-0000-4000-8000-000000000001' and action in ('insert','remove','transfer')),4::bigint,'Activity history cannot be deleted');
+select throws_ok(
+  $$delete from public.household_activity where household_id='ca100000-0000-4000-8000-000000000001'$$,
+  '42501',null,'Activity history cannot be deleted'
+);
 
 select * from finish();
 rollback;
