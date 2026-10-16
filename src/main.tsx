@@ -12,18 +12,27 @@ const demoPath = `${import.meta.env.BASE_URL}demo`.replace(/\/+$/, '');
 const calculatorPath = `${import.meta.env.BASE_URL}calculator`.replace(/\/+$/, '');
 const sharedReportPath = `${import.meta.env.BASE_URL}shared-report`.replace(/\/+$/, '');
 const privacyPath = `${import.meta.env.BASE_URL}privacy`.replace(/\/+$/, '');
+const termsPath = `${import.meta.env.BASE_URL}terms`.replace(/\/+$/, '');
+const disclaimerPath = `${import.meta.env.BASE_URL}disclaimer`.replace(/\/+$/, '');
+const contactPath = `${import.meta.env.BASE_URL}contact`.replace(/\/+$/, '');
 const publicRoute = window.location.search.match(
-  /^\?\/(demo|calculator|shared-report|template|privacy)\/?(?:&|$)/,
+  /^\?\/(demo|calculator|shared-report|template|privacy|terms|disclaimer|contact)\/?(?:&|$)/,
 )?.[1];
 const isDirectPublicVisit =
   normalizedPath === demoPath ||
   normalizedPath === calculatorPath ||
   normalizedPath === sharedReportPath ||
   normalizedPath === privacyPath ||
+  normalizedPath === termsPath ||
+  normalizedPath === disclaimerPath ||
+  normalizedPath === contactPath ||
   publicRoute === 'demo' ||
   publicRoute === 'calculator' ||
   publicRoute === 'shared-report' ||
-  publicRoute === 'privacy';
+  publicRoute === 'privacy' ||
+  publicRoute === 'terms' ||
+  publicRoute === 'disclaimer' ||
+  publicRoute === 'contact';
 
 createRoot(root).render(
   <StrictMode>

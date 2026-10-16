@@ -7,6 +7,7 @@ import {
   privacyPolicyMetadata,
   retrievePrivacyPolicyPublicationBlockers,
 } from './privacyPolicy';
+import { LegalLinks } from './LegalLinks';
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('en-ZA', { dateStyle: 'long', timeZone: 'UTC' }).format(
@@ -33,8 +34,8 @@ export const PrivacyPolicyPage = () => {
   }, []);
 
   return (
-    <main className="privacy-policy-page">
-      <header className="privacy-policy-header">
+    <main className="legal-page">
+      <header className="legal-page__header">
         <Link className="brand" to="/" aria-label="Buddy Budget home">
           <BrandMark />
           <strong>Buddy Budget</strong>
@@ -44,13 +45,13 @@ export const PrivacyPolicyPage = () => {
         </Link>
       </header>
 
-      <article className="privacy-policy">
-        <header className="privacy-policy__title">
+      <article className="legal-document">
+        <header className="legal-document__title">
           <p className="eyebrow">
             <ShieldCheck aria-hidden="true" size={16} /> Privacy and project status
           </p>
           <h1>Privacy Policy</h1>
-          <p className="privacy-policy__lede">
+          <p className="legal-document__lede">
             This notice explains how the current Buddy Budget test application handles personal and
             financial information, and where important facts still require owner approval.
           </p>
@@ -285,6 +286,7 @@ export const PrivacyPolicyPage = () => {
             </a>
             . Legal applicability and final wording require qualified review.
           </p>
+          <LegalLinks />
         </footer>
       </article>
     </main>

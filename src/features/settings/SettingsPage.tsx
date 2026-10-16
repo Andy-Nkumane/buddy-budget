@@ -39,6 +39,7 @@ import { ExportDataForm } from './ExportDataForm';
 import { RestoreBackupForm } from './RestoreBackupForm';
 import { ShareReportForm } from '../reports/ShareReportForm';
 import { queryKeys } from '../../data/queryKeys';
+import { LegalLinks } from '../legal/LegalLinks';
 
 type SettingsValues = z.infer<typeof profileSchema>;
 
@@ -221,9 +222,10 @@ export const SettingsPage = () => {
         <section className="settings-card">
           <h2>Privacy and project status</h2>
           <p>Review how Buddy Budget handles information and the limits of this test project.</p>
-          <Link className="button button--secondary" to="/privacy">
-            <ShieldCheck aria-hidden="true" size={18} /> Read the Privacy Policy
-          </Link>
+          <div className="settings-legal-links">
+            <ShieldCheck aria-hidden="true" size={18} />
+            <LegalLinks />
+          </div>
         </section>
         <section className="settings-card settings-card--account">
           <h2>Your data</h2>

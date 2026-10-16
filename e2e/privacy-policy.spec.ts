@@ -27,7 +27,10 @@ test('authenticated users can open the privacy policy from Settings', async ({ p
   await expect(page).toHaveURL(/\/app\//);
 
   await page.goto('/app/settings');
-  await page.getByRole('link', { name: 'Read the Privacy Policy' }).click();
+  await page
+    .getByRole('navigation', { name: 'Legal and contact information' })
+    .getByRole('link', { name: 'Privacy' })
+    .click();
 
   await expect(page).toHaveURL(/\/privacy$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Privacy Policy' })).toBeVisible();
