@@ -11,16 +11,19 @@ const normalizedPath = window.location.pathname.replace(/\/+$/, '');
 const demoPath = `${import.meta.env.BASE_URL}demo`.replace(/\/+$/, '');
 const calculatorPath = `${import.meta.env.BASE_URL}calculator`.replace(/\/+$/, '');
 const sharedReportPath = `${import.meta.env.BASE_URL}shared-report`.replace(/\/+$/, '');
+const privacyPath = `${import.meta.env.BASE_URL}privacy`.replace(/\/+$/, '');
 const publicRoute = window.location.search.match(
-  /^\?\/(demo|calculator|shared-report|template)\/?(?:&|$)/,
+  /^\?\/(demo|calculator|shared-report|template|privacy)\/?(?:&|$)/,
 )?.[1];
 const isDirectPublicVisit =
   normalizedPath === demoPath ||
   normalizedPath === calculatorPath ||
   normalizedPath === sharedReportPath ||
+  normalizedPath === privacyPath ||
   publicRoute === 'demo' ||
   publicRoute === 'calculator' ||
-  publicRoute === 'shared-report';
+  publicRoute === 'shared-report' ||
+  publicRoute === 'privacy';
 
 createRoot(root).render(
   <StrictMode>

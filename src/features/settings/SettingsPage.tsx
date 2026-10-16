@@ -7,6 +7,7 @@ import {
   LogOut,
   Share2,
   ShieldAlert,
+  ShieldCheck,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -215,6 +216,13 @@ export const SettingsPage = () => {
           <p>Review and control the rules that clean up repeated transactions.</p>
           <Link className="button button--secondary" to="/app/settings/rules">
             <ListChecks size={18} /> Manage rules
+          </Link>
+        </section>
+        <section className="settings-card">
+          <h2>Privacy and project status</h2>
+          <p>Review how Buddy Budget handles information and the limits of this test project.</p>
+          <Link className="button button--secondary" to="/privacy">
+            <ShieldCheck aria-hidden="true" size={18} /> Read the Privacy Policy
           </Link>
         </section>
         <section className="settings-card settings-card--account">

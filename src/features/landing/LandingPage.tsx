@@ -94,5 +94,15 @@ export const LandingPage = () => (
         </div>
       </div>
     </section>
+    <footer className="landing__status">
+      <div>
+        <strong>Experimental authorised-testing project</strong>
+        <p>
+          Buddy Budget is not approved for public or commercial use. Testing is at your discretion
+          and does not limit rights under applicable law.
+        </p>
+      </div>
+      <Link to="/privacy">Read the draft Privacy Policy</Link>
+    </footer>
   </main>
 );
