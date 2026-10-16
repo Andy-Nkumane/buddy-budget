@@ -121,6 +121,11 @@ const SharedTemplatePage = lazy(() =>
     default: module.SharedTemplatePage,
   })),
 );
+const PrivacyPolicyPage = lazy(() =>
+  import('../../features/legal/PrivacyPolicyPage').then((module) => ({
+    default: module.PrivacyPolicyPage,
+  })),
+);
 
 const restorePagesRoute = () => {
   const query = window.location.search;
@@ -148,6 +153,7 @@ export const AppRouter = () => (
         <Route path="/calculator" element={<PublicBudgetCalculatorPage />} />
         <Route path="/shared-report" element={<SharedReportPage />} />
         <Route path="/template" element={<SharedTemplatePage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route element={<RedirectAuthenticated />}>
           <Route path="/" element={<LandingPage />} />
         </Route>
