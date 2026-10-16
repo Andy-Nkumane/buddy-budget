@@ -23,6 +23,7 @@ Do not fill unknown facts with assumptions. The accountable owner should record 
 | OD-017 | Decide production hosting/security-header approach                | GitHub Pages cannot emit every desired response header                                       | Accept documented limits for closed testing or choose a host/proxy that supports required headers      | Pending              |
 | OD-018 | Approve rights-request and deletion exceptions                    | Export/delete UI is not a complete legal procedure                                           | Identity checks, correction/objection, shared records, immutable history, backups, refusal/escalation  | Pending              |
 | OD-019 | Approve and evidence hosted Supabase security settings            | Local migrations cannot prove production Auth, API, network, secrets or backup configuration | Complete the production checklist in `supabase-security-hardening.md` with dated, secret-free evidence | Pending — P0         |
+| OD-020 | Approve Terms, supplier disclosures and complaints process        | Draft routes cannot establish binding terms or satisfy conditional ECTA/CPA duties           | Legal approval, operator details, governing law/forum, version/effective date and redress process      | Pending              |
 
 ## Decision record template
 
