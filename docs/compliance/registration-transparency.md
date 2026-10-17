@@ -118,7 +118,7 @@ If the hosted hook cannot be verified, disable **Allow new users to sign up** un
 
 ## Separate access-control follow-up
 
-A future PR may add a managed invitation workflow, hashed single-use admission tokens, expiry/revocation administration, and evidence export. It must retain the server-side Auth hook boundary and must not expose the tester list to browser roles.
+A future PR may add a managed invitation workflow with one-time admission codes, time-limited approvals, revocation controls, and evidence export. It must retain the server-side Auth hook boundary and must not expose the tester list to browser roles.
 
 ## Official implementation references
 
