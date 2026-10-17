@@ -11,6 +11,7 @@ import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import type { PaymentScheduleInput } from '../../data/repositories/budgetRepository';
 import { currentDateInTimeZone } from './cashFlow';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
 const weekdays = [
   [1, 'Monday'],
@@ -94,6 +95,10 @@ export const ScheduleForm = ({
 
   return (
     <form className="modal-form schedule-form" onSubmit={(event) => void submit(event)}>
+      <CollectionNotice>
+        Schedule names, amounts, dates, categories, and optional notes are saved to the active
+        household to forecast cash flow. Avoid unnecessary sensitive details.
+      </CollectionNotice>
       <div className="form-grid">
         <FormField
           label="Schedule name"

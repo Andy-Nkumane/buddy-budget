@@ -110,7 +110,11 @@ describe('OnboardingPage', () => {
 
   it('completes the blank path once and routes directly to the dashboard', async () => {
     renderPage();
-    await continueToPlan(/build a simple plan/i);
+    fireEvent.click(screen.getByRole('button', { name: /build a simple plan/i }));
+    expect(screen.getByRole('complementary', { name: 'Before you add information' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    expect(await screen.findByText('Build your first month')).toBeVisible();
     await reviewAndSubmit();
     expect(await screen.findByText('Budget opened')).toBeVisible();
     expect(setupFirstBudget).toHaveBeenCalledOnce();

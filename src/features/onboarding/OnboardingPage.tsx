@@ -33,6 +33,7 @@ import { Modal } from '../../shared/ui/Modal';
 import { SelectField } from '../../shared/ui/SelectField';
 import { parseMoney, profileSchema, toDatabaseMoney } from '../../shared/validation/schemas';
 import { clearApprovedStarterPlan, retrieveApprovedStarterPlan } from '../demo/demoModel';
+import { CollectionNotice } from '../legal/CollectionNotice';
 import {
   createImportBatchKey,
   normalizeCsvRows,
@@ -459,6 +460,10 @@ export const OnboardingPage = () => {
                 Set your money and date format
               </h1>
               <p className="muted">Theme and advanced preferences can wait until Settings.</p>
+              <CollectionNotice>
+                Your display name, currency, locale, timezone, plan, and any confirmed statement
+                rows are saved to your Buddy Budget account to create your first dashboard.
+              </CollectionNotice>
               <div className="form-grid">
                 <FormField
                   label="Display name (optional)"
@@ -507,6 +512,11 @@ export const OnboardingPage = () => {
               )}
               {path === 'csv' && (
                 <div className="onboarding-csv">
+                  <CollectionNotice title="Before you choose a statement">
+                    The raw CSV stays in browser memory. Only rows shown in the final review are
+                    sent to your account after you choose Create my dashboard; statement rows can
+                    contain information about other people or businesses.
+                  </CollectionNotice>
                   <FormField
                     label="Bank statement CSV"
                     type="file"

@@ -7,6 +7,7 @@ import type { Category, ItemType, TemplateWithItems } from '../../shared/types/d
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { itemSchema, toDatabaseMoney } from '../../shared/validation/schemas';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
 type ItemValues = z.infer<typeof itemSchema>;
 
@@ -71,6 +72,10 @@ export const AddMonthItemForm = ({
 
   return (
     <form className="modal-form" onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
+      <CollectionNotice>
+        The item name, amount, and category are saved to this month and, if selected, your template.
+        Avoid names that reveal unnecessary sensitive information.
+      </CollectionNotice>
       <input type="hidden" {...register('itemType')} />
       <FormField
         label="Name"
