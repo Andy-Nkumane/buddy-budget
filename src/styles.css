@@ -1613,6 +1613,25 @@ p {
   margin-top: 1.75rem;
 }
 
+.collection-notice {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.875rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-700);
+  background: var(--accent-soft);
+}
+
+.collection-notice p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.collection-notice a {
+  font-weight: 800;
+}
+
 .auth-card__footer {
   margin-top: 1.5rem;
   text-align: center;
@@ -2967,7 +2986,6 @@ p {
   font-weight: 800;
 }
 
-.csv-privacy-note,
 .csv-preview-summary {
   display: flex;
   flex-wrap: wrap;
@@ -2977,11 +2995,6 @@ p {
   background: var(--accent-soft);
 }
 
-.csv-privacy-note {
-  flex-direction: column;
-}
-
-.csv-privacy-note span,
 .csv-import-flow > p,
 .import-batch span {
   color: var(--ink-500);
