@@ -11,6 +11,7 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import { financialAccountSchema } from '../../shared/validation/schemas';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
 type AccountValues = z.infer<typeof financialAccountSchema>;
 
@@ -52,6 +53,10 @@ export const AccountForm = ({ currencyCode, onSubmit }: AccountFormProps) => {
 
   return (
     <form className="modal-form" onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
+      <CollectionNotice>
+        The account name, type, currency, and opening balance are saved to the active household. Do
+        not enter account numbers, credentials, or access codes.
+      </CollectionNotice>
       <FormField
         label="Account name"
         autoFocus

@@ -20,6 +20,12 @@ After applying database migrations, deploy `share-report` with `supabase functio
 12. Confirm the calculator canonical URL includes the repository base path and that editing it produces no Supabase request.
 13. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
 
+## Authorised tester registration gate
+
+Before exposing any deployed registration route, apply migration `202610170001_add_tester_signup_allowlist.sql`, add approved lower-case tester emails to `buddy_budget_private.tester_signup_allowlist`, and select `public.authorize_tester_signup` under **Authentication > Hooks > Before User Created**. Test one approved address and one unapproved address. The unapproved request must return the generic authorised-testers error and must not create an Auth user.
+
+Hosted Auth-hook selection is not deployed by the frontend or proven by `supabase db push`. Until the hook is enabled and verified in that project, turn off **Allow new users to sign up** under Supabase Auth general configuration. Hiding the registration link or using a browser environment variable is not an access control. See `docs/compliance/registration-transparency.md` for the evidence checklist.
+
 ## Required pull-request checks
 
 The `Quality` workflow runs the formatting, lint, type, unit, dependency-audit, production-build, secret-scan, migration, and database/RLS checks for every pull request. Its final `Quality gate` job succeeds only when both the web and database jobs succeed.

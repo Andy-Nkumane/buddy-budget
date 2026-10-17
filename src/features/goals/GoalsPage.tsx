@@ -40,6 +40,7 @@ import { GoalForm } from './GoalForm';
 import { calculateGoalProgress } from './goalCalculations';
 import { formatGoalPriority } from '../../shared/reporting/budgetReport';
 import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
 const goalTypeLabel = {
   savings: 'Savings',
@@ -352,6 +353,10 @@ export const GoalsPage = () => {
             addContribution.mutate();
           }}
         >
+          <CollectionNotice>
+            The contribution amount, date, optional notes, and any linked transaction are saved to
+            the active household. Avoid unnecessary sensitive details in notes.
+          </CollectionNotice>
           <FormField
             label="Amount"
             name="goal-contribution-amount"

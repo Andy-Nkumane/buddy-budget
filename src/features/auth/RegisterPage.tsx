@@ -3,22 +3,30 @@ import { ArrowRight, MailCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, Navigate } from 'react-router-dom';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { authSchema } from '../../shared/validation/schemas';
 import { authenticationCallbackUrl } from './authUrls';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
-type AuthValues = z.infer<typeof authSchema>;
+const registrationSchema = authSchema.extend({
+  termsAcknowledged: z
+    .boolean()
+    .refine((acknowledged) => acknowledged, 'Acknowledge the testing terms to continue.'),
+});
+
+type AuthValues = z.infer<typeof registrationSchema>;
 
 export const RegisterPage = () => {
   const { session } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<AuthValues>({
-    resolver: zodResolver(authSchema),
+    resolver: zodResolver(registrationSchema),
+    defaultValues: { termsAcknowledged: false },
   });
 
   if (session) return <Navigate replace to="/onboarding" />;
@@ -26,8 +34,16 @@ export const RegisterPage = () => {
   const submit = async (values: AuthValues) => {
     setSubmitError(null);
     const { data, error } = await requireSupabase().auth.signUp({
-      ...values,
-      options: { emailRedirectTo: authenticationCallbackUrl() },
+      email: values.email,
+      password: values.password,
+      options: {
+        emailRedirectTo: authenticationCallbackUrl(),
+        data: {
+          testing_terms_acknowledged_version: 'draft-0.1',
+          privacy_notice_seen_version: 'draft-0.1',
+          acknowledged_at: new Date().toISOString(),
+        },
+      },
     });
     if (error) {
       setSubmitError(error.message);
@@ -60,13 +76,17 @@ export const RegisterPage = () => {
     <div className="auth-card">
       <p className="eyebrow">Start calmly</p>
       <h2>Create your account</h2>
-      <p className="muted">Your private monthly plan takes only a few minutes to set up.</p>
+      <p className="muted">Accounts are only for people authorised to test Buddy Budget.</p>
       {submitError && (
         <div className="inline-alert inline-alert--error" role="alert">
           {submitError}
         </div>
       )}
       <form onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
+        <CollectionNotice title="Before you create a test account">
+          Supabase receives your email, password credential, and account/session metadata to create
+          and secure the account. Use only test data you are authorised to provide.
+        </CollectionNotice>
         <FormField
           label="Email address"
           autoComplete="email"
@@ -82,6 +102,21 @@ export const RegisterPage = () => {
           error={formState.errors.password?.message}
           {...register('password')}
         />
+        <label className="check-row">
+          <input type="checkbox" {...register('termsAcknowledged')} />
+          <span>
+            <strong>I acknowledge the Terms of Use and have read the Privacy notice.</strong>
+            <small>
+              Required for authorised testing. This is not blanket consent to optional processing or
+              marketing; no marketing consent is requested here.
+            </small>
+          </span>
+        </label>
+        {formState.errors.termsAcknowledged && (
+          <span className="field__error" role="alert">
+            {formState.errors.termsAcknowledged.message}
+          </span>
+        )}
         <Button
           className="button--wide"
           loading={formState.isSubmitting}

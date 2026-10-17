@@ -19,6 +19,7 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
 import { transactionSchema } from '../../shared/validation/schemas';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
 type TransactionValues = z.infer<typeof transactionSchema>;
 
@@ -203,6 +204,10 @@ export const TransactionForm = ({
       onSubmit={(event) => void handleSubmit(submit)(event)}
       noValidate
     >
+      <CollectionNotice>
+        Transaction amounts, dates, descriptions, categories, accounts, and optional notes are saved
+        to the active household. Avoid unnecessary sensitive or third-party details.
+      </CollectionNotice>
       <div className="form-grid">
         <SelectField
           label="Budget month"
