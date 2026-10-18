@@ -133,7 +133,7 @@ const topics = [
   {
     icon: Download,
     title: '8. Export your data',
-    body: 'Choose a preset or custom month range in Settings, then export planned and actual details as CSV, JSON, or a PDF report. One-month exports remain available in Month history.',
+    body: 'Choose a preset or custom month range in Settings, then export the selected household as CSV, portable JSON, or a PDF report. JSON excludes authentication, memberships, activity and delivery logs, so use the Privacy and Contact guidance when a rights request needs records outside the self-service export.',
   },
   {
     icon: History,

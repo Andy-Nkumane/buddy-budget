@@ -279,7 +279,7 @@ export const ExportDataForm = ({ profile, onComplete }: ExportDataFormProps) => 
           ? 'Preview the formatted report, then download it directly as a PDF file.'
           : format === 'csv'
             ? 'CSV includes planned items, actual transactions, assignments, and paused states for spreadsheet analysis.'
-            : 'JSON includes your profile, preferences, accounts, templates, categories, months, and transactions in the selected range.'}
+            : 'JSON is a portable backup of your personal display settings and the selected household financial data. It excludes sign-in records, memberships, invitations, activity logs, delivery logs, and provider data, so it is not a complete legal access response.'}
       </p>
       {error && (
         <div className="inline-alert inline-alert--error" role="alert">
