@@ -20,6 +20,10 @@ Buddy Budget is described as an experimental, non-commercial application for pri
 - [Incident response playbook](incident-response.md)
 - [POPIA section 22 notification procedure](breach-notification.md)
 - [Incident tabletop exercise](incident-exercise.md)
+- [Processor and third-party register](processor-register.md)
+- [International transfer assessment](international-transfer-assessment.md)
+- [PAIA and Information Officer assessment](paia-assessment.md)
+- [Operator and legal governance checklist](governance-checklist.md)
 - [Legal applicability](legal-applicability.md)
 - [Gap register](gap-register.md)
 - [Owner decisions](owner-decisions.md)
@@ -37,7 +41,7 @@ Severity is a remediation priority, not a legal conclusion: P0 is release-blocki
 ## Executive findings
 
 1. **CONFIRMED:** the browser application supports unrestricted account registration at `/auth/register`; `/demo`, `/calculator`, `/shared-report`, and `/template` are unauthenticated routes (`src/app/routing/AppRouter.tsx`, `src/features/auth/RegisterPage.tsx`). No repository-controlled tester allowlist is present. See `COMP-001`.
-2. **CONFIRMED:** the system processes identity, household relationship, detailed financial, goal, schedule, notification, access-log, and authentication data. Supabase and Mailjet are identifiable recipients/operators; GitHub Pages hosts the static client. See the inventory and `COMP-002` to `COMP-005`.
+2. **CONFIRMED:** the system processes identity, household relationship, detailed financial, goal, schedule, notification, access-log, and authentication data. Supabase, Mailjet, and GitHub Pages are verified third-party services or recipients; their POPIA roles depend on the activity and actual account terms. See the inventory and `COMP-002` to `COMP-005`.
 3. **CONFIRMED:** database ownership controls are substantial: RLS is enabled across domain tables, authenticated operations are scoped, cross-owner foreign keys exist, privileged functions set an empty search path, and dedicated pgTAP tests cover many policies (`supabase/migrations`, `supabase/tests`). These controls reduce but do not establish legal compliance.
 4. **CONFIRMED:** CSV files are parsed in the browser and raw files are not deliberately uploaded; accepted structured transaction records are written to Supabase (`src/features/transactions/import`). Demo data stays in memory, while approved onboarding handoffs and authentication sessions use browser storage.
 5. **CONFIRMED:** portable JSON export/restore, correction controls, account deletion, and interim rights guidance exist. The repository does not define a complete retention schedule, backup erasure procedure, verified rights-request operation, or operator-contract register. See `COMP-003`, `COMP-006`, and `COMP-007`.

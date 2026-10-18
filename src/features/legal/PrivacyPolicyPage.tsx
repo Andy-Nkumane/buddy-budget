@@ -186,10 +186,14 @@ export const PrivacyPolicyPage = () => {
           <h2>4. Providers, recipients, and international transfers</h2>
           <ul>
             <li>Supabase provides authentication, database, storage-related, and Edge services.</li>
-            <li>GitHub Pages is configured to host the static web application.</li>
+            <li>
+              GitHub Pages is configured to host the static web application. GitHub publishes that
+              Pages logs visitor IP addresses for security purposes.
+            </li>
             <li>
               Mailjet receives an email address and generated message when an opted-in tester uses
-              email check-ins.
+              email check-ins. Mailjet currently publishes that it stores personal data in the
+              European Union, specifically in Frankfurt, Germany and Saint-Ghislain, Belgium.
             </li>
             <li>
               People chosen by a user may receive deliberately scoped household invitations, adviser
@@ -197,9 +201,10 @@ export const PrivacyPolicyPage = () => {
             </li>
           </ul>
           <p>
-            Provider roles, contracts, subprocessors, processing locations, and safeguards for
-            transfers outside South Africa are not established by this repository. They must be
-            verified for each deployment before this policy becomes effective.
+            Those provider-published facts do not verify the Buddy Budget account agreements,
+            provider roles, complete subprocessor and support locations, selected Supabase project
+            region, or safeguards for transfers outside South Africa. They must be verified for each
+            deployment before this policy becomes effective.
           </p>
         </section>
 
@@ -293,7 +298,16 @@ export const PrivacyPolicyPage = () => {
             <a href="https://www.gov.za/documents/protection-personal-information-act">
               Protection of Personal Information Act 4 of 2013
             </a>
-            . Legal applicability and final wording require qualified review.
+            , GitHub's{' '}
+            <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages">
+              Pages data-collection documentation
+            </a>
+            , and Mailjet's{' '}
+            <a href="https://documentation.mailjet.com/hc/en-us/articles/360042712274-Where-is-my-personal-data-stored">
+              storage-location statement
+            </a>
+            . Provider publications can change; legal applicability and final wording require
+            qualified review against the deployed accounts and contracts.
           </p>
           <LegalLinks />
         </footer>
