@@ -5,7 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
 
 vi.mock('../../app/providers/AuthProvider', () => ({
-  useAuth: () => ({ session: { user: { id: 'viewer-id' } }, signOut: vi.fn() }),
+  useAuth: () => ({
+    session: { user: { id: 'viewer-id' } },
+    signOut: vi.fn(),
+  }),
 }));
 vi.mock('../../app/providers/HouseholdProvider', () => ({
   useHousehold: () => ({

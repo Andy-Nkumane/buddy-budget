@@ -12,12 +12,13 @@ import {
 } from 'react';
 import { configurationError, supabase } from '../../data/supabase/client';
 import { BrandMark } from '../../shared/ui/BrandMark';
+import { clearAccountBrowserState } from '../../shared/utilities/accountSession';
 
 interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   sessionMessage: string | null;
-  signOut: () => Promise<void>;
+  signOut: (options?: { scope: 'local' }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -34,9 +35,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     (nextSession: Session | null) => {
       const nextUserId = nextSession?.user.id ?? null;
       if (authenticatedUserId.current && authenticatedUserId.current !== nextUserId) {
+        clearAccountBrowserState(authenticatedUserId.current);
         void queryClient.cancelQueries();
         queryClient.clear();
-        window.localStorage.removeItem('buddy-budget-active-household');
       }
       authenticatedUserId.current = nextUserId;
       setSession(nextSession);
@@ -79,17 +80,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       session,
       loading,
       sessionMessage,
-      signOut: async () => {
+      signOut: async (options) => {
         if (!supabase) return;
         manualSignOut.current = true;
-        const { error } = await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut(options);
         if (error) {
           manualSignOut.current = false;
           throw error;
         }
+        applySession(null);
       },
     }),
-    [loading, session, sessionMessage],
+    [applySession, loading, session, sessionMessage],
   );
 
   if (configurationError) {

@@ -15,6 +15,7 @@ Buddy Budget is described as an experimental, non-commercial application for pri
 - [Data inventory](data-inventory.md)
 - [Data-flow map](data-flow-map.md)
 - [Data access, export, and correction](data-access-and-correction.md)
+- [Account deletion and retention](account-deletion-and-retention.md)
 - [Legal applicability](legal-applicability.md)
 - [Gap register](gap-register.md)
 - [Owner decisions](owner-decisions.md)

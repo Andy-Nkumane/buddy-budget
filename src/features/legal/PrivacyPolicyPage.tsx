@@ -208,18 +208,20 @@ export const PrivacyPolicyPage = () => {
           <p>
             Some invitations, sharing links, adviser grants, and transfer payloads expire, but
             expiry does not necessarily erase the underlying server record. Financial history may be
-            archived or locked to preserve report integrity. The application includes account
-            deletion and portable export functions, but deletion from provider backups, logs,
-            shared-household records, and immutable audit history has not been operationally
-            verified.
+            archived or locked to preserve report integrity. Self-service account deletion removes
+            the eligible Auth identity and account-owned records from the active database. It is
+            blocked where deleting an owner could orphan a shared household. It does not promise
+            immediate deletion from provider backups or logs, another person's downloaded copy, or
+            records that must first be handled through the shared-household workflow.
           </p>
           <p>
             No approved record-by-record retention schedule exists. That schedule must define
             deletion or anonymisation, legal holds, logs, backups, public snapshots, notification
             records, restore snapshots, and activity history before final publication. Browser
             storage is used for sessions, preferences, PWA assets, and short-lived approved
-            demo/calculator transfer state; testers using shared devices should sign out and clear
-            site data where appropriate.
+            demo/calculator transfer state. Successful deletion clears account-scoped application
+            cache and browser state where the browser permits it; testers using shared devices
+            should still close the application and clear site data if cleanup reports a problem.
           </p>
         </section>
 
