@@ -14,6 +14,7 @@ Buddy Budget is described as an experimental, non-commercial application for pri
 
 - [Data inventory](data-inventory.md)
 - [Data-flow map](data-flow-map.md)
+- [Data access, export, and correction](data-access-and-correction.md)
 - [Legal applicability](legal-applicability.md)
 - [Gap register](gap-register.md)
 - [Owner decisions](owner-decisions.md)
@@ -34,7 +35,7 @@ Severity is a remediation priority, not a legal conclusion: P0 is release-blocki
 2. **CONFIRMED:** the system processes identity, household relationship, detailed financial, goal, schedule, notification, access-log, and authentication data. Supabase and Mailjet are identifiable recipients/operators; GitHub Pages hosts the static client. See the inventory and `COMP-002` to `COMP-005`.
 3. **CONFIRMED:** database ownership controls are substantial: RLS is enabled across domain tables, authenticated operations are scoped, cross-owner foreign keys exist, privileged functions set an empty search path, and dedicated pgTAP tests cover many policies (`supabase/migrations`, `supabase/tests`). These controls reduce but do not establish legal compliance.
 4. **CONFIRMED:** CSV files are parsed in the browser and raw files are not deliberately uploaded; accepted structured transaction records are written to Supabase (`src/features/transactions/import`). Demo data stays in memory, while approved onboarding handoffs and authentication sessions use browser storage.
-5. **CONFIRMED:** portable JSON export/restore and account deletion exist. The repository does not define a complete retention schedule, backup erasure procedure, verified rights-request process, or operator-contract register. See `COMP-003`, `COMP-006`, and `COMP-007`.
+5. **CONFIRMED:** portable JSON export/restore, correction controls, account deletion, and interim rights guidance exist. The repository does not define a complete retention schedule, backup erasure procedure, verified rights-request operation, or operator-contract register. See `COMP-003`, `COMP-006`, and `COMP-007`.
 6. **CONFIRMED:** public report/template sharing uses opaque tokens, stores hashes, supports expiry/revocation, and returns no-store responses. Shared snapshots can nevertheless contain financial data by explicit user selection and are handled by a service-role Edge Function (`supabase/functions/share-report/index.ts`). See `COMP-008`.
 7. **LIKELY:** POPIA is the principal mandatory framework if the operator determines the purposes and means of processing South African users' personal information. PAIA obligations are also relevant to the responsible private body, subject to current exemptions and legal review.
 8. **POSSIBLE/conditional:** CPA and ECTA obligations increase if the service is publicly supplied, marketed, or commercialised. FAIS, FICA, and NCA are not triggered by budgeting calculations alone on the reviewed facts, but must be reassessed before personalised product advice, intermediation, account aggregation/payment activity, credit provision, or debt counselling is introduced.

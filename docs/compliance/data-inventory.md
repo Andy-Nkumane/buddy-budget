@@ -38,4 +38,4 @@ No field is expressly designed to collect POPIA special personal information or 
 
 ## Export coverage
 
-The versioned portable backup includes domain data needed for restoration and deliberately excludes authentication data, provider credentials and notification-delivery logs (`src/shared/utilities/portableBackup.ts`, `supabase/migrations/202610020001_add_backup_restore.sql`). A portability export is not a full infrastructure backup and may not satisfy every access request without operational review.
+The versioned portable backup includes domain data needed for restoration and deliberately excludes authentication data, provider credentials and notification-delivery logs (`src/shared/utilities/portableBackup.ts`, `supabase/migrations/202610020001_add_backup_restore.sql`). A portability export is not a full infrastructure backup and may not satisfy every access request without operational review. The format-by-format coverage and exclusions are recorded in [Data access, export, and correction](data-access-and-correction.md).

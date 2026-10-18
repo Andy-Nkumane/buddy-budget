@@ -251,7 +251,8 @@ export const AppLayout = () => {
         )}
         {household.role === 'viewer' &&
         !location.pathname.startsWith('/app/household') &&
-        !location.pathname.startsWith('/app/insights') ? (
+        !location.pathname.startsWith('/app/insights') &&
+        location.pathname !== '/app/settings' ? (
           <fieldset className="viewer-read-only" disabled aria-label="Read-only household content">
             <Outlet />
           </fieldset>

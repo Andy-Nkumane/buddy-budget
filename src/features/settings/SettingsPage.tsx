@@ -126,6 +126,10 @@ export const SettingsPage = () => {
   );
   const settingsLocaleOptions = includePreferenceOption(localeOptions, profile.data.locale);
   const settingsTimezoneOptions = includePreferenceOption(timezoneOptions, profile.data.timezone);
+  const activeHouseholdName =
+    household.context?.households.find(
+      (entry) => entry.id === household.context?.active_household_id,
+    )?.name ?? 'the selected household';
 
   return (
     <section className="page">
@@ -212,13 +216,15 @@ export const SettingsPage = () => {
             <BellRing size={18} /> Set up check-ins
           </Link>
         </section>
-        <section className="settings-card">
-          <h2>Categorisation rules</h2>
-          <p>Review and control the rules that clean up repeated transactions.</p>
-          <Link className="button button--secondary" to="/app/settings/rules">
-            <ListChecks size={18} /> Manage rules
-          </Link>
-        </section>
+        {household.role !== 'viewer' && (
+          <section className="settings-card">
+            <h2>Categorisation rules</h2>
+            <p>Review and control the rules that clean up repeated transactions.</p>
+            <Link className="button button--secondary" to="/app/settings/rules">
+              <ListChecks size={18} /> Manage rules
+            </Link>
+          </section>
+        )}
         <section className="settings-card">
           <h2>Privacy and project status</h2>
           <p>Review how Buddy Budget handles information and the limits of this test project.</p>
@@ -231,6 +237,10 @@ export const SettingsPage = () => {
           <h2>Your data</h2>
           <p>
             Choose a date range and create a PDF report, CSV spreadsheet, or portable JSON backup.
+          </p>
+          <p>
+            <strong>Export scope:</strong> personal display settings and financial records visible
+            in {activeHouseholdName}. Switch households before exporting a different shared budget.
           </p>
           <div className="stacked-actions">
             <Button
@@ -249,17 +259,26 @@ export const SettingsPage = () => {
                 Share limited report
               </Button>
             )}
-            <Button
-              variant="secondary"
-              icon={<Upload size={18} />}
-              onClick={() => setRestoreOpen(true)}
-            >
-              Restore backup
-            </Button>
+            {household.role === 'owner' && (
+              <Button
+                variant="secondary"
+                icon={<Upload size={18} />}
+                onClick={() => setRestoreOpen(true)}
+              >
+                Restore backup
+              </Button>
+            )}
           </div>
           <p className="privacy-note">
             <ShieldAlert size={18} />
             The export contains private financial information. Store it securely.
+          </p>
+          <p>
+            Export is an optional portability tool, not a complete legal access response. You can
+            correct editable records in the relevant screen; locked history must remain unchanged
+            and uses a current-month adjustment. Review the{' '}
+            <Link to="/privacy#rights">rights guidance</Link> or{' '}
+            <Link to="/contact">contact guidance</Link> for requests the app cannot complete.
           </p>
         </section>
         <section className="settings-card">

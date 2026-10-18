@@ -45,4 +45,4 @@ Supabase, GitHub and Mailjet may process data outside South Africa depending on 
 
 ## Data-subject rights path
 
-Self-service export, correction through application forms, and account deletion provide partial technical support. They are not a complete POPIA/PAIA procedure: identity verification, request intake, response ownership, statutory timing, exceptions, backup/log handling, objection/restriction, complaint escalation and records of requests are not documented (`COMP-006`).
+Self-service export, correction through application forms, locked-history adjustments, account deletion, and interim request routing are documented in `data-access-and-correction.md`. They remain an incomplete POPIA/PAIA procedure until the owner approves identity verification, monitored intake, response ownership, statutory timing, exceptions, backup/log handling, objection/restriction, complaint escalation, and request records (`COMP-006`).
