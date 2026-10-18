@@ -85,7 +85,12 @@ describe('CsvImportFlow', () => {
     expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
     fireEvent.change(document.getElementById('csv-statement')!, {
       target: {
-        files: [new File(['Date,Description,Amount\n2026-09-02,Coffee,-25.50'], 'safe.csv')],
+        files: [
+          new File(
+            ['Date,Description,Amount,Unused account number\n2026-09-02,Coffee,-25.50,RAW-123456'],
+            'safe.csv',
+          ),
+        ],
       },
     });
     await screen.findByRole('button', { name: 'Review transactions' });
@@ -111,7 +116,26 @@ describe('CsvImportFlow', () => {
     expect(importBudgetTransactions).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Import 1 transactions' }));
     await waitFor(() => expect(importBudgetTransactions).toHaveBeenCalledTimes(1));
+    expect(JSON.stringify(importBudgetTransactions.mock.calls[0])).not.toContain('RAW-123456');
     expect(onComplete).toHaveBeenCalledWith('month-id', '1 transaction imported.');
+  });
+
+  it('releases the selected raw statement before choosing another file', async () => {
+    renderFlow();
+    fireEvent.change(document.getElementById('csv-statement')!, {
+      target: {
+        files: [new File(['Date,Description,Amount\n2026-09-02,Private memo,-25'], 'first.csv')],
+      },
+    });
+    await screen.findByRole('button', { name: 'Review transactions' });
+    fireEvent.click(screen.getByRole('button', { name: 'Review transactions' }));
+    expect(await screen.findByText('Private memo')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to mapping' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose another file' }));
+
+    expect(document.getElementById('csv-statement')).toBeVisible();
+    expect(screen.queryByText('Private memo')).not.toBeInTheDocument();
   });
 
   it('shows invalid rows and prevents confirmation', async () => {

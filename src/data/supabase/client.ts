@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import type { Database } from './database.types';
+import { noStoreFetch } from './noStoreFetch';
 
 const browserConfigurationSchema = z.object({
   url: z
@@ -34,6 +35,7 @@ export const supabase = configurationResult.success
         autoRefreshToken: true,
         detectSessionInUrl: false,
       },
+      global: { fetch: noStoreFetch },
     })
   : null;
 

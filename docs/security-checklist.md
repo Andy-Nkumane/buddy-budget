@@ -17,6 +17,7 @@
 - Advisers never receive household membership or direct table privileges; every read is re-authorized by the scoped RPC.
 - Verify email, start, expiry, revocation, grantor ownership, date range, sections, and export permission on every request.
 - Grant hashes and append-only access events stay outside portable exports and browser query caches.
+- Raw CSV bytes and unmapped columns stay in memory only; Supabase responses use no-store and the service worker caches no authenticated runtime data.
 
 ## Before each release
 

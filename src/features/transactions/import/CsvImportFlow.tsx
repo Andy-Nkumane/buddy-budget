@@ -460,8 +460,11 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
           <Button
             variant="ghost"
             onClick={() => {
+              setFile(null);
               setTable(null);
               setMapping(null);
+              setPreview(null);
+              setPreviewItems([]);
             }}
           >
             Choose another file
