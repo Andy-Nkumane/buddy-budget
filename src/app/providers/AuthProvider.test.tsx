@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthProvider';
@@ -70,6 +70,6 @@ describe('AuthProvider', () => {
     act(() => screen.getByRole('button', { name: 'Clear session' }).click());
 
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
-    expect(queryClient.getQueryData(['budget'])).toBeUndefined();
+    await waitFor(() => expect(queryClient.getQueryData(['budget'])).toBeUndefined());
   });
 });
