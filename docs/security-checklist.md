@@ -45,6 +45,8 @@ The meta CSP provides partial protection on GitHub Pages, but `frame-ancestors` 
 
 ## Incident basics
 
+Follow the [incident response playbook](compliance/incident-response.md), [section 22 notification procedure](compliance/breach-notification.md), and [tabletop exercise](compliance/incident-exercise.md). Severity helps prioritise response but is not a reporting threshold.
+
 If a secret is exposed, remove it from use immediately, rotate/revoke it at the provider, inspect audit logs, assess affected environments/data, and rewrite Git history only as a secondary cleanup. If a publishable key is visible, that alone is expected; investigate only if it is actually a secret/service-role value or RLS is broken.
 
 For suspected session compromise, revoke affected sessions, reset credentials, review Auth/database logs without copying sensitive contents, and communicate according to the owner’s incident/privacy policy.
