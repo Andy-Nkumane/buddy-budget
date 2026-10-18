@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('registration explains collection and requires an unchecked acknowledgement', async ({
+test('COMP-001/COMP-002 registration explains collection and requires an unchecked acknowledgement', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 800 });

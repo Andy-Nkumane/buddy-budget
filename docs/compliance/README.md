@@ -24,6 +24,7 @@ Buddy Budget is described as an experimental, non-commercial application for pri
 - [International transfer assessment](international-transfer-assessment.md)
 - [PAIA and Information Officer assessment](paia-assessment.md)
 - [Operator and legal governance checklist](governance-checklist.md)
+- [Compliance regression suite](regression-suite.md)
 - [Legal applicability](legal-applicability.md)
 - [Gap register](gap-register.md)
 - [Owner decisions](owner-decisions.md)

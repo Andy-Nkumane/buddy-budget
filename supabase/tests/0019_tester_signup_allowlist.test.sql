@@ -9,7 +9,7 @@ insert into buddy_budget_private.tester_signup_allowlist(email, created_at, expi
 select is(
   public.authorize_tester_signup('{"user":{"email":"ALLOWED@test.local","user_metadata":{"testing_terms_acknowledged_version":"draft-0.1","privacy_notice_seen_version":"draft-0.1"}}}'::jsonb),
   '{}'::jsonb,
-  'An active allowlisted email is accepted case-insensitively'
+  'COMP-001: An active allowlisted email is accepted case-insensitively'
 );
 select is(
   public.authorize_tester_signup('{"user":{"email":"allowed@test.local"}}'::jsonb)->'error'->>'http_code',
@@ -19,7 +19,7 @@ select is(
 select is(
   public.authorize_tester_signup('{"user":{"email":"unknown@test.local"}}'::jsonb)->'error'->>'http_code',
   '403',
-  'An email absent from the allowlist is rejected'
+  'COMP-001: An email absent from the allowlist is rejected'
 );
 select is(
   public.authorize_tester_signup('{"user":{"email":"expired@test.local"}}'::jsonb)->'error'->>'http_code',

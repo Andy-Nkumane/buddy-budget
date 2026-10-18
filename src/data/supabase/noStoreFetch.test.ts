@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { noStoreFetch } from './noStoreFetch';
 
-describe('noStoreFetch', () => {
+describe('COMP-023 noStoreFetch', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('prevents HTTP caching while preserving request options', async () => {

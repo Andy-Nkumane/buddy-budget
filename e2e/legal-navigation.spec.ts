@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('public legal links and direct routes remain usable on mobile', async ({ page }) => {
+test('COMP-002 public legal links and direct routes remain usable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/');
 
@@ -25,7 +25,7 @@ test('public legal links and direct routes remain usable on mobile', async ({ pa
   expect(hasHorizontalOverflow).toBe(false);
 });
 
-test('restores a legal route from the GitHub Pages fallback query', async ({ page }) => {
+test('COMP-002 restores a legal route from the GitHub Pages fallback query', async ({ page }) => {
   await page.goto('/?/terms');
   await expect(page).toHaveURL(/\/terms$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Terms of Use' })).toBeVisible();
@@ -33,7 +33,7 @@ test('restores a legal route from the GitHub Pages fallback query', async ({ pag
 
 const credentialsAvailable = Boolean(process.env.E2E_EMAIL && process.env.E2E_PASSWORD);
 
-test('authenticated Settings exposes every legal and contact link', async ({ page }) => {
+test('COMP-002 authenticated Settings exposes every legal and contact link', async ({ page }) => {
   test.skip(!credentialsAvailable, 'Set E2E_EMAIL and E2E_PASSWORD for a dedicated test user.');
 
   await page.goto('/auth/sign-in');

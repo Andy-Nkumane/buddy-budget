@@ -16,8 +16,10 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -b",
     "test": "vitest run",
+    "test:compliance": "node --test scripts/check-compliance-boundaries.test.mjs && node scripts/check-compliance-boundaries.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:compliance": "playwright test e2e/legal-navigation.spec.ts e2e/privacy-policy.spec.ts e2e/registration-transparency.spec.ts",
     "test:db": "supabase test db",
     "audit": "npm audit --audit-level=high",
     "assets:icons": "node scripts/generate-icons.mjs"

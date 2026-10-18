@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { clearAccountBrowserState } from './accountSession';
 
-describe('clearAccountBrowserState', () => {
+describe('COMP-023 clearAccountBrowserState', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();

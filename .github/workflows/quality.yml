@@ -30,12 +30,23 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:compliance
       - run: npm run audit
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Build root-based compliance browser fixture
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_BASE_PATH: /
+      - name: Install compliance browser
+        run: npx playwright install --with-deps chromium
+      - name: Run public compliance browser tests
+        run: npm run test:e2e:compliance -- --project=chromium
       - name: Scan repository for committed secrets
         uses: gitleaks/gitleaks-action@v2
         env:

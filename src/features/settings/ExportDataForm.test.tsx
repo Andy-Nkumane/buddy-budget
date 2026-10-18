@@ -30,7 +30,7 @@ const profile: Profile = {
   updated_at: '2026-10-17T00:00:00.000Z',
 };
 
-describe('ExportDataForm', () => {
+describe('COMP-006 ExportDataForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repository.exportAllData.mockResolvedValue({ schema_version: 11 });

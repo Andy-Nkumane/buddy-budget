@@ -19,7 +19,7 @@ type SignUpRequest = {
 
 const signUp = vi.fn<(request: SignUpRequest) => Promise<unknown>>();
 
-describe('RegisterPage', () => {
+describe('COMP-001/COMP-002 RegisterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({
