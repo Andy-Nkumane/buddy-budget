@@ -223,6 +223,13 @@ export const PrivacyPolicyPage = () => {
             cache and browser state where the browser permits it; testers using shared devices
             should still close the application and clear site data if cleanup reports a problem.
           </p>
+          <p>
+            The installable application caches its public static shell for offline loading, but it
+            does not configure runtime caching for authenticated API responses or financial data.
+            Raw CSV statements stay in browser memory for mapping and preview; only confirmed,
+            normalized transaction fields are sent. Supabase Auth separately persists the session
+            material needed to keep a tester signed in and refresh that session.
+          </p>
         </section>
 
         <section id="rights">
