@@ -46,3 +46,5 @@ Supabase, GitHub and Mailjet may process data outside South Africa depending on 
 ## Data-subject rights path
 
 Self-service export, correction through application forms, locked-history adjustments, account deletion, and interim request routing are documented in `data-access-and-correction.md`. They remain an incomplete POPIA/PAIA procedure until the owner approves identity verification, monitored intake, response ownership, statutory timing, exceptions, backup/log handling, objection/restriction, complaint escalation, and request records (`COMP-006`).
+
+The verified live-database deletion path, shared-household blocker, browser cleanup, and provider/backup limitations are documented in `account-deletion-and-retention.md`. No provider-log or backup erasure is inferred from the primary-database cascade.

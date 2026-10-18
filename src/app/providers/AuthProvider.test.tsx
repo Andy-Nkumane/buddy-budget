@@ -48,4 +48,28 @@ describe('AuthProvider', () => {
     expect(queryClient.getQueryData(['profile'])).toBeUndefined();
     expect(screen.getByText('signed-out')).toBeInTheDocument();
   });
+
+  it('uses local-only sign-out after authoritative account deletion', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: sessionFor('user-a') }, error: null });
+    auth.signOut.mockResolvedValue({ error: null });
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['budget'], { private: true });
+    const ClearSession = () => {
+      const { signOut } = useAuth();
+      return <button onClick={() => void signOut({ scope: 'local' })}>Clear session</button>;
+    };
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ClearSession />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByRole('button', { name: 'Clear session' });
+    act(() => screen.getByRole('button', { name: 'Clear session' }).click());
+
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(queryClient.getQueryData(['budget'])).toBeUndefined();
+  });
 });

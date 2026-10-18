@@ -83,6 +83,8 @@ Weekly check-ins require the `weekly-checkin` Edge Function, Mailjet API credent
 
 The function rechecks preferences immediately before each delivery. Provider rejections can retry up to three total attempts. A network interruption after an email request is not retried automatically because the provider outcome is ambiguous; operators can inspect the non-sensitive `failed_final` state without exposing message content or credentials. Mark a preference `bounced` or `blocked` when Mailjet reports that state; the dispatcher will suppress further email delivery until it is safely resolved. Account deletion cascades preferences and delivery history.
 
+Account deletion stops future application-managed check-ins by cascading preferences and queued delivery history, but it does not prove erasure of messages, suppressions, bounces, or operational logs already held by Mailjet. Record the configured provider retention and request path. Supabase backup/PITR restoration must include a controlled process for reapplying still-valid account deletions; see `docs/compliance/account-deletion-and-retention.md`.
+
 ## Shared template links
 
 Apply migration `202610120001_add_shared_template_links.sql` and redeploy `share-report` with `--no-verify-jwt`. Public template preview shares the same narrowly scoped Edge endpoint as shared reports; authenticated publish, list, revoke, and copy actions still validate the JWT server-side. No new secret is required. Verify the GitHub Pages fallback preserves `/template` and its URL fragment, and confirm the deployed page emits `noindex`, `nofollow`, and `noarchive` metadata.

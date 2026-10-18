@@ -84,7 +84,7 @@ Copy the local API URL and browser-safe anon key from status output into `.env.l
 
 `adviser_access_grants` and append-only `adviser_access_events` have RLS enabled but no direct browser table privileges. Scoped RPCs validate the authenticated verified recipient, owner continuity, time window, date range, section allowlist, revocation, and export flag. Adviser reads never alter `active_household_id` and never confer membership.
 
-`delete_own_account()` derives `auth.uid()` and deletes only that Auth user; cascading foreign keys remove owned data. Test this in staging and confirm backup/retention policy before enabling production use.
+`delete_own_account()` derives `auth.uid()` and deletes only that Auth user; cascading foreign keys remove eligible owned data in the same transaction. It blocks an owner/data owner while another household member remains. Local pgTAP covers authentication, the shared-household blocker, representative cascades, and cross-account isolation. Repeat with disposable staging accounts and approve backup/log retention plus restore re-deletion before enabling production use; see `docs/compliance/account-deletion-and-retention.md`.
 
 `create_budget_transaction(...)`, `update_budget_transaction(...)`, and `delete_budget_transaction(uuid)` derive ownership from `auth.uid()`. Composite foreign keys and validation triggers keep month, item, category, account, type, currency, and transaction date aligned. The historical-month trigger calls the same profile-timezone-aware lock as budget item mutations.
 

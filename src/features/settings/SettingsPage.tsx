@@ -61,6 +61,7 @@ export const SettingsPage = () => {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteCompleted, setDeleteCompleted] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const { register, handleSubmit, reset, formState } = useForm<SettingsValues>({
     resolver: zodResolver(profileSchema),
@@ -95,11 +96,19 @@ export const SettingsPage = () => {
     setDeleteError(null);
     try {
       await requestAccountDeletion();
-      setDeleteOpen(false);
-      await signOut();
     } catch (error) {
       setDeleteError(
         error instanceof Error ? error.message : 'Account deletion could not be completed.',
+      );
+      return;
+    }
+    setDeleteCompleted(true);
+    try {
+      await signOut({ scope: 'local' });
+      setDeleteOpen(false);
+    } catch {
+      setDeleteError(
+        'Your account was deleted, but this browser could not clear its local session. Close Buddy Budget and clear this site’s stored data before another person uses this device.',
       );
     }
   };
@@ -337,13 +346,20 @@ export const SettingsPage = () => {
       <Modal
         open={deleteOpen}
         title="Permanently delete account?"
-        description="This removes your profile, templates, categories, and all budget history. It cannot be undone."
-        onClose={() => setDeleteOpen(false)}
+        description="This deletes your sign-in identity and account-owned data from the active database. Shared-household ownership may block deletion, and provider backups or logs can remain for their configured retention periods."
+        onClose={() => {
+          if (!deleteCompleted) setDeleteOpen(false);
+        }}
       >
         <div className="modal-form">
+          <p>
+            Export anything you need first. If you own a household with other members, transfer
+            ownership and remove or relocate its members before deleting your account.
+          </p>
           <FormField
             label="Type DELETE to confirm"
             value={deleteConfirmation}
+            disabled={deleteCompleted}
             onChange={(event) => setDeleteConfirmation(event.target.value)}
           />
           {deleteError && (
@@ -353,10 +369,10 @@ export const SettingsPage = () => {
           )}
           <Button
             variant="danger"
-            disabled={deleteConfirmation !== 'DELETE'}
+            disabled={deleteConfirmation !== 'DELETE' || deleteCompleted}
             onClick={() => void deleteAccount()}
           >
-            Permanently delete my account
+            {deleteCompleted ? 'Account deleted' : 'Permanently delete my account'}
           </Button>
         </div>
       </Modal>
