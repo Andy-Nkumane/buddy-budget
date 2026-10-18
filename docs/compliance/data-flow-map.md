@@ -41,7 +41,7 @@ Authorised operations
 
 ## Cross-border and operator questions
 
-Supabase, GitHub and Mailjet may process data outside South Africa depending on selected regions and contractual arrangements. The repository does not establish regions, subprocessor locations, contracts, transfer safeguards or responsible-party identity. These facts must be completed before a transfer-lawfulness conclusion (`COMP-004`, `OD-003`, `OD-004`).
+Provider publications confirm that GitHub uses multiple processing locations, Mailjet currently publishes EU storage in Germany and Belgium, and Supabase customers select a project region while some support/operational processing can occur elsewhere. The repository does not establish the actual account contracts, selected Supabase region, complete backup/log/support/subprocessor locations, section 21 terms, section 72 ground or responsible-party identity. Complete the `processor-register.md` and `international-transfer-assessment.md` evidence before a transfer-lawfulness conclusion (`COMP-004`, `OD-003`, `OD-004`).
 
 ## Data-subject rights path
 

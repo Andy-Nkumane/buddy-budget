@@ -1,6 +1,6 @@
 export const privacyPolicyMetadata = {
-  version: '0.1-draft',
-  preparedDate: '2026-10-16',
+  version: '0.2-draft',
+  preparedDate: '2026-10-18',
   effectiveDate: null,
 } as const;
 

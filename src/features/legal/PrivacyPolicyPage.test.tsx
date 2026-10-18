@@ -19,6 +19,9 @@ describe('PrivacyPolicyPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Privacy Policy' })).toBeVisible();
     expect(screen.getByText(/experimental, non-commercial project/i)).toBeVisible();
     expect(screen.getByRole('heading', { name: /providers, recipients/i })).toBeVisible();
+    expect(screen.getByText(/Pages logs visitor IP addresses/i)).toBeVisible();
+    expect(screen.getByText(/Frankfurt, Germany and Saint-Ghislain, Belgium/i)).toBeVisible();
+    expect(screen.getByText('0.2-draft')).toBeVisible();
     expect(screen.getByRole('heading', { name: /retention, account deletion/i })).toBeVisible();
     expect(screen.getByRole('heading', { name: /your rights and complaints/i })).toBeVisible();
     expect(screen.getByRole('heading', { name: /children and sensitive/i })).toBeVisible();
