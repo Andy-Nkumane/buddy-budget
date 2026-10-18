@@ -8,7 +8,7 @@ import { TermsPage } from './TermsPage';
 
 const renderPage = (page: ReactNode) => render(<MemoryRouter>{page}</MemoryRouter>);
 
-describe('public legal pages', () => {
+describe('COMP-002 public legal pages', () => {
   it('presents draft terms without a blanket liability waiver', () => {
     renderPage(<TermsPage />);
 

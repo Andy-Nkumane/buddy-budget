@@ -8,7 +8,7 @@ import {
   retrievePrivacyPolicyPublicationBlockers,
 } from './privacyPolicy';
 
-describe('PrivacyPolicyPage', () => {
+describe('COMP-002 PrivacyPolicyPage', () => {
   it('is publicly readable and covers the required topics', () => {
     render(
       <MemoryRouter>

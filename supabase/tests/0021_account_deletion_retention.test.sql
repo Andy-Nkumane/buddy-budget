@@ -17,7 +17,7 @@ values('first_export','user','ad100000-0000-4000-8000-000000000001','ad100000-00
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','',true);
-select throws_ok($$select public.delete_own_account()$$,'42501','Authentication required','Anonymous deletion is rejected');
+select throws_ok($$select public.delete_own_account()$$,'42501','Authentication required','COMP-007: Anonymous deletion is rejected');
 
 select set_config('request.jwt.claim.sub','ad100000-0000-4000-8000-000000000001',true);
 select throws_ok(
@@ -33,7 +33,7 @@ where household_id='ad100000-0000-4000-8000-000000000001' and user_id='ad100000-
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','ad100000-0000-4000-8000-000000000001',true);
-select lives_ok($$select public.delete_own_account()$$,'An eligible user can delete their own account');
+select lives_ok($$select public.delete_own_account()$$,'COMP-007: An eligible user can delete their own account');
 reset role;
 select is((select count(*)::integer from auth.users where id='ad100000-0000-4000-8000-000000000001'),0,'Deletion removes the Auth identity');
 select is((select count(*)::integer from public.profiles where user_id='ad100000-0000-4000-8000-000000000001'),0,'Deletion cascades the profile');

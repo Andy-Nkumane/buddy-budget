@@ -62,7 +62,7 @@ const renderDeletion = async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Permanently delete my account' }));
 };
 
-describe('account deletion', () => {
+describe('COMP-007 account deletion', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     account.requestAccountDeletion.mockResolvedValue(undefined);

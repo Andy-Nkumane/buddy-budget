@@ -23,7 +23,7 @@ insert into public.budget_transactions(id,user_id,household_id,budget_month_id,t
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','ac100000-0000-4000-8000-000000000001',true);
-select is((select count(*)::integer from public.budget_transactions),1,'Owner export queries see the active household record');
+select is((select count(*)::integer from public.budget_transactions),1,'COMP-006: Owner export queries see the active household record');
 
 select set_config('request.jwt.claim.sub','ac100000-0000-4000-8000-000000000002',true);
 select is((select count(*)::integer from public.budget_transactions),1,'Editor export queries see the shared active household record');
@@ -42,7 +42,7 @@ select throws_ok($$select * from public.update_budget_transaction(
 select set_config('request.jwt.claim.sub','ac100000-0000-4000-8000-000000000004',true);
 select is((select count(*)::integer from public.categories),0,'Outsider export queries cannot read another household category');
 select is((select count(*)::integer from public.budget_months),0,'Outsider export queries cannot read another household month');
-select is((select count(*)::integer from public.budget_transactions),0,'Outsider export queries cannot read another household transaction');
+select is((select count(*)::integer from public.budget_transactions),0,'COMP-006: Outsider export queries cannot read another household transaction');
 
 select * from finish();
 rollback;

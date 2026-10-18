@@ -6,14 +6,14 @@ select is(
   (select count(*)::integer from information_schema.role_table_grants
    where table_schema='public' and grantee='anon'),
   0,
-  'Anonymous users have no direct public-table privileges'
+  'COMP-021: Anonymous users have no direct public-table privileges'
 );
 select is(
   (select count(*)::integer from pg_proc procedure
    join pg_namespace namespace on namespace.oid=procedure.pronamespace
    where namespace.nspname='public' and has_function_privilege('anon',procedure.oid,'execute')),
   0,
-  'Anonymous users cannot execute public-schema functions'
+  'COMP-022: Anonymous users cannot execute public-schema functions'
 );
 select is(
   (select count(*)::integer from information_schema.role_table_grants
@@ -74,7 +74,7 @@ select is((select count(*)::integer from public.categories where id='fd200000-00
 select throws_ok(
   $$insert into public.categories(user_id,household_id,item_type,name,sort_order)
     values('fd100000-0000-4000-8000-000000000001','fd100000-0000-4000-8000-000000000001','expense','Forged owner',1)$$,
-  '42501',null,'A different user cannot INSERT with forged ownership IDs'
+  '42501',null,'COMP-021: A different user cannot INSERT with forged ownership IDs'
 );
 update public.categories set name='Cross-user update' where id='fd200000-0000-4000-8000-000000000001';
 select is((select count(*)::integer from public.categories where id='fd200000-0000-4000-8000-000000000001'),0,
