@@ -92,3 +92,15 @@ Apply migration `202610120001_add_shared_template_links.sql` and redeploy `share
 ## Backup restore operations
 
 Migration `202610020001_add_backup_restore.sql` must be applied before schema-v10 exports are offered. It needs no additional browser or server secret. After deployment, use a disposable staging account to export, merge, replace, download the restore report, and exercise `rollback_backup_restore` with the reported snapshot ID. Confirm that notification delivery rows and provider data are absent. Keep normal Supabase backup/PITR retention enabled; recovery snapshots are account-scoped safeguards, not infrastructure backups.
+
+## Incident readiness before deployment
+
+Complete the [incident response playbook](compliance/incident-response.md) readiness blockers before inviting testers:
+
+1. Assign a primary and alternate incident lead, registered Information Officer/Deputy, technical lead, legal/privacy reviewer, and communications owner in a restricted contact record.
+2. Verify the Information Regulator eServices reporter can authenticate; do not submit a test breach report.
+3. Verify least-privilege access to Supabase, GitHub/Pages, and Mailjet security/audit evidence and authenticated support routes.
+4. Record each provider's deployed plan, region, support entitlement, log source, timezone, retention, export method, security-notification route, and case owner. Do not infer these from local source.
+5. Test an alert/report path without personal or financial data and confirm the alternate receives it. Buddy Budget has no centralized telemetry or claimed 24/7 monitoring.
+6. Run the synthetic [tabletop exercise](compliance/incident-exercise.md), assign corrective actions, and retain only a redacted completion result in repository evidence.
+7. Recheck the live [Information Regulator guidance and portal](compliance/breach-notification.md) before an actual notification.
