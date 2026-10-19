@@ -35,7 +35,7 @@ refresh_token_reuse_interval = 10
 enable_signup = true
 
 [auth.hook.before_user_created]
-enabled = true
+enabled = false
 uri = "pg-functions://postgres/public/authorize_tester_signup"
 
 [auth.email]
