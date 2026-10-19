@@ -1,9 +1,12 @@
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 import { Button } from './Button';
 
 export const LoadingState = ({ label = 'Loading Buddy Budget…' }: { label?: string }) => (
   <div className="state-panel" role="status">
-    <span className="spinner spinner--large" aria-hidden="true" />
+    <span className="brand-loader" aria-hidden="true">
+      <BrandMark />
+    </span>
     <p>{label}</p>
   </div>
 );

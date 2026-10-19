@@ -48,7 +48,7 @@ For each Supabase project separately:
 5. Confirm email verification is enabled and anonymous sign-ins are disabled.
 6. Test an approved and an unapproved address before enabling the deployed registration route.
 
-The local stack reads the equivalent hook setting from `supabase/config.toml`. Configuring staging does not configure production, and `supabase db push` applies the database objects but does not prove that the hosted Auth hook is selected.
+The local hook is disabled in `supabase/config.toml` so localhost signup remains available for development. Local pgTAP tests verify the hook function directly. Configuring staging does not configure production, and `supabase db push` applies the database objects but does not prove that the hosted Auth hook is selected.
 
 ## Manage approved tester emails
 
