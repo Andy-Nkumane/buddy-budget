@@ -1,6 +1,9 @@
 import type { User } from '@supabase/supabase-js';
 import { adjacentMonthStart, calculateBudgetProgress } from '../../shared/formatting/money';
-import { removePortableOwnership } from '../../shared/utilities/portableBackup';
+import {
+  assertPortableHouseholdScope,
+  removePortableOwnership,
+} from '../../shared/utilities/portableBackup';
 import type {
   BudgetMonth,
   BudgetInsights,
@@ -802,6 +805,9 @@ export const retrieveMonthsForExport = async (
   range: MonthExportRange = {},
 ): Promise<BudgetMonthWithItems[]> => {
   const client = requireSupabase();
+  const profile = await retrieveProfile();
+  const exportHouseholdId = profile?.active_household_id;
+  if (!exportHouseholdId) throw new Error('Select a household before creating an export.');
   const [
     months,
     monthItems,
@@ -888,7 +894,6 @@ export const retrieveMonthsForExport = async (
       client.from('month_lifecycle_events').select('*').order('created_at').range(from, to),
     ),
   ]);
-  if (!months.length) return [];
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
   const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
   const occurrencesByMonth = groupRecordsBy(scheduleOccurrences, (entry) => entry.budget_month_id);
@@ -904,7 +909,7 @@ export const retrieveMonthsForExport = async (
     (entry) => entry.original_budget_month_id,
   );
   const eventsByMonth = groupRecordsBy(lifecycleEvents, (entry) => entry.budget_month_id);
-  return months.map((month) => ({
+  const exportMonths = months.map((month) => ({
     ...month,
     budget_month_items: itemsByMonth.get(month.id) ?? [],
     budget_transactions: transactionsByMonth.get(month.id) ?? [],
@@ -916,6 +921,12 @@ export const retrieveMonthsForExport = async (
     adjustments: adjustmentsByMonth.get(month.id) ?? [],
     lifecycle_events: eventsByMonth.get(month.id) ?? [],
   }));
+  assertPortableHouseholdScope(exportMonths, exportHouseholdId);
+  const profileAfterExport = await retrieveProfile();
+  if (profileAfterExport?.active_household_id !== exportHouseholdId) {
+    throw new Error('The active household changed during export. Try the export again.');
+  }
+  return exportMonths;
 };
 
 export const createMonthFromTemplate = async (
@@ -1456,8 +1467,10 @@ export const deleteGoalContribution = async (id: string): Promise<void> => {
 
 export const exportAllData = async (range: MonthExportRange = {}) => {
   const client = requireSupabase();
+  const profile = await retrieveProfile();
+  const exportHouseholdId = profile?.active_household_id;
+  if (!exportHouseholdId) throw new Error('Select a household before creating an export.');
   const [
-    profile,
     preferences,
     categories,
     templates,
@@ -1479,7 +1492,6 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
     monthAdjustments,
     lifecycleEvents,
   ] = await Promise.all([
-    retrieveProfile(),
     retrievePreferences(),
     retrieveAllPages<Category>((from, to) =>
       client.from('categories').select('*').order('created_at').order('id').range(from, to),
@@ -1600,7 +1612,7 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
   const itemsByMonth = groupRecordsBy(monthItems, (item) => item.budget_month_id);
   const transactionsByMonth = groupRecordsBy(transactions, (entry) => entry.budget_month_id);
   const exportedMonthIds = new Set(budgetMonths.map((month) => month.id));
-  return removePortableOwnership({
+  const exportPayload = {
     exported_at: new Date().toISOString(),
     schema_version: 11,
     range: {
@@ -1654,7 +1666,13 @@ export const exportAllData = async (range: MonthExportRange = {}) => {
         planned_versus_actual: calculateBudgetProgress(budgetMonthItems, budgetTransactions),
       };
     }),
-  });
+  };
+  assertPortableHouseholdScope(exportPayload, exportHouseholdId);
+  const profileAfterExport = await retrieveProfile();
+  if (profileAfterExport?.active_household_id !== exportHouseholdId) {
+    throw new Error('The active household changed during export. Try the export again.');
+  }
+  return removePortableOwnership(exportPayload);
 };
 
 export interface BackupRestoreReport {

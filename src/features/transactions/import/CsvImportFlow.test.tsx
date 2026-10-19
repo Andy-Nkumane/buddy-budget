@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { BudgetMonth } from '../../../shared/types/domain';
 import { CsvImportFlow } from './CsvImportFlow';
@@ -46,13 +47,15 @@ const renderFlow = (onComplete = vi.fn(() => Promise.resolve())) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <CsvImportFlow
-        userId="user-id"
-        months={[month]}
-        accounts={[]}
-        onComplete={onComplete}
-        onCancel={vi.fn()}
-      />
+      <MemoryRouter>
+        <CsvImportFlow
+          userId="user-id"
+          months={[month]}
+          accounts={[]}
+          onComplete={onComplete}
+          onCancel={vi.fn()}
+        />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   return onComplete;
@@ -75,10 +78,19 @@ describe('CsvImportFlow', () => {
   it('maps, previews, and explicitly confirms valid local rows', async () => {
     const onComplete = vi.fn(() => Promise.resolve());
     renderFlow(onComplete);
-    expect(screen.getByText('Your statement stays on this device.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('complementary', { name: 'Before you choose a bank statement' }),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
     fireEvent.change(document.getElementById('csv-statement')!, {
       target: {
-        files: [new File(['Date,Description,Amount\n2026-09-02,Coffee,-25.50'], 'safe.csv')],
+        files: [
+          new File(
+            ['Date,Description,Amount,Unused account number\n2026-09-02,Coffee,-25.50,RAW-123456'],
+            'safe.csv',
+          ),
+        ],
       },
     });
     await screen.findByRole('button', { name: 'Review transactions' });
@@ -104,7 +116,26 @@ describe('CsvImportFlow', () => {
     expect(importBudgetTransactions).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Import 1 transactions' }));
     await waitFor(() => expect(importBudgetTransactions).toHaveBeenCalledTimes(1));
+    expect(JSON.stringify(importBudgetTransactions.mock.calls[0])).not.toContain('RAW-123456');
     expect(onComplete).toHaveBeenCalledWith('month-id', '1 transaction imported.');
+  });
+
+  it('releases the selected raw statement before choosing another file', async () => {
+    renderFlow();
+    fireEvent.change(document.getElementById('csv-statement')!, {
+      target: {
+        files: [new File(['Date,Description,Amount\n2026-09-02,Private memo,-25'], 'first.csv')],
+      },
+    });
+    await screen.findByRole('button', { name: 'Review transactions' });
+    fireEvent.click(screen.getByRole('button', { name: 'Review transactions' }));
+    expect(await screen.findByText('Private memo')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to mapping' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose another file' }));
+
+    expect(document.getElementById('csv-statement')).toBeVisible();
+    expect(screen.queryByText('Private memo')).not.toBeInTheDocument();
   });
 
   it('shows invalid rows and prevents confirmation', async () => {

@@ -1,6 +1,11 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import {
+  pwaNavigationFallbackDenylist,
+  pwaPrecachePatterns,
+  pwaRuntimeCaching,
+} from './src/pwa/cachePolicy.ts';
 
 const developmentCspPlugin: Plugin = {
   name: 'buddybudget-development-csp',
@@ -92,9 +97,9 @@ export default defineConfig(({ mode }) => {
         workbox: {
           cleanupOutdatedCaches: true,
           navigateFallback: `${base}index.html`,
-          navigateFallbackDenylist: [/\/auth\//, /supabase\.co/, /\/exports?\//],
-          globPatterns: ['**/*.{js,css,html,svg,woff2}', 'icons/icon-{192,512}.png'],
-          runtimeCaching: [],
+          navigateFallbackDenylist: pwaNavigationFallbackDenylist,
+          globPatterns: pwaPrecachePatterns,
+          runtimeCaching: pwaRuntimeCaching,
         },
       }),
     ],

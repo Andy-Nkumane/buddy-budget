@@ -17,6 +17,7 @@
 - Advisers never receive household membership or direct table privileges; every read is re-authorized by the scoped RPC.
 - Verify email, start, expiry, revocation, grantor ownership, date range, sections, and export permission on every request.
 - Grant hashes and append-only access events stay outside portable exports and browser query caches.
+- Raw CSV bytes and unmapped columns stay in memory only; Supabase responses use no-store and the service worker caches no authenticated runtime data.
 
 ## Before each release
 
@@ -43,6 +44,8 @@
 The meta CSP provides partial protection on GitHub Pages, but `frame-ancestors` and several protections require response headers. On a configurable host, add CSP, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy, and an anti-framing policy. Verify with browser network tools and an approved header scanner.
 
 ## Incident basics
+
+Follow the [incident response playbook](compliance/incident-response.md), [section 22 notification procedure](compliance/breach-notification.md), and [tabletop exercise](compliance/incident-exercise.md). Severity helps prioritise response but is not a reporting threshold.
 
 If a secret is exposed, remove it from use immediately, rotate/revoke it at the provider, inspect audit logs, assess affected environments/data, and rewrite Git history only as a secondary cleanup. If a publishable key is visible, that alone is expected; investigate only if it is actually a secret/service-role value or RLS is broken.
 

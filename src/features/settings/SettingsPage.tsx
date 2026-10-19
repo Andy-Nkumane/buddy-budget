@@ -7,6 +7,7 @@ import {
   LogOut,
   Share2,
   ShieldAlert,
+  ShieldCheck,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ import { ExportDataForm } from './ExportDataForm';
 import { RestoreBackupForm } from './RestoreBackupForm';
 import { ShareReportForm } from '../reports/ShareReportForm';
 import { queryKeys } from '../../data/queryKeys';
+import { LegalLinks } from '../legal/LegalLinks';
 
 type SettingsValues = z.infer<typeof profileSchema>;
 
@@ -59,6 +61,7 @@ export const SettingsPage = () => {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteCompleted, setDeleteCompleted] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const { register, handleSubmit, reset, formState } = useForm<SettingsValues>({
     resolver: zodResolver(profileSchema),
@@ -93,11 +96,19 @@ export const SettingsPage = () => {
     setDeleteError(null);
     try {
       await requestAccountDeletion();
-      setDeleteOpen(false);
-      await signOut();
     } catch (error) {
       setDeleteError(
         error instanceof Error ? error.message : 'Account deletion could not be completed.',
+      );
+      return;
+    }
+    setDeleteCompleted(true);
+    try {
+      await signOut({ scope: 'local' });
+      setDeleteOpen(false);
+    } catch {
+      setDeleteError(
+        'Your account was deleted, but this browser could not clear its local session. Close Buddy Budget and clear this site’s stored data before another person uses this device.',
       );
     }
   };
@@ -124,6 +135,10 @@ export const SettingsPage = () => {
   );
   const settingsLocaleOptions = includePreferenceOption(localeOptions, profile.data.locale);
   const settingsTimezoneOptions = includePreferenceOption(timezoneOptions, profile.data.timezone);
+  const activeHouseholdName =
+    household.context?.households.find(
+      (entry) => entry.id === household.context?.active_household_id,
+    )?.name ?? 'the selected household';
 
   return (
     <section className="page">
@@ -210,17 +225,31 @@ export const SettingsPage = () => {
             <BellRing size={18} /> Set up check-ins
           </Link>
         </section>
+        {household.role !== 'viewer' && (
+          <section className="settings-card">
+            <h2>Categorisation rules</h2>
+            <p>Review and control the rules that clean up repeated transactions.</p>
+            <Link className="button button--secondary" to="/app/settings/rules">
+              <ListChecks size={18} /> Manage rules
+            </Link>
+          </section>
+        )}
         <section className="settings-card">
-          <h2>Categorisation rules</h2>
-          <p>Review and control the rules that clean up repeated transactions.</p>
-          <Link className="button button--secondary" to="/app/settings/rules">
-            <ListChecks size={18} /> Manage rules
-          </Link>
+          <h2>Privacy and project status</h2>
+          <p>Review how Buddy Budget handles information and the limits of this test project.</p>
+          <div className="settings-legal-links">
+            <ShieldCheck aria-hidden="true" size={18} />
+            <LegalLinks />
+          </div>
         </section>
         <section className="settings-card settings-card--account">
           <h2>Your data</h2>
           <p>
             Choose a date range and create a PDF report, CSV spreadsheet, or portable JSON backup.
+          </p>
+          <p>
+            <strong>Export scope:</strong> personal display settings and financial records visible
+            in {activeHouseholdName}. Switch households before exporting a different shared budget.
           </p>
           <div className="stacked-actions">
             <Button
@@ -239,17 +268,26 @@ export const SettingsPage = () => {
                 Share limited report
               </Button>
             )}
-            <Button
-              variant="secondary"
-              icon={<Upload size={18} />}
-              onClick={() => setRestoreOpen(true)}
-            >
-              Restore backup
-            </Button>
+            {household.role === 'owner' && (
+              <Button
+                variant="secondary"
+                icon={<Upload size={18} />}
+                onClick={() => setRestoreOpen(true)}
+              >
+                Restore backup
+              </Button>
+            )}
           </div>
           <p className="privacy-note">
             <ShieldAlert size={18} />
             The export contains private financial information. Store it securely.
+          </p>
+          <p>
+            Export is an optional portability tool, not a complete legal access response. You can
+            correct editable records in the relevant screen; locked history must remain unchanged
+            and uses a current-month adjustment. Review the{' '}
+            <Link to="/privacy#rights">rights guidance</Link> or{' '}
+            <Link to="/contact">contact guidance</Link> for requests the app cannot complete.
           </p>
         </section>
         <section className="settings-card">
@@ -308,13 +346,20 @@ export const SettingsPage = () => {
       <Modal
         open={deleteOpen}
         title="Permanently delete account?"
-        description="This removes your profile, templates, categories, and all budget history. It cannot be undone."
-        onClose={() => setDeleteOpen(false)}
+        description="This deletes your sign-in identity and account-owned data from the active database. Shared-household ownership may block deletion, and provider backups or logs can remain for their configured retention periods."
+        onClose={() => {
+          if (!deleteCompleted) setDeleteOpen(false);
+        }}
       >
         <div className="modal-form">
+          <p>
+            Export anything you need first. If you own a household with other members, transfer
+            ownership and remove or relocate its members before deleting your account.
+          </p>
           <FormField
             label="Type DELETE to confirm"
             value={deleteConfirmation}
+            disabled={deleteCompleted}
             onChange={(event) => setDeleteConfirmation(event.target.value)}
           />
           {deleteError && (
@@ -324,10 +369,10 @@ export const SettingsPage = () => {
           )}
           <Button
             variant="danger"
-            disabled={deleteConfirmation !== 'DELETE'}
+            disabled={deleteConfirmation !== 'DELETE' || deleteCompleted}
             onClick={() => void deleteAccount()}
           >
-            Permanently delete my account
+            {deleteCompleted ? 'Account deleted' : 'Permanently delete my account'}
           </Button>
         </div>
       </Modal>

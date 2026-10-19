@@ -24,6 +24,7 @@ import {
 } from './csvParser';
 import { queryKeys } from '../../../data/queryKeys';
 import { evaluateCategorisationRules } from '../../rules/rulesEngine';
+import { CollectionNotice } from '../../legal/CollectionNotice';
 
 type Props = {
   userId: string;
@@ -225,12 +226,11 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
   if (!table || !mapping) {
     return (
       <form className="csv-import-flow" onSubmit={(event) => event.preventDefault()}>
-        <div className="csv-privacy-note">
-          <strong>Your statement stays on this device.</strong>
-          <span>
-            Buddy Budget reads it in browser memory and never uploads or retains the raw file.
-          </span>
-        </div>
+        <CollectionNotice title="Before you choose a bank statement">
+          Buddy Budget reads the raw file in browser memory and does not upload or retain it. Only
+          rows you confirm are sent to your account. Statements can identify other people or
+          businesses, so import only information you are authorised to use.
+        </CollectionNotice>
         <label className="field" htmlFor="csv-statement">
           <span className="field__label">Bank statement CSV</span>
           <input
@@ -460,8 +460,11 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
           <Button
             variant="ghost"
             onClick={() => {
+              setFile(null);
               setTable(null);
               setMapping(null);
+              setPreview(null);
+              setPreviewItems([]);
             }}
           >
             Choose another file

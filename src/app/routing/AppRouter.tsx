@@ -11,6 +11,7 @@ import {
 import { AuthLayout } from '../../features/auth/AuthLayout';
 import { LandingPage } from '../../features/landing/LandingPage';
 import { LoadingState } from '../../shared/ui/AsyncState';
+import { resolvePagesRoute } from './pagesRoute';
 
 const AuthCallbackPage = lazy(() =>
   import('../../features/auth/AuthCallbackPage').then((module) => ({
@@ -121,21 +122,30 @@ const SharedTemplatePage = lazy(() =>
     default: module.SharedTemplatePage,
   })),
 );
+const PrivacyPolicyPage = lazy(() =>
+  import('../../features/legal/PrivacyPolicyPage').then((module) => ({
+    default: module.PrivacyPolicyPage,
+  })),
+);
+const TermsPage = lazy(() =>
+  import('../../features/legal/TermsPage').then((module) => ({ default: module.TermsPage })),
+);
+const FinancialDisclaimerPage = lazy(() =>
+  import('../../features/legal/FinancialDisclaimerPage').then((module) => ({
+    default: module.FinancialDisclaimerPage,
+  })),
+);
+const ContactPage = lazy(() =>
+  import('../../features/legal/ContactPage').then((module) => ({ default: module.ContactPage })),
+);
 
 const restorePagesRoute = () => {
-  const query = window.location.search;
-  if (!query.startsWith('?/')) return;
-  const decoded = query
-    .slice(2)
-    .split('&')
-    .map((part) => part.replace(/~and~/g, '&'));
-  const route = `/${decoded.shift() ?? ''}`;
-  const search = decoded.length ? `?${decoded.join('&')}` : '';
-  window.history.replaceState(
-    null,
-    '',
-    `${import.meta.env.BASE_URL}${route.replace(/^\//, '')}${search}${window.location.hash}`,
+  const restored = resolvePagesRoute(
+    window.location.search,
+    window.location.hash,
+    import.meta.env.BASE_URL,
   );
+  if (restored) window.history.replaceState(null, '', restored);
 };
 
 restorePagesRoute();
@@ -148,6 +158,10 @@ export const AppRouter = () => (
         <Route path="/calculator" element={<PublicBudgetCalculatorPage />} />
         <Route path="/shared-report" element={<SharedReportPage />} />
         <Route path="/template" element={<SharedTemplatePage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/disclaimer" element={<FinancialDisclaimerPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route element={<RedirectAuthenticated />}>
           <Route path="/" element={<LandingPage />} />
         </Route>

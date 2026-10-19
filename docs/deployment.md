@@ -20,6 +20,12 @@ After applying database migrations, deploy `share-report` with `supabase functio
 12. Confirm the calculator canonical URL includes the repository base path and that editing it produces no Supabase request.
 13. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
 
+## Authorised tester registration gate
+
+Before exposing any deployed registration route, apply migration `202610170001_add_tester_signup_allowlist.sql`, add approved lower-case tester emails to `buddy_budget_private.tester_signup_allowlist`, and select `public.authorize_tester_signup` under **Authentication > Hooks > Before User Created**. Test one approved address and one unapproved address. The unapproved request must return the generic authorised-testers error and must not create an Auth user.
+
+Hosted Auth-hook selection is not deployed by the frontend or proven by `supabase db push`. Until the hook is enabled and verified in that project, turn off **Allow new users to sign up** under Supabase Auth general configuration. Hiding the registration link or using a browser environment variable is not an access control. See `docs/compliance/registration-transparency.md` for the evidence checklist.
+
 ## Required pull-request checks
 
 The `Quality` workflow runs the formatting, lint, type, unit, dependency-audit, production-build, secret-scan, migration, and database/RLS checks for every pull request. Its final `Quality gate` job succeeds only when both the web and database jobs succeed.
@@ -77,6 +83,8 @@ Weekly check-ins require the `weekly-checkin` Edge Function, Mailjet API credent
 
 The function rechecks preferences immediately before each delivery. Provider rejections can retry up to three total attempts. A network interruption after an email request is not retried automatically because the provider outcome is ambiguous; operators can inspect the non-sensitive `failed_final` state without exposing message content or credentials. Mark a preference `bounced` or `blocked` when Mailjet reports that state; the dispatcher will suppress further email delivery until it is safely resolved. Account deletion cascades preferences and delivery history.
 
+Account deletion stops future application-managed check-ins by cascading preferences and queued delivery history, but it does not prove erasure of messages, suppressions, bounces, or operational logs already held by Mailjet. Record the configured provider retention and request path. Supabase backup/PITR restoration must include a controlled process for reapplying still-valid account deletions; see `docs/compliance/account-deletion-and-retention.md`.
+
 ## Shared template links
 
 Apply migration `202610120001_add_shared_template_links.sql` and redeploy `share-report` with `--no-verify-jwt`. Public template preview shares the same narrowly scoped Edge endpoint as shared reports; authenticated publish, list, revoke, and copy actions still validate the JWT server-side. No new secret is required. Verify the GitHub Pages fallback preserves `/template` and its URL fragment, and confirm the deployed page emits `noindex`, `nofollow`, and `noarchive` metadata.
@@ -84,3 +92,15 @@ Apply migration `202610120001_add_shared_template_links.sql` and redeploy `share
 ## Backup restore operations
 
 Migration `202610020001_add_backup_restore.sql` must be applied before schema-v10 exports are offered. It needs no additional browser or server secret. After deployment, use a disposable staging account to export, merge, replace, download the restore report, and exercise `rollback_backup_restore` with the reported snapshot ID. Confirm that notification delivery rows and provider data are absent. Keep normal Supabase backup/PITR retention enabled; recovery snapshots are account-scoped safeguards, not infrastructure backups.
+
+## Incident readiness before deployment
+
+Complete the [incident response playbook](compliance/incident-response.md) readiness blockers before inviting testers:
+
+1. Assign a primary and alternate incident lead, registered Information Officer/Deputy, technical lead, legal/privacy reviewer, and communications owner in a restricted contact record.
+2. Verify the Information Regulator eServices reporter can authenticate; do not submit a test breach report.
+3. Verify least-privilege access to Supabase, GitHub/Pages, and Mailjet security/audit evidence and authenticated support routes.
+4. Record each provider's deployed plan, region, support entitlement, log source, timezone, retention, export method, security-notification route, and case owner. Do not infer these from local source.
+5. Test an alert/report path without personal or financial data and confirm the alternate receives it. Buddy Budget has no centralized telemetry or claimed 24/7 monitoring.
+6. Run the synthetic [tabletop exercise](compliance/incident-exercise.md), assign corrective actions, and retain only a redacted completion result in repository evidence.
+7. Recheck the live [Information Regulator guidance and portal](compliance/breach-notification.md) before an actual notification.

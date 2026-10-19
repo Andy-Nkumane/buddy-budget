@@ -9,6 +9,7 @@ import { moneyToMinorUnits } from '../../shared/formatting/money';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { SelectField } from '../../shared/ui/SelectField';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
 export const GoalForm = ({
   goal,
@@ -83,6 +84,10 @@ export const GoalForm = ({
 
   return (
     <form className="modal-form" onSubmit={(event) => void submit(event)}>
+      <CollectionNotice>
+        Goal names, target amounts, dates, balances, priority, and optional account or category
+        context are saved to the active household. Avoid unnecessary sensitive details.
+      </CollectionNotice>
       <div className="form-grid">
         <FormField
           label="Goal name"

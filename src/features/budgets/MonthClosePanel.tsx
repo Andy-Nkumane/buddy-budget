@@ -17,6 +17,7 @@ import {
 } from '../../data/repositories/budgetRepository';
 import { buildMonthCloseChecklist, parseAdjustmentAmount } from './monthClose';
 import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
+import { CollectionNotice } from '../legal/CollectionNotice';
 
 export const MonthClosePanel = ({
   month,
@@ -242,6 +243,10 @@ export const MonthClosePanel = ({
             );
           }}
         >
+          <CollectionNotice>
+            The adjustment amount, direction, and reason are saved in the current editable month and
+            linked to the locked month. Avoid unnecessary sensitive details in the reason.
+          </CollectionNotice>
           <div className="inline-alert">
             <LockKeyhole size={17} /> Stored in the current month; original records remain
             unchanged.

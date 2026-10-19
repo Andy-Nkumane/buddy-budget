@@ -1,6 +1,7 @@
 import { ArrowRight, Calculator, CalendarCheck, Play, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BrandMark } from '../../shared/ui/BrandMark';
+import { LegalLinks } from '../legal/LegalLinks';
 
 export const LandingPage = () => (
   <main className="landing">
@@ -94,5 +95,16 @@ export const LandingPage = () => (
         </div>
       </div>
     </section>
+    <footer className="landing__status">
+      <div>
+        <strong>Experimental authorised-testing project</strong>
+        <p>
+          Buddy Budget is not approved for public or commercial use. Testing is at your discretion
+          and does not limit rights under applicable law. Calculations may be inaccurate; verify
+          important results and avoid real sensitive data when testing.
+        </p>
+      </div>
+      <LegalLinks />
+    </footer>
   </main>
 );
