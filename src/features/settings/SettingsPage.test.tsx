@@ -20,6 +20,7 @@ vi.mock('../../app/providers/HouseholdProvider', () => ({
   }),
 }));
 vi.mock('../../data/repositories/budgetRepository', () => ({
+  reauthenticateWithPassword: vi.fn(),
   requestAccountDeletion: vi.fn(),
   retrievePreferences: vi.fn().mockResolvedValue({
     user_id: 'viewer-id',

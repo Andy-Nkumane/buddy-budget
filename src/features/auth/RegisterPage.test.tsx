@@ -68,4 +68,28 @@ describe('COMP-001/COMP-002 RegisterPage', () => {
     expect(request.options.data.privacy_notice_seen_version).toBe('draft-0.1');
     expect(Number.isNaN(Date.parse(request.options.data.acknowledged_at))).toBe(false);
   });
+
+  it('does not expose provider registration errors', async () => {
+    signUp.mockResolvedValue({
+      data: { session: null },
+      error: { message: 'User already registered' },
+    });
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'tester@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Password/), {
+      target: { value: 'safe-test-password' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/account could not be created/i);
+    expect(screen.queryByText('User already registered')).not.toBeInTheDocument();
+  });
 });

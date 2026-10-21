@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useHousehold } from '../../app/providers/HouseholdProvider';
 import {
+  reauthenticateWithPassword,
   requestAccountDeletion,
   retrievePreferences,
   retrieveProfile,
@@ -60,6 +61,7 @@ export const SettingsPage = () => {
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteCompleted, setDeleteCompleted] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -94,6 +96,13 @@ export const SettingsPage = () => {
 
   const deleteAccount = async () => {
     setDeleteError(null);
+    try {
+      await reauthenticateWithPassword(deletePassword);
+      setDeletePassword('');
+    } catch {
+      setDeleteError('Your password could not be verified. Check it and try again.');
+      return;
+    }
     try {
       await requestAccountDeletion();
     } catch (error) {
@@ -362,6 +371,14 @@ export const SettingsPage = () => {
             disabled={deleteCompleted}
             onChange={(event) => setDeleteConfirmation(event.target.value)}
           />
+          <FormField
+            label="Current password"
+            type="password"
+            autoComplete="current-password"
+            value={deletePassword}
+            disabled={deleteCompleted}
+            onChange={(event) => setDeletePassword(event.target.value)}
+          />
           {deleteError && (
             <div className="inline-alert inline-alert--error" role="alert">
               {deleteError}
@@ -369,7 +386,7 @@ export const SettingsPage = () => {
           )}
           <Button
             variant="danger"
-            disabled={deleteConfirmation !== 'DELETE' || deleteCompleted}
+            disabled={deleteConfirmation !== 'DELETE' || !deletePassword || deleteCompleted}
             onClick={() => void deleteAccount()}
           >
             {deleteCompleted ? 'Account deleted' : 'Permanently delete my account'}

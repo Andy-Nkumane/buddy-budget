@@ -1,12 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { reauthenticateForRestore, restoreBackup } from '../../data/repositories/budgetRepository';
+import {
+  reauthenticateWithPassword,
+  restoreBackup,
+} from '../../data/repositories/budgetRepository';
 import { RestoreBackupForm } from './RestoreBackupForm';
 
 vi.mock('../../data/repositories/budgetRepository', () => ({
   claimActivationMilestone: vi.fn().mockResolvedValue(true),
-  reauthenticateForRestore: vi.fn(),
+  reauthenticateWithPassword: vi.fn(),
   restoreBackup: vi.fn(),
 }));
 
@@ -58,7 +61,7 @@ describe('RestoreBackupForm', () => {
   });
 
   it('shows a replacement error beside the submit button', async () => {
-    vi.mocked(reauthenticateForRestore).mockRejectedValueOnce(new Error('Incorrect password'));
+    vi.mocked(reauthenticateWithPassword).mockRejectedValueOnce(new Error('Incorrect password'));
     render(
       <QueryClientProvider client={new QueryClient()}>
         <RestoreBackupForm onComplete={vi.fn()} />

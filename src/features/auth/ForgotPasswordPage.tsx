@@ -9,6 +9,7 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { forgotPasswordSchema } from '../../shared/validation/schemas';
 import { passwordResetUrl } from './authUrls';
+import { getAuthErrorMessage } from './authErrors';
 
 type ForgotValues = z.infer<typeof forgotPasswordSchema>;
 
@@ -24,7 +25,7 @@ export const ForgotPasswordPage = () => {
     const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
       redirectTo: passwordResetUrl(),
     });
-    if (error) setSubmitError(error.message);
+    if (error) setSubmitError(getAuthErrorMessage('password-reset'));
     else setSent(true);
   };
 
