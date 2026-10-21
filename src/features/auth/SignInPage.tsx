@@ -5,12 +5,13 @@ import { useForm } from 'react-hook-form';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import type { z } from 'zod';
 import { requireSupabase } from '../../data/supabase/client';
-import { authSchema } from '../../shared/validation/schemas';
+import { signInSchema } from '../../shared/validation/schemas';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { useAuth } from '../../app/providers/AuthProvider';
+import { getAuthErrorMessage } from './authErrors';
 
-type AuthValues = z.infer<typeof authSchema>;
+type AuthValues = z.infer<typeof signInSchema>;
 
 export const SignInPage = () => {
   const { session, sessionMessage } = useAuth();
@@ -18,7 +19,7 @@ export const SignInPage = () => {
   const location = useLocation();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<AuthValues>({
-    resolver: zodResolver(authSchema),
+    resolver: zodResolver(signInSchema),
   });
 
   if (session) return <Navigate replace to="/app" />;
@@ -27,7 +28,7 @@ export const SignInPage = () => {
     setSubmitError(null);
     const { error } = await requireSupabase().auth.signInWithPassword(values);
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(getAuthErrorMessage('sign-in'));
       return;
     }
     const candidate = (location.state as { from?: string } | null)?.from;

@@ -11,6 +11,7 @@ import { FormField } from '../../shared/ui/FormField';
 import { authSchema } from '../../shared/validation/schemas';
 import { authenticationCallbackUrl } from './authUrls';
 import { CollectionNotice } from '../legal/CollectionNotice';
+import { getAuthErrorMessage } from './authErrors';
 
 const registrationSchema = authSchema.extend({
   termsAcknowledged: z
@@ -46,7 +47,7 @@ export const RegisterPage = () => {
       },
     });
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(getAuthErrorMessage('register'));
       return;
     }
     if (data.session) return;
@@ -98,7 +99,7 @@ export const RegisterPage = () => {
           label="Password"
           type="password"
           autoComplete="new-password"
-          hint="At least 10 characters"
+          hint="At least 14 characters"
           error={formState.errors.password?.message}
           {...register('password')}
         />

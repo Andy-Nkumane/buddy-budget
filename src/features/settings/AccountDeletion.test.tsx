@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
 
 const account = vi.hoisted(() => ({
+  reauthenticateWithPassword: vi.fn(),
   requestAccountDeletion: vi.fn(),
   signOut: vi.fn(),
 }));
@@ -25,6 +26,7 @@ vi.mock('../../app/providers/HouseholdProvider', () => ({
   }),
 }));
 vi.mock('../../data/repositories/budgetRepository', () => ({
+  reauthenticateWithPassword: account.reauthenticateWithPassword,
   requestAccountDeletion: account.requestAccountDeletion,
   retrievePreferences: vi.fn().mockResolvedValue({
     user_id: 'owner-id',
@@ -59,14 +61,27 @@ const renderDeletion = async () => {
   fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), {
     target: { value: 'DELETE' },
   });
+  fireEvent.change(screen.getByLabelText('Current password'), {
+    target: { value: 'correct horse battery staple' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Permanently delete my account' }));
 };
 
 describe('COMP-007 account deletion', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    account.reauthenticateWithPassword.mockResolvedValue(undefined);
     account.requestAccountDeletion.mockResolvedValue(undefined);
     account.signOut.mockResolvedValue(undefined);
+  });
+
+  it('does not request deletion when recent password verification fails', async () => {
+    account.reauthenticateWithPassword.mockRejectedValue(new Error('Invalid login credentials'));
+
+    await renderDeletion();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/password could not be verified/i);
+    expect(account.requestAccountDeletion).not.toHaveBeenCalled();
   });
 
   it('does not clear the session or report success when server deletion fails', async () => {

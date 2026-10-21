@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { itemSchema, parseMoney, profileSchema, toDatabaseMoney } from './schemas';
+import {
+  itemSchema,
+  parseMoney,
+  passwordSchema,
+  profileSchema,
+  signInSchema,
+  toDatabaseMoney,
+} from './schemas';
 
 describe('money validation', () => {
   it.each([
@@ -32,5 +39,18 @@ describe('money validation', () => {
         theme: 'system',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('password validation', () => {
+  it('requires 14 characters for a new password', () => {
+    expect(passwordSchema.safeParse('thirteen-char').success).toBe(false);
+    expect(passwordSchema.safeParse('fourteen-chars!').success).toBe(true);
+  });
+
+  it('allows an existing shorter password to reach server-side sign-in validation', () => {
+    expect(
+      signInSchema.safeParse({ email: 'tester@example.test', password: 'legacy' }).success,
+    ).toBe(true);
   });
 });

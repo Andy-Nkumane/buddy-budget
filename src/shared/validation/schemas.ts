@@ -4,10 +4,15 @@ export const emailSchema = z.string().trim().email('Enter a valid email address.
 
 export const passwordSchema = z
   .string()
-  .min(10, 'Use at least 10 characters.')
+  .min(14, 'Use at least 14 characters.')
   .max(128, 'Password is too long.');
 
 export const authSchema = z.object({ email: emailSchema, password: passwordSchema });
+
+export const signInSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, 'Enter your password.').max(128, 'Password is too long.'),
+});
 
 export const forgotPasswordSchema = z.object({ email: emailSchema });
 

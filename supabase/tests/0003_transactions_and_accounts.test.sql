@@ -98,6 +98,11 @@ select results_eq(
   'RLS hides another user financial accounts'
 );
 
+select set_config('request.jwt.claims',jsonb_build_object(
+  'sub','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  'role','authenticated',
+  'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint))
+)::text,true);
 select lives_ok(
   $$select * from public.create_financial_account('Savings', 'savings', 'ZAR', 0)$$,
   'An authenticated user can create an owned account through the secured RPC'

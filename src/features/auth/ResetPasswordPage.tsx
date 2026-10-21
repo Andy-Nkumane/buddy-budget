@@ -7,6 +7,7 @@ import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { passwordSchema } from '../../shared/validation/schemas';
+import { getAuthErrorMessage } from './authErrors';
 
 const resetSchema = z
   .object({ password: passwordSchema, confirmation: z.string() })
@@ -20,34 +21,43 @@ type ResetValues = z.infer<typeof resetSchema>;
 export const ResetPasswordPage = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const code = params.get('code');
   const [ready, setReady] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(() =>
+    code ? null : 'The reset link is missing or invalid. Request a new password reset email.',
+  );
   const { register, handleSubmit, formState } = useForm<ResetValues>({
     resolver: zodResolver(resetSchema),
   });
 
   useEffect(() => {
-    const code = params.get('code');
-    if (!code) {
-      void requireSupabase()
-        .auth.getSession()
-        .then(({ data }) => setReady(Boolean(data.session)));
-      return;
-    }
-    void requireSupabase()
-      .auth.exchangeCodeForSession(code)
+    if (!code) return;
+    const client = requireSupabase();
+    let active = true;
+    let recoveryAuthorized = false;
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') recoveryAuthorized = true;
+    });
+    void client.auth
+      .exchangeCodeForSession(code)
       .then(({ error }) => {
-        if (error) setSubmitError(error.message);
+        if (!active) return;
+        if (error || !recoveryAuthorized) setSubmitError(getAuthErrorMessage('password-reset'));
         else setReady(true);
       })
-      .catch((caught: unknown) =>
-        setSubmitError(caught instanceof Error ? caught.message : 'The reset link is invalid.'),
-      );
-  }, [params]);
+      .catch(() => {
+        if (active) setSubmitError(getAuthErrorMessage('password-reset'));
+      })
+      .finally(() => listener.subscription.unsubscribe());
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [code]);
 
   const submit = async ({ password }: ResetValues) => {
     const { error } = await requireSupabase().auth.updateUser({ password });
-    if (error) setSubmitError(error.message);
+    if (error) setSubmitError(getAuthErrorMessage('password-reset'));
     else void navigate('/app', { replace: true });
   };
 
@@ -67,6 +77,7 @@ export const ResetPasswordPage = () => {
             label="New password"
             type="password"
             autoComplete="new-password"
+            hint="At least 14 characters"
             error={formState.errors.password?.message}
             {...register('password')}
           />

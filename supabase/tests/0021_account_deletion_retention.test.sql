@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(15);
 
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) values
 ('ad100000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','delete-owner@test.local',extensions.crypt('password',extensions.gen_salt('bf')),now(),'{}','{}',now(),now()),
@@ -22,6 +22,28 @@ select throws_ok($$select public.delete_own_account()$$,'42501','Authentication 
 select set_config('request.jwt.claim.sub','ad100000-0000-4000-8000-000000000001',true);
 select throws_ok(
   $$select public.delete_own_account()$$,
+  '42501',
+  'Re-enter your password before deleting your account',
+  'AUTH-004: Deletion requires a recent password authentication method'
+);
+select set_config('request.jwt.claims',jsonb_build_object(
+  'sub','ad100000-0000-4000-8000-000000000001',
+  'role','authenticated',
+  'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now()-interval '11 minutes')::bigint))
+)::text,true);
+select throws_ok(
+  $$select public.delete_own_account()$$,
+  '42501',
+  'Re-enter your password before deleting your account',
+  'AUTH-004: Stale password authentication cannot authorize deletion'
+);
+select set_config('request.jwt.claims',jsonb_build_object(
+  'sub','ad100000-0000-4000-8000-000000000001',
+  'role','authenticated',
+  'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint))
+)::text,true);
+select throws_ok(
+  $$select public.delete_own_account()$$,
   '23514',
   'Transfer ownership and remove or relocate all members from delete-owner@test.local''s household before deleting your account',
   'An owner cannot orphan a shared household'
@@ -32,7 +54,11 @@ delete from public.household_memberships
 where household_id='ad100000-0000-4000-8000-000000000001' and user_id='ad100000-0000-4000-8000-000000000002';
 
 set local role authenticated;
-select set_config('request.jwt.claim.sub','ad100000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claims',jsonb_build_object(
+  'sub','ad100000-0000-4000-8000-000000000001',
+  'role','authenticated',
+  'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint))
+)::text,true);
 select lives_ok($$select public.delete_own_account()$$,'COMP-007: An eligible user can delete their own account');
 reset role;
 select is((select count(*)::integer from auth.users where id='ad100000-0000-4000-8000-000000000001'),0,'Deletion removes the Auth identity');

@@ -1688,7 +1688,7 @@ export interface BackupRestoreReport {
   completed_at: string;
 }
 
-export const reauthenticateForRestore = async (password: string): Promise<void> => {
+export const reauthenticateWithPassword = async (password: string): Promise<void> => {
   const client = requireSupabase();
   const { data: userData, error: userError } = await client.auth.getUser();
   throwWhenError(userError);
