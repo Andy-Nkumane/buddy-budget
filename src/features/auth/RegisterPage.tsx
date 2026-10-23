@@ -11,7 +11,7 @@ import { FormField } from '../../shared/ui/FormField';
 import { authSchema } from '../../shared/validation/schemas';
 import { authenticationCallbackUrl } from './authUrls';
 import { CollectionNotice } from '../legal/CollectionNotice';
-import { getAuthErrorMessage } from './authErrors';
+import { getRegistrationErrorMessage } from './authErrors';
 
 const registrationSchema = authSchema.extend({
   termsAcknowledged: z
@@ -47,7 +47,9 @@ export const RegisterPage = () => {
       },
     });
     if (error) {
-      setSubmitError(getAuthErrorMessage('register'));
+      const isLocalDevelopment =
+        import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      setSubmitError(getRegistrationErrorMessage(error.code, isLocalDevelopment));
       return;
     }
     if (data.session) return;
@@ -99,7 +101,7 @@ export const RegisterPage = () => {
           label="Password"
           type="password"
           autoComplete="new-password"
-          hint="At least 14 characters"
+          hint="Use 15 or more characters. Spaces and passphrases are welcome."
           error={formState.errors.password?.message}
           {...register('password')}
         />

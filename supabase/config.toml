@@ -33,7 +33,7 @@ jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 enable_signup = true
-minimum_password_length = 14
+minimum_password_length = 15
 password_requirements = ""
 
 [auth.hook.before_user_created]

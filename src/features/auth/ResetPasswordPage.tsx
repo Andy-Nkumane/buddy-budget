@@ -77,7 +77,7 @@ export const ResetPasswordPage = () => {
             label="New password"
             type="password"
             autoComplete="new-password"
-            hint="At least 14 characters"
+            hint="Use 15 or more characters. Spaces and passphrases are welcome."
             error={formState.errors.password?.message}
             {...register('password')}
           />
