@@ -58,8 +58,8 @@ For each non-local project, an authorised operator must configure and record:
    accepted through a direct Auth request. Do not run password-boundary probes against production.
 6. Repeat the settings review for production before deployment; do not infer it from local config.
 
-The hosted project cannot be declared aligned until this evidence exists. Compromised-password
-screening is intentionally deferred to Phase 03.
+The hosted project cannot be declared aligned until this evidence exists. See
+`breached-password-protection.md` for the separate provider-plan and deployment requirements.
 
 ## Compatibility and rollback
 

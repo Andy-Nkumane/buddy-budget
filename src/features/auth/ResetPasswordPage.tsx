@@ -7,7 +7,7 @@ import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { passwordSchema } from '../../shared/validation/schemas';
-import { getAuthErrorMessage } from './authErrors';
+import { getAuthErrorMessage, getNewPasswordErrorMessage } from './authErrors';
 
 const resetSchema = z
   .object({ password: passwordSchema, confirmation: z.string() })
@@ -57,7 +57,7 @@ export const ResetPasswordPage = () => {
 
   const submit = async ({ password }: ResetValues) => {
     const { error } = await requireSupabase().auth.updateUser({ password });
-    if (error) setSubmitError(getAuthErrorMessage('password-reset'));
+    if (error) setSubmitError(getNewPasswordErrorMessage('password-reset', error));
     else void navigate('/app', { replace: true });
   };
 
