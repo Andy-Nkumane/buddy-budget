@@ -2,10 +2,28 @@ import { z } from 'zod';
 
 export const emailSchema = z.string().trim().email('Enter a valid email address.');
 
-export const passwordSchema = z
-  .string()
-  .min(14, 'Use at least 14 characters.')
-  .max(128, 'Password is too long.');
+export const PASSWORD_MIN_CODE_POINTS = 15;
+export const PASSWORD_MAX_UTF8_BYTES = 72;
+
+export const countPasswordCodePoints = (value: string): number => Array.from(value).length;
+
+export const countPasswordUtf8Bytes = (value: string): number =>
+  new TextEncoder().encode(value).length;
+
+export const passwordSchema = z.string().superRefine((value, context) => {
+  if (countPasswordCodePoints(value) < PASSWORD_MIN_CODE_POINTS) {
+    context.addIssue({
+      code: 'custom',
+      message: `Use at least ${PASSWORD_MIN_CODE_POINTS} characters.`,
+    });
+  }
+  if (countPasswordUtf8Bytes(value) > PASSWORD_MAX_UTF8_BYTES) {
+    context.addIssue({
+      code: 'custom',
+      message: `Password must be ${PASSWORD_MAX_UTF8_BYTES} UTF-8 bytes or fewer.`,
+    });
+  }
+});
 
 export const authSchema = z.object({ email: emailSchema, password: passwordSchema });
 
