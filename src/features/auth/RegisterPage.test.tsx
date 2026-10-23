@@ -120,6 +120,34 @@ describe('COMP-001/COMP-002 RegisterPage', () => {
     );
   });
 
+  it('explains a provider-rejected breached password without exposing provider output', async () => {
+    signUp.mockResolvedValue({
+      data: { session: null },
+      error: {
+        code: 'weak_password',
+        message: 'Internal password-strength response',
+        reasons: ['pwned'],
+      },
+    });
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'tester@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Password/), {
+      target: { value: 'provider-screening-fixture' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/known data breach/i);
+    expect(screen.queryByText(/internal password-strength response/i)).not.toBeInTheDocument();
+  });
+
   it('rejects a short password before signup and preserves accepted password input exactly', async () => {
     render(
       <MemoryRouter>

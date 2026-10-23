@@ -49,7 +49,7 @@ export const RegisterPage = () => {
     if (error) {
       const isLocalDevelopment =
         import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-      setSubmitError(getRegistrationErrorMessage(error.code, isLocalDevelopment));
+      setSubmitError(getRegistrationErrorMessage(error, isLocalDevelopment));
       return;
     }
     if (data.session) return;

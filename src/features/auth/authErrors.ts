@@ -1,5 +1,10 @@
 export type AuthOperation = 'callback' | 'password-reset' | 'register' | 'sign-in';
 
+type AuthErrorDetails = {
+  code?: string;
+  reasons?: string[];
+};
+
 const messages: Record<AuthOperation, string> = {
   callback: 'This link is invalid or expired. Request a new email and try again.',
   'password-reset': 'The password reset could not be completed. Request a new link and try again.',
@@ -10,12 +15,22 @@ const messages: Record<AuthOperation, string> = {
 
 export const getAuthErrorMessage = (operation: AuthOperation): string => messages[operation];
 
+export const getNewPasswordErrorMessage = (
+  operation: 'password-reset' | 'register',
+  error: AuthErrorDetails,
+): string => {
+  if (error.code === 'weak_password' && error.reasons?.includes('pwned')) {
+    return 'This password has appeared in a known data breach. Choose a different password.';
+  }
+  return getAuthErrorMessage(operation);
+};
+
 export const getRegistrationErrorMessage = (
-  errorCode: string | undefined,
+  error: AuthErrorDetails,
   isLocalDevelopment: boolean,
 ): string => {
-  if (isLocalDevelopment && errorCode === 'user_already_exists') {
+  if (isLocalDevelopment && error.code === 'user_already_exists') {
     return 'An account already exists for this email on localhost. Sign in or use a different email.';
   }
-  return getAuthErrorMessage('register');
+  return getNewPasswordErrorMessage('register', error);
 };
