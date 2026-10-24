@@ -9,24 +9,22 @@ import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { forgotPasswordSchema } from '../../shared/validation/schemas';
 import { passwordResetUrl } from './authUrls';
-import { getAuthErrorMessage } from './authErrors';
 
 type ForgotValues = z.infer<typeof forgotPasswordSchema>;
 
 export const ForgotPasswordPage = () => {
   const [sent, setSent] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<ForgotValues>({
     resolver: zodResolver(forgotPasswordSchema),
   });
 
   const submit = async ({ email }: ForgotValues) => {
-    setSubmitError(null);
-    const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: passwordResetUrl(),
-    });
-    if (error) setSubmitError(getAuthErrorMessage('password-reset'));
-    else setSent(true);
+    await requireSupabase()
+      .auth.resetPasswordForEmail(email, {
+        redirectTo: passwordResetUrl(),
+      })
+      .catch(() => undefined);
+    setSent(true);
   };
 
   return (
@@ -50,11 +48,6 @@ export const ForgotPasswordPage = () => {
           <p className="eyebrow">Account recovery</p>
           <h2>Reset your password</h2>
           <p className="muted">We’ll send a secure, single-use link to your email.</p>
-          {submitError && (
-            <div className="inline-alert inline-alert--error" role="alert">
-              {submitError}
-            </div>
-          )}
           <form onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
             <FormField
               label="Email address"

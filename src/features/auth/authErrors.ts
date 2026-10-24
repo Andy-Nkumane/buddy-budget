@@ -3,7 +3,16 @@ export type AuthOperation = 'callback' | 'password-reset' | 'register' | 'sign-i
 type AuthErrorDetails = {
   code?: string;
   reasons?: string[];
+  status?: number;
 };
+
+const rateLimitCodes = new Set([
+  'over_email_send_rate_limit',
+  'over_request_rate_limit',
+  'over_sms_send_rate_limit',
+]);
+
+const rateLimitMessage = 'Too many attempts. Wait a little while before trying again.';
 
 const messages: Record<AuthOperation, string> = {
   callback: 'This link is invalid or expired. Request a new email and try again.',
@@ -13,7 +22,10 @@ const messages: Record<AuthOperation, string> = {
   'sign-in': 'The email or password is incorrect, or sign-in is temporarily unavailable.',
 };
 
-export const getAuthErrorMessage = (operation: AuthOperation): string => messages[operation];
+export const getAuthErrorMessage = (operation: AuthOperation, error?: AuthErrorDetails): string =>
+  error?.status === 429 || (error?.code && rateLimitCodes.has(error.code))
+    ? rateLimitMessage
+    : messages[operation];
 
 export const getNewPasswordErrorMessage = (
   operation: 'password-reset' | 'register',
@@ -22,7 +34,7 @@ export const getNewPasswordErrorMessage = (
   if (error.code === 'weak_password' && error.reasons?.includes('pwned')) {
     return 'This password has appeared in a known data breach. Choose a different password.';
   }
-  return getAuthErrorMessage(operation);
+  return getAuthErrorMessage(operation, error);
 };
 
 export const getRegistrationErrorMessage = (
