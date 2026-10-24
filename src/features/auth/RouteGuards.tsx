@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { retrievePreferences } from '../../data/repositories/budgetRepository';
 import { queryKeys } from '../../data/queryKeys';
 import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
+import { retrieveMfaAssurance } from './mfa';
 
 export const RequireAuthentication = () => {
   const { session, loading } = useAuth();
@@ -17,6 +19,40 @@ export const RequireAuthentication = () => {
         to="/auth/sign-in"
       />
     );
+  return <Outlet />;
+};
+
+export const RequireMfa = () => {
+  const location = useLocation();
+  const [state, setState] = useState<'checking' | 'ready' | 'challenge' | 'error'>('checking');
+
+  useEffect(() => {
+    let active = true;
+    void retrieveMfaAssurance()
+      .then(({ currentLevel, nextLevel }) => {
+        if (!active) return;
+        setState(currentLevel === 'aal1' && nextLevel === 'aal2' ? 'challenge' : 'ready');
+      })
+      .catch(() => {
+        if (active) setState('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (state === 'checking') return <LoadingState label="Checking account security…" />;
+  if (state === 'error')
+    return <ErrorState message="Your account security could not be verified." />;
+  if (state === 'challenge') {
+    return (
+      <Navigate
+        replace
+        to="/auth/mfa"
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
+  }
   return <Outlet />;
 };
 

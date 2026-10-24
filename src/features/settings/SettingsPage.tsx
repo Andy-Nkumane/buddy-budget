@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { Factor } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BellRing,
@@ -41,6 +42,8 @@ import { RestoreBackupForm } from './RestoreBackupForm';
 import { ShareReportForm } from '../reports/ShareReportForm';
 import { queryKeys } from '../../data/queryKeys';
 import { LegalLinks } from '../legal/LegalLinks';
+import { MfaSettings } from './MfaSettings';
+import { retrieveTotpFactors, verifyTotpFactor } from '../auth/mfa';
 
 type SettingsValues = z.infer<typeof profileSchema>;
 
@@ -62,6 +65,9 @@ export const SettingsPage = () => {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deletePassword, setDeletePassword] = useState('');
+  const [deleteMfaCode, setDeleteMfaCode] = useState('');
+  const [deleteMfaFactorId, setDeleteMfaFactorId] = useState<string | null>(null);
+  const [deleteMfaFactors, setDeleteMfaFactors] = useState<Factor<'totp', 'verified'>[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteCompleted, setDeleteCompleted] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -103,6 +109,15 @@ export const SettingsPage = () => {
       setDeleteError('Your password could not be verified. Check it and try again.');
       return;
     }
+    if (deleteMfaFactorId) {
+      try {
+        await verifyTotpFactor(deleteMfaFactorId, deleteMfaCode);
+        setDeleteMfaCode('');
+      } catch {
+        setDeleteError('Your authenticator code could not be verified. Check it and try again.');
+        return;
+      }
+    }
     try {
       await requestAccountDeletion();
     } catch (error) {
@@ -126,6 +141,18 @@ export const SettingsPage = () => {
       await signOut();
     } catch (error) {
       setAccountError(error instanceof Error ? error.message : 'Could not sign out.');
+    }
+  };
+
+  const openAccountDeletion = async () => {
+    setDeleteError(null);
+    try {
+      const factors = await retrieveTotpFactors();
+      setDeleteMfaFactors(factors);
+      setDeleteMfaFactorId(factors[0]?.id ?? null);
+      setDeleteOpen(true);
+    } catch {
+      setAccountError('Your account security could not be checked. Try again.');
     }
   };
 
@@ -251,6 +278,7 @@ export const SettingsPage = () => {
             <LegalLinks />
           </div>
         </section>
+        <MfaSettings />
         <section className="settings-card settings-card--account">
           <h2>Your data</h2>
           <p>
@@ -312,7 +340,7 @@ export const SettingsPage = () => {
             <Button
               variant="danger"
               icon={<Trash2 size={18} />}
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => void openAccountDeletion()}
             >
               Delete account
             </Button>
@@ -379,6 +407,36 @@ export const SettingsPage = () => {
             disabled={deleteCompleted}
             onChange={(event) => setDeletePassword(event.target.value)}
           />
+          {deleteMfaFactorId && (
+            <>
+              {deleteMfaFactors.length > 1 && (
+                <label className="field">
+                  <span className="field__label">Authenticator app</span>
+                  <select
+                    className="input"
+                    value={deleteMfaFactorId}
+                    disabled={deleteCompleted}
+                    onChange={(event) => setDeleteMfaFactorId(event.target.value)}
+                  >
+                    {deleteMfaFactors.map((factor, index) => (
+                      <option key={factor.id} value={factor.id}>
+                        {factor.friendly_name || `Authenticator app ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <FormField
+                label="Authenticator code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                value={deleteMfaCode}
+                disabled={deleteCompleted}
+                onChange={(event) => setDeleteMfaCode(event.target.value)}
+              />
+            </>
+          )}
           {deleteError && (
             <div className="inline-alert inline-alert--error" role="alert">
               {deleteError}
@@ -386,7 +444,12 @@ export const SettingsPage = () => {
           )}
           <Button
             variant="danger"
-            disabled={deleteConfirmation !== 'DELETE' || !deletePassword || deleteCompleted}
+            disabled={
+              deleteConfirmation !== 'DELETE' ||
+              !deletePassword ||
+              (deleteMfaFactorId !== null && !/^\d{6}$/.test(deleteMfaCode)) ||
+              deleteCompleted
+            }
             onClick={() => void deleteAccount()}
           >
             {deleteCompleted ? 'Account deleted' : 'Permanently delete my account'}

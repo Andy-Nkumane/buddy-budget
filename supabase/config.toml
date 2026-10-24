@@ -45,5 +45,12 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
 [functions.share-report]
 verify_jwt = false
