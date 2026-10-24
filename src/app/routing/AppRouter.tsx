@@ -6,6 +6,7 @@ import {
   RedirectAuthenticated,
   RequireAuthentication,
   RequireIncompleteOnboarding,
+  RequireMfa,
   RequireOnboarding,
 } from '../../features/auth/RouteGuards';
 import { AuthLayout } from '../../features/auth/AuthLayout';
@@ -33,6 +34,11 @@ const ResetPasswordPage = lazy(() =>
 );
 const SignInPage = lazy(() =>
   import('../../features/auth/SignInPage').then((module) => ({ default: module.SignInPage })),
+);
+const MfaChallengePage = lazy(() =>
+  import('../../features/auth/MfaChallengePage').then((module) => ({
+    default: module.MfaChallengePage,
+  })),
 );
 const BudgetPage = lazy(() =>
   import('../../features/budgets/BudgetPage').then((module) => ({ default: module.BudgetPage })),
@@ -174,29 +180,34 @@ export const AppRouter = () => (
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="callback" element={<AuthCallbackPage />} />
+          <Route element={<RequireAuthentication />}>
+            <Route path="mfa" element={<MfaChallengePage />} />
+          </Route>
         </Route>
         <Route element={<RequireAuthentication />}>
-          <Route element={<RequireIncompleteOnboarding />}>
-            <Route path="/onboarding" element={<OnboardingPage />} />
-          </Route>
-          <Route path="/app/household/invite" element={<HouseholdInvitationPage />} />
-          <Route path="/app/adviser" element={<AdviserPage />} />
-          <Route path="/app" element={<AppHome />} />
-          <Route element={<RequireOnboarding />}>
-            <Route path="/app" element={<AppLayout />}>
-              <Route path="budget/:monthStart" element={<BudgetPage />} />
-              <Route path="transactions" element={<TransactionsPage />} />
-              <Route path="cash-flow" element={<CashFlowPage />} />
-              <Route path="goals" element={<GoalsPage />} />
-              <Route path="insights" element={<InsightsPage />} />
-              <Route path="months" element={<MonthsPage />} />
-              <Route path="templates" element={<TemplatesPage />} />
-              <Route path="categories" element={<CategoriesPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="household" element={<HouseholdPage />} />
-              <Route path="settings/check-ins" element={<WeeklyCheckInPage />} />
-              <Route path="settings/rules" element={<RulesPage />} />
-              <Route path="help" element={<HelpPage />} />
+          <Route element={<RequireMfa />}>
+            <Route element={<RequireIncompleteOnboarding />}>
+              <Route path="/onboarding" element={<OnboardingPage />} />
+            </Route>
+            <Route path="/app/household/invite" element={<HouseholdInvitationPage />} />
+            <Route path="/app/adviser" element={<AdviserPage />} />
+            <Route path="/app" element={<AppHome />} />
+            <Route element={<RequireOnboarding />}>
+              <Route path="/app" element={<AppLayout />}>
+                <Route path="budget/:monthStart" element={<BudgetPage />} />
+                <Route path="transactions" element={<TransactionsPage />} />
+                <Route path="cash-flow" element={<CashFlowPage />} />
+                <Route path="goals" element={<GoalsPage />} />
+                <Route path="insights" element={<InsightsPage />} />
+                <Route path="months" element={<MonthsPage />} />
+                <Route path="templates" element={<TemplatesPage />} />
+                <Route path="categories" element={<CategoriesPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="household" element={<HouseholdPage />} />
+                <Route path="settings/check-ins" element={<WeeklyCheckInPage />} />
+                <Route path="settings/rules" element={<RulesPage />} />
+                <Route path="help" element={<HelpPage />} />
+              </Route>
             </Route>
           </Route>
         </Route>

@@ -8,6 +8,8 @@ const account = vi.hoisted(() => ({
   reauthenticateWithPassword: vi.fn(),
   requestAccountDeletion: vi.fn(),
   signOut: vi.fn(),
+  retrieveTotpFactors: vi.fn(),
+  verifyTotpFactor: vi.fn(),
 }));
 
 vi.mock('../../app/providers/AuthProvider', () => ({
@@ -48,6 +50,13 @@ vi.mock('../../data/repositories/budgetRepository', () => ({
   }),
   updateProfileAndPreferences: vi.fn(),
 }));
+vi.mock('../auth/mfa', () => ({
+  retrieveTotpFactors: account.retrieveTotpFactors,
+  verifyTotpFactor: account.verifyTotpFactor,
+  retrieveMfaAssurance: vi.fn().mockResolvedValue({ currentLevel: 'aal1', nextLevel: 'aal1' }),
+  createTotpEnrollment: vi.fn(),
+  deleteTotpFactor: vi.fn(),
+}));
 
 const renderDeletion = async () => {
   render(
@@ -58,7 +67,7 @@ const renderDeletion = async () => {
     </MemoryRouter>,
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
-  fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), {
+  fireEvent.change(await screen.findByLabelText('Type DELETE to confirm'), {
     target: { value: 'DELETE' },
   });
   fireEvent.change(screen.getByLabelText('Current password'), {
@@ -73,6 +82,8 @@ describe('COMP-007 account deletion', () => {
     account.reauthenticateWithPassword.mockResolvedValue(undefined);
     account.requestAccountDeletion.mockResolvedValue(undefined);
     account.signOut.mockResolvedValue(undefined);
+    account.retrieveTotpFactors.mockResolvedValue([]);
+    account.verifyTotpFactor.mockResolvedValue(undefined);
   });
 
   it('does not request deletion when recent password verification fails', async () => {
@@ -102,6 +113,43 @@ describe('COMP-007 account deletion', () => {
       /account was deleted, but this browser could not clear its local session/i,
     );
     expect(screen.getByRole('button', { name: 'Account deleted' })).toBeDisabled();
+    await waitFor(() => expect(account.requestAccountDeletion).toHaveBeenCalledOnce());
+  });
+
+  it('verifies an enrolled authenticator after password reauthentication', async () => {
+    account.retrieveTotpFactors.mockResolvedValue([
+      {
+        id: 'factor-id',
+        factor_type: 'totp',
+        status: 'verified',
+        created_at: '2026-10-24T00:00:00.000Z',
+        updated_at: '2026-10-24T00:00:00.000Z',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient()}>
+          <SettingsPage />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
+    fireEvent.change(await screen.findByLabelText('Type DELETE to confirm'), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'correct horse battery staple' },
+    });
+    fireEvent.change(screen.getByLabelText('Authenticator code'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Permanently delete my account' }));
+
+    await waitFor(() =>
+      expect(account.verifyTotpFactor).toHaveBeenCalledWith('factor-id', '123456'),
+    );
+    expect(account.reauthenticateWithPassword).toHaveBeenCalledBefore(account.verifyTotpFactor);
     await waitFor(() => expect(account.requestAccountDeletion).toHaveBeenCalledOnce());
   });
 });
