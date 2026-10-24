@@ -28,7 +28,7 @@ export const SignInPage = () => {
     setSubmitError(null);
     const { error } = await requireSupabase().auth.signInWithPassword(values);
     if (error) {
-      setSubmitError(getAuthErrorMessage('sign-in'));
+      setSubmitError(getAuthErrorMessage('sign-in', error));
       return;
     }
     const candidate = (location.state as { from?: string } | null)?.from;
