@@ -10,9 +10,9 @@ vi.mock('../../data/supabase/client', () => ({ requireSupabase: vi.fn() }));
 
 const signInWithPassword = vi.fn();
 
-const renderPage = () =>
+const renderPage = (state?: { passwordChanged: boolean }) =>
   render(
-    <MemoryRouter initialEntries={['/auth/sign-in']}>
+    <MemoryRouter initialEntries={[{ pathname: '/auth/sign-in', state }]}>
       <Routes>
         <Route path="/auth/sign-in" element={<SignInPage />} />
         <Route path="/app" element={<p>Budget dashboard</p>} />
@@ -73,5 +73,12 @@ describe('AUTH-006 SignInPage', () => {
     submitCredentials();
 
     await waitFor(() => expect(screen.getByText('Budget dashboard')).toBeVisible());
+  });
+
+  it('confirms a completed password reset without exposing recovery data', () => {
+    renderPage({ passwordChanged: true });
+
+    expect(screen.getByRole('status')).toHaveTextContent(/password was updated/i);
+    expect(screen.getByRole('status')).not.toHaveTextContent(/code|token/i);
   });
 });
