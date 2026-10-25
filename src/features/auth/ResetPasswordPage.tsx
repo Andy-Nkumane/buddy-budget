@@ -23,6 +23,7 @@ export const ResetPasswordPage = () => {
   const navigate = useNavigate();
   const code = params.get('code');
   const [ready, setReady] = useState(false);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(() =>
     code ? null : 'The reset link is missing or invalid. Request a new password reset email.',
   );
@@ -33,6 +34,11 @@ export const ResetPasswordPage = () => {
   useEffect(() => {
     if (!code) return;
     const client = requireSupabase();
+    const address = new URL(window.location.href);
+    if (address.searchParams.has('code')) {
+      address.searchParams.delete('code');
+      window.history.replaceState(window.history.state, '', address);
+    }
     let active = true;
     let recoveryAuthorized = false;
     const { data: listener } = client.auth.onAuthStateChange((event) => {
@@ -56,9 +62,21 @@ export const ResetPasswordPage = () => {
   }, [code]);
 
   const submit = async ({ password }: ResetValues) => {
-    const { error } = await requireSupabase().auth.updateUser({ password });
+    const client = requireSupabase();
+    const { error } = await client.auth.updateUser({ password });
     if (error) setSubmitError(getNewPasswordErrorMessage('password-reset', error));
-    else void navigate('/app', { replace: true });
+    else {
+      setReady(false);
+      setPasswordUpdated(true);
+      const { error: signOutError } = await client.auth.signOut();
+      if (signOutError) {
+        setSubmitError(
+          'Your password was updated, but Buddy Budget could not end every existing session. Close this browser and contact the test administrator before continuing.',
+        );
+      } else {
+        void navigate('/auth/sign-in', { replace: true, state: { passwordChanged: true } });
+      }
+    }
   };
 
   return (
@@ -70,7 +88,7 @@ export const ResetPasswordPage = () => {
           {submitError}
         </div>
       )}
-      {!ready && !submitError && <p role="status">Checking your reset link…</p>}
+      {!ready && !submitError && !passwordUpdated && <p role="status">Checking your reset link…</p>}
       {ready && (
         <form onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
           <FormField

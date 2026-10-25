@@ -17,6 +17,7 @@ export const SignInPage = () => {
   const { session, sessionMessage } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const passwordChanged = (location.state as { passwordChanged?: boolean } | null)?.passwordChanged;
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<AuthValues>({
     resolver: zodResolver(signInSchema),
@@ -45,6 +46,12 @@ export const SignInPage = () => {
       <p className="eyebrow">Welcome back</p>
       <h2>Sign in to your budget</h2>
       <p className="muted">Pick up exactly where you left off.</p>
+      {passwordChanged && (
+        <div className="inline-alert" role="status">
+          Your password was updated and existing sessions were ended. Sign in with your new
+          password.
+        </div>
+      )}
       {(submitError || sessionMessage) && (
         <div className="inline-alert inline-alert--error" role="alert">
           {submitError ?? sessionMessage}

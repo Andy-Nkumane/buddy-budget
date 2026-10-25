@@ -1,4 +1,5 @@
-export type AuthOperation = 'callback' | 'password-reset' | 'register' | 'sign-in';
+export type AuthOperation =
+  'callback' | 'password-change' | 'password-reset' | 'register' | 'sign-in';
 
 type AuthErrorDetails = {
   code?: string;
@@ -16,6 +17,8 @@ const rateLimitMessage = 'Too many attempts. Wait a little while before trying a
 
 const messages: Record<AuthOperation, string> = {
   callback: 'This link is invalid or expired. Request a new email and try again.',
+  'password-change':
+    'Your password could not be changed. Check your current password and try again.',
   'password-reset': 'The password reset could not be completed. Request a new link and try again.',
   register:
     'We could not create this account. If you already registered, sign in instead. Otherwise, confirm that you are an authorised tester, check the password requirements, and try again or contact the test administrator.',
@@ -28,7 +31,7 @@ export const getAuthErrorMessage = (operation: AuthOperation, error?: AuthErrorD
     : messages[operation];
 
 export const getNewPasswordErrorMessage = (
-  operation: 'password-reset' | 'register',
+  operation: 'password-change' | 'password-reset' | 'register',
   error: AuthErrorDetails,
 ): string => {
   if (error.code === 'weak_password' && error.reasons?.includes('pwned')) {

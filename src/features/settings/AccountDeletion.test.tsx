@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
@@ -70,7 +70,7 @@ const renderDeletion = async () => {
   fireEvent.change(await screen.findByLabelText('Type DELETE to confirm'), {
     target: { value: 'DELETE' },
   });
-  fireEvent.change(screen.getByLabelText('Current password'), {
+  fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('Current password'), {
     target: { value: 'correct horse battery staple' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Permanently delete my account' }));
@@ -138,7 +138,7 @@ describe('COMP-007 account deletion', () => {
     fireEvent.change(await screen.findByLabelText('Type DELETE to confirm'), {
       target: { value: 'DELETE' },
     });
-    fireEvent.change(screen.getByLabelText('Current password'), {
+    fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('Current password'), {
       target: { value: 'correct horse battery staple' },
     });
     fireEvent.change(screen.getByLabelText('Authenticator code'), {

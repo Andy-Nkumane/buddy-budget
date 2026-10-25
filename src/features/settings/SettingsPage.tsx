@@ -43,6 +43,7 @@ import { ShareReportForm } from '../reports/ShareReportForm';
 import { queryKeys } from '../../data/queryKeys';
 import { LegalLinks } from '../legal/LegalLinks';
 import { MfaSettings } from './MfaSettings';
+import { ChangePasswordForm } from './ChangePasswordForm';
 import { retrieveTotpFactors, verifyTotpFactor } from '../auth/mfa';
 
 type SettingsValues = z.infer<typeof profileSchema>;
@@ -279,6 +280,7 @@ export const SettingsPage = () => {
           </div>
         </section>
         <MfaSettings />
+        <ChangePasswordForm />
         <section className="settings-card settings-card--account">
           <h2>Your data</h2>
           <p>
