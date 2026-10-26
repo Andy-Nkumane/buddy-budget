@@ -12,7 +12,7 @@
           .split('/')
           .slice(0, 1 + segmentsToKeep)
           .join('/');
-        var route = location.pathname.slice(base.length).replace(/&/g, '~and~');
+        var route = location.pathname.slice(base.length).replace(/^\/+/, '').replace(/&/g, '~and~');
         location.replace(
           location.protocol +
             '//' +
