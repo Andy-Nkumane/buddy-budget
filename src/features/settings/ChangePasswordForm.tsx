@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
-import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
 import { passwordSchema } from '../../shared/validation/schemas';
 import { getNewPasswordErrorMessage } from '../auth/authErrors';
 
@@ -67,24 +67,21 @@ export const ChangePasswordForm = () => {
       </p>
       {!passwordUpdated && (
         <form onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
-          <FormField
+          <PasswordField
             label="Current password"
-            type="password"
             autoComplete="current-password"
             error={formState.errors.currentPassword?.message}
             {...register('currentPassword')}
           />
-          <FormField
+          <PasswordField
             label="New password"
-            type="password"
             autoComplete="new-password"
-            hint="Use 15 or more characters. Spaces and passphrases are welcome."
+            hint="Use 15 or more characters (maximum 72 UTF-8 bytes). Spaces and passphrases are welcome."
             error={formState.errors.password?.message}
             {...register('password')}
           />
-          <FormField
+          <PasswordField
             label="Confirm new password"
-            type="password"
             autoComplete="new-password"
             error={formState.errors.confirmation?.message}
             {...register('confirmation')}

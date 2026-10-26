@@ -8,6 +8,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
 import { authSchema } from '../../shared/validation/schemas';
 import { authenticationCallbackUrl } from './authUrls';
 import { CollectionNotice } from '../legal/CollectionNotice';
@@ -97,11 +98,10 @@ export const RegisterPage = () => {
           error={formState.errors.email?.message}
           {...register('email')}
         />
-        <FormField
+        <PasswordField
           label="Password"
-          type="password"
           autoComplete="new-password"
-          hint="Use 15 or more characters. Spaces and passphrases are welcome."
+          hint="Use 15 or more characters (maximum 72 UTF-8 bytes). Spaces and passphrases are welcome."
           error={formState.errors.password?.message}
           {...register('password')}
         />

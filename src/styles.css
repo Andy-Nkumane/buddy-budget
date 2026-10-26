@@ -1093,6 +1093,40 @@ p {
   border-color: var(--danger);
 }
 
+.password-input {
+  position: relative;
+}
+
+.password-input__field {
+  padding-inline-end: 3.25rem;
+}
+
+.password-input__toggle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0.25rem;
+  display: inline-grid;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  margin-block: auto;
+  place-items: center;
+  border: 0;
+  border-radius: 0.5rem;
+  color: var(--ink-700);
+  background: transparent;
+  cursor: pointer;
+}
+
+.password-input__toggle:hover {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.password-input__toggle svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
