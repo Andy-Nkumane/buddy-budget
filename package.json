@@ -17,6 +17,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:compliance": "node --test scripts/check-compliance-boundaries.test.mjs && node scripts/check-compliance-boundaries.mjs",
+    "test:secrets": "node scripts/test-secret-scanning.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:compliance": "playwright test e2e/legal-navigation.spec.ts e2e/privacy-policy.spec.ts e2e/registration-transparency.spec.ts",
