@@ -51,6 +51,11 @@ select set_config('request.jwt.claim.sub','f2222222-2222-4222-8222-222222222222'
 select throws_ok($$select * from public.create_month_adjustment('f3000000-0000-4000-8000-000000000003','f3000000-0000-4000-8000-000000000004','expense','increase',100,'Foreign month','f6000000-0000-4000-8000-000000000002')$$,'42501','Budget month not found','Cross-user adjustment is rejected');
 select set_config('request.jwt.claim.sub','f3333333-3333-4333-8333-333333333333',true);
 select lives_ok($$select * from public.close_budget_month('f3000000-0000-4000-8000-000000000006',true)$$,'A deletion test month can close');
+select set_config('request.jwt.claims',jsonb_build_object(
+  'sub','f3333333-3333-4333-8333-333333333333',
+  'role','authenticated',
+  'amr',jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint))
+)::text,true);
 select lives_ok($$select public.delete_own_account()$$,'Account deletion cascades through append-only close history');
 
 select * from finish();

@@ -8,10 +8,13 @@ import {
   RedirectAuthenticated,
   RequireAuthentication,
   RequireIncompleteOnboarding,
+  RequireMfa,
 } from './RouteGuards';
+import { retrieveMfaAssurance } from './mfa';
 
 vi.mock('../../app/providers/AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('../../data/repositories/budgetRepository', () => ({ retrievePreferences: vi.fn() }));
+vi.mock('./mfa', () => ({ retrieveMfaAssurance: vi.fn() }));
 
 describe('RequireAuthentication', () => {
   it('redirects signed-out visitors to sign in', () => {
@@ -61,6 +64,46 @@ describe('RequireIncompleteOnboarding', () => {
     );
     expect(await screen.findByText('Budget dashboard')).toBeInTheDocument();
     expect(screen.queryByText('Onboarding')).not.toBeInTheDocument();
+  });
+});
+
+describe('RequireMfa', () => {
+  it('redirects an enrolled aal1 session to its authenticator challenge', async () => {
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal1',
+      nextLevel: 'aal2',
+    });
+    render(
+      <MemoryRouter initialEntries={['/app/settings']}>
+        <Routes>
+          <Route element={<RequireMfa />}>
+            <Route path="/app/settings" element={<div>Account settings</div>} />
+          </Route>
+          <Route path="/auth/mfa" element={<div>Authenticator challenge</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Authenticator challenge')).toBeInTheDocument();
+    expect(screen.queryByText('Account settings')).not.toBeInTheDocument();
+  });
+
+  it('allows an account without an enrolled factor to continue at aal1', async () => {
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal1',
+      nextLevel: 'aal1',
+    });
+    render(
+      <MemoryRouter initialEntries={['/app/settings']}>
+        <Routes>
+          <Route element={<RequireMfa />}>
+            <Route path="/app/settings" element={<div>Account settings</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Account settings')).toBeInTheDocument();
   });
 });
 

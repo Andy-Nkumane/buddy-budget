@@ -1,0 +1,4 @@
+title = "Buddy Budget secret scanning"
+
+[extend]
+useDefault = true

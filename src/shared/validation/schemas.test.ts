@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { itemSchema, parseMoney, profileSchema, toDatabaseMoney } from './schemas';
+import {
+  countPasswordCodePoints,
+  countPasswordUtf8Bytes,
+  itemSchema,
+  parseMoney,
+  passwordSchema,
+  profileSchema,
+  signInSchema,
+  toDatabaseMoney,
+} from './schemas';
 
 describe('money validation', () => {
   it.each([
@@ -32,5 +41,41 @@ describe('money validation', () => {
         theme: 'system',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('password validation', () => {
+  it('requires 15 Unicode code points for a newly set password', () => {
+    expect(passwordSchema.safeParse('12345678901234').success).toBe(false);
+    expect(passwordSchema.safeParse('123456789012345').success).toBe(true);
+    expect(passwordSchema.safeParse('😀'.repeat(14)).success).toBe(false);
+    expect(passwordSchema.safeParse('😀'.repeat(15)).success).toBe(true);
+  });
+
+  it('accepts passphrases, spaces, and passwords without composition rules', () => {
+    expect(passwordSchema.safeParse('a calm long phrase').success).toBe(true);
+    expect(passwordSchema.safeParse(' '.repeat(15)).success).toBe(true);
+    expect(passwordSchema.safeParse('lowercaseonlypwd').success).toBe(true);
+  });
+
+  it('accepts at least 64 ASCII characters and enforces the provider 72-byte limit', () => {
+    expect(passwordSchema.safeParse('a'.repeat(64)).success).toBe(true);
+    expect(passwordSchema.safeParse('a'.repeat(72)).success).toBe(true);
+    expect(passwordSchema.safeParse('a'.repeat(73)).success).toBe(false);
+    expect(passwordSchema.safeParse('😀'.repeat(18)).success).toBe(true);
+    expect(passwordSchema.safeParse('😀'.repeat(19)).success).toBe(false);
+  });
+
+  it('counts code points, measures UTF-8 bytes, and preserves the exact password', () => {
+    const password = `  ${'e\u0301'.repeat(7)}x  `;
+    expect(countPasswordCodePoints('😀')).toBe(1);
+    expect(countPasswordUtf8Bytes('😀')).toBe(4);
+    expect(passwordSchema.parse(password)).toBe(password);
+  });
+
+  it('allows an existing shorter password to reach server-side sign-in validation', () => {
+    expect(
+      signInSchema.safeParse({ email: 'tester@example.test', password: 'legacy' }).success,
+    ).toBe(true);
   });
 });

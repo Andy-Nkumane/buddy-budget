@@ -2,7 +2,7 @@ import { AlertTriangle, Download, Upload } from 'lucide-react';
 import { useState, type ChangeEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  reauthenticateForRestore,
+  reauthenticateWithPassword,
   restoreBackup,
   type BackupRestoreReport,
 } from '../../data/repositories/budgetRepository';
@@ -60,7 +60,7 @@ export const RestoreBackupForm = ({ onComplete }: RestoreBackupFormProps) => {
     setRestoring(true);
     try {
       if (mode === 'replace') {
-        await reauthenticateForRestore(password);
+        await reauthenticateWithPassword(password);
         setPassword('');
       }
       const result = await restoreBackup({

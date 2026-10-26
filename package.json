@@ -17,6 +17,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:compliance": "node --test scripts/check-compliance-boundaries.test.mjs && node scripts/check-compliance-boundaries.mjs",
+    "test:secrets": "node scripts/test-secret-scanning.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:compliance": "playwright test e2e/legal-navigation.spec.ts e2e/privacy-policy.spec.ts e2e/registration-transparency.spec.ts",
@@ -58,8 +59,11 @@
     "supabase": "^2.117.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0",
-    "vite": "^8.3.0",
+    "vite": "^8.3.4",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.0"
+  },
+  "allowScripts": {
+    "core-js@3.51.0": true
   }
 }

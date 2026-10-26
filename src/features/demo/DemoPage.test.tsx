@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DemoPage } from './DemoPage';
 
+vi.mock('virtual:pwa-register/react', () => ({ useRegisterSW: vi.fn() }));
+
 describe('DemoPage', () => {
   afterEach(() => {
     vi.restoreAllMocks();

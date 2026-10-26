@@ -8,9 +8,11 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
 import { authSchema } from '../../shared/validation/schemas';
 import { authenticationCallbackUrl } from './authUrls';
 import { CollectionNotice } from '../legal/CollectionNotice';
+import { getRegistrationErrorMessage } from './authErrors';
 
 const registrationSchema = authSchema.extend({
   termsAcknowledged: z
@@ -46,7 +48,9 @@ export const RegisterPage = () => {
       },
     });
     if (error) {
-      setSubmitError(error.message);
+      const isLocalDevelopment =
+        import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      setSubmitError(getRegistrationErrorMessage(error, isLocalDevelopment));
       return;
     }
     if (data.session) return;
@@ -94,11 +98,10 @@ export const RegisterPage = () => {
           error={formState.errors.email?.message}
           {...register('email')}
         />
-        <FormField
+        <PasswordField
           label="Password"
-          type="password"
           autoComplete="new-password"
-          hint="At least 10 characters"
+          hint="Use 15 or more characters (maximum 72 UTF-8 bytes). Spaces and passphrases are welcome."
           error={formState.errors.password?.message}
           {...register('password')}
         />

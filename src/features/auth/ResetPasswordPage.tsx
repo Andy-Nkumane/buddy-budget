@@ -5,8 +5,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
-import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
 import { passwordSchema } from '../../shared/validation/schemas';
+import { getAuthErrorMessage, getNewPasswordErrorMessage } from './authErrors';
 
 const resetSchema = z
   .object({ password: passwordSchema, confirmation: z.string() })
@@ -20,35 +21,62 @@ type ResetValues = z.infer<typeof resetSchema>;
 export const ResetPasswordPage = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const code = params.get('code');
   const [ready, setReady] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(() =>
+    code ? null : 'The reset link is missing or invalid. Request a new password reset email.',
+  );
   const { register, handleSubmit, formState } = useForm<ResetValues>({
     resolver: zodResolver(resetSchema),
   });
 
   useEffect(() => {
-    const code = params.get('code');
-    if (!code) {
-      void requireSupabase()
-        .auth.getSession()
-        .then(({ data }) => setReady(Boolean(data.session)));
-      return;
+    if (!code) return;
+    const client = requireSupabase();
+    const address = new URL(window.location.href);
+    if (address.searchParams.has('code')) {
+      address.searchParams.delete('code');
+      window.history.replaceState(window.history.state, '', address);
     }
-    void requireSupabase()
-      .auth.exchangeCodeForSession(code)
+    let active = true;
+    let recoveryAuthorized = false;
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') recoveryAuthorized = true;
+    });
+    void client.auth
+      .exchangeCodeForSession(code)
       .then(({ error }) => {
-        if (error) setSubmitError(error.message);
+        if (!active) return;
+        if (error || !recoveryAuthorized) setSubmitError(getAuthErrorMessage('password-reset'));
         else setReady(true);
       })
-      .catch((caught: unknown) =>
-        setSubmitError(caught instanceof Error ? caught.message : 'The reset link is invalid.'),
-      );
-  }, [params]);
+      .catch(() => {
+        if (active) setSubmitError(getAuthErrorMessage('password-reset'));
+      })
+      .finally(() => listener.subscription.unsubscribe());
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [code]);
 
   const submit = async ({ password }: ResetValues) => {
-    const { error } = await requireSupabase().auth.updateUser({ password });
-    if (error) setSubmitError(error.message);
-    else void navigate('/app', { replace: true });
+    const client = requireSupabase();
+    const { error } = await client.auth.updateUser({ password });
+    if (error) setSubmitError(getNewPasswordErrorMessage('password-reset', error));
+    else {
+      setReady(false);
+      setPasswordUpdated(true);
+      const { error: signOutError } = await client.auth.signOut();
+      if (signOutError) {
+        setSubmitError(
+          'Your password was updated, but Buddy Budget could not end every existing session. Close this browser and contact the test administrator before continuing.',
+        );
+      } else {
+        void navigate('/auth/sign-in', { replace: true, state: { passwordChanged: true } });
+      }
+    }
   };
 
   return (
@@ -60,19 +88,18 @@ export const ResetPasswordPage = () => {
           {submitError}
         </div>
       )}
-      {!ready && !submitError && <p role="status">Checking your reset link…</p>}
+      {!ready && !submitError && !passwordUpdated && <p role="status">Checking your reset link…</p>}
       {ready && (
         <form onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
-          <FormField
+          <PasswordField
             label="New password"
-            type="password"
             autoComplete="new-password"
+            hint="Use 15 or more characters (maximum 72 UTF-8 bytes). Spaces and passphrases are welcome."
             error={formState.errors.password?.message}
             {...register('password')}
           />
-          <FormField
+          <PasswordField
             label="Confirm password"
-            type="password"
             autoComplete="new-password"
             error={formState.errors.confirmation?.message}
             {...register('confirmation')}

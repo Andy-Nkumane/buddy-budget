@@ -494,6 +494,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: import('../../shared/types/domain').HouseholdContext;
       };
+      session_meets_mfa_requirement: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
       switch_household: {
         Args: { requested_household_id: string };
         Returns: undefined;

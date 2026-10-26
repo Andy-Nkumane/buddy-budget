@@ -68,4 +68,109 @@ describe('COMP-001/COMP-002 RegisterPage', () => {
     expect(request.options.data.privacy_notice_seen_version).toBe('draft-0.1');
     expect(Number.isNaN(Date.parse(request.options.data.acknowledged_at))).toBe(false);
   });
+
+  it('does not expose provider registration errors', async () => {
+    signUp.mockResolvedValue({
+      data: { session: null },
+      error: { message: 'User already registered' },
+    });
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'tester@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Password/), {
+      target: { value: 'safe-test-password' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not create this account/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/sign in instead/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/authorised tester/i);
+    expect(screen.queryByText('User already registered')).not.toBeInTheDocument();
+  });
+
+  it('explains a duplicate localhost account without exposing other provider errors', async () => {
+    signUp.mockResolvedValue({
+      data: { session: null },
+      error: { code: 'user_already_exists', message: 'User already registered' },
+    });
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'tester@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Password/), {
+      target: { value: 'safe-test-password' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /account already exists for this email on localhost/i,
+    );
+  });
+
+  it('explains a provider-rejected breached password without exposing provider output', async () => {
+    signUp.mockResolvedValue({
+      data: { session: null },
+      error: {
+        code: 'weak_password',
+        message: 'Internal password-strength response',
+        reasons: ['pwned'],
+      },
+    });
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'tester@example.test' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Password/), {
+      target: { value: 'provider-screening-fixture' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/known data breach/i);
+    expect(screen.queryByText(/internal password-strength response/i)).not.toBeInTheDocument();
+  });
+
+  it('rejects a short password before signup and preserves accepted password input exactly', async () => {
+    render(
+      <MemoryRouter>
+        <RegisterPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'tester@example.test' },
+    });
+    const password = screen.getByLabelText(/^Password/);
+    fireEvent.change(password, { target: { value: '12345678901234' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Use at least 15 characters.')).toBeVisible();
+    expect(signUp).not.toHaveBeenCalled();
+
+    const passphrase = '  calm budget phrase  ';
+    fireEvent.change(password, { target: { value: passphrase } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    await waitFor(() => expect(signUp).toHaveBeenCalledOnce());
+    expect(signUp.mock.calls[0][0].password).toBe(passphrase);
+  });
 });

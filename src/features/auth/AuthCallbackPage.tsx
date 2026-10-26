@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { requireSupabase } from '../../data/supabase/client';
 import { ErrorState, LoadingState } from '../../shared/ui/AsyncState';
+import { getAuthErrorMessage } from './authErrors';
 
 export const AuthCallbackPage = () => {
   const [params] = useSearchParams();
@@ -16,12 +17,10 @@ export const AuthCallbackPage = () => {
     void requireSupabase()
       .auth.exchangeCodeForSession(code)
       .then(({ error: exchangeError }) => {
-        if (exchangeError) setError(exchangeError.message);
+        if (exchangeError) setError(getAuthErrorMessage('callback'));
         else void navigate('/app', { replace: true });
       })
-      .catch((caught: unknown) =>
-        setError(caught instanceof Error ? caught.message : 'Verification failed.'),
-      );
+      .catch(() => setError(getAuthErrorMessage('callback')));
   }, [code, navigate]);
 
   return error ? <ErrorState message={error} /> : <LoadingState label="Verifying your account…" />;

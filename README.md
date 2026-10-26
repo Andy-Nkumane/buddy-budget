@@ -214,6 +214,7 @@ Verify browser and standalone modes, virtual-keyboard editing, Android back, por
 - A static SPA stores the Supabase-managed session in browser storage. A future backend-for-frontend could move sessions to Secure, HttpOnly cookies for higher-risk deployments.
 
 Use [security-checklist.md](docs/security-checklist.md) before every release.
+See the [authentication threat audit](docs/security/authentication-threat-audit.md) for the verified flow map, findings, remediation backlog, and hosted Supabase checklist.
 
 ## 18. External resources required from the owner
 

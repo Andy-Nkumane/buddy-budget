@@ -5,20 +5,23 @@ import { useForm } from 'react-hook-form';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import type { z } from 'zod';
 import { requireSupabase } from '../../data/supabase/client';
-import { authSchema } from '../../shared/validation/schemas';
+import { signInSchema } from '../../shared/validation/schemas';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
 import { useAuth } from '../../app/providers/AuthProvider';
+import { getAuthErrorMessage } from './authErrors';
 
-type AuthValues = z.infer<typeof authSchema>;
+type AuthValues = z.infer<typeof signInSchema>;
 
 export const SignInPage = () => {
   const { session, sessionMessage } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const passwordChanged = (location.state as { passwordChanged?: boolean } | null)?.passwordChanged;
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<AuthValues>({
-    resolver: zodResolver(authSchema),
+    resolver: zodResolver(signInSchema),
   });
 
   if (session) return <Navigate replace to="/app" />;
@@ -27,7 +30,7 @@ export const SignInPage = () => {
     setSubmitError(null);
     const { error } = await requireSupabase().auth.signInWithPassword(values);
     if (error) {
-      setSubmitError(error.message);
+      setSubmitError(getAuthErrorMessage('sign-in', error));
       return;
     }
     const candidate = (location.state as { from?: string } | null)?.from;
@@ -44,6 +47,12 @@ export const SignInPage = () => {
       <p className="eyebrow">Welcome back</p>
       <h2>Sign in to your budget</h2>
       <p className="muted">Pick up exactly where you left off.</p>
+      {passwordChanged && (
+        <div className="inline-alert" role="status">
+          Your password was updated and existing sessions were ended. Sign in with your new
+          password.
+        </div>
+      )}
       {(submitError || sessionMessage) && (
         <div className="inline-alert inline-alert--error" role="alert">
           {submitError ?? sessionMessage}
@@ -57,9 +66,8 @@ export const SignInPage = () => {
           error={formState.errors.email?.message}
           {...register('email')}
         />
-        <FormField
+        <PasswordField
           label="Password"
-          type="password"
           autoComplete="current-password"
           error={formState.errors.password?.message}
           {...register('password')}
