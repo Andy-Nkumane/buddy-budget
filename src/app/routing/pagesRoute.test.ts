@@ -9,6 +9,12 @@ describe('resolvePagesRoute', () => {
     );
   });
 
+  it('normalizes the leading slash produced by an older GitHub Pages fallback', () => {
+    expect(resolvePagesRoute('?//auth/reset-password&code=test-code', '', '/buddy-budget/')).toBe(
+      '/buddy-budget/auth/reset-password?code=test-code',
+    );
+  });
+
   it('ignores ordinary query strings', () => {
     expect(resolvePagesRoute('?source=test', '', '/buddy-budget/')).toBeNull();
   });

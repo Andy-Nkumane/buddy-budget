@@ -4,7 +4,7 @@ export const resolvePagesRoute = (search: string, hash: string, basePath: string
     .slice(2)
     .split('&')
     .map((part) => part.replace(/~and~/g, '&'));
-  const route = `/${decoded.shift() ?? ''}`;
+  const route = `/${(decoded.shift() ?? '').replace(/^\/+/, '')}`;
   const restoredSearch = decoded.length ? `?${decoded.join('&')}` : '';
   return `${basePath}${route.replace(/^\//, '')}${restoredSearch}${hash}`;
 };
