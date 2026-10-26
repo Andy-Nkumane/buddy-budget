@@ -6,6 +6,10 @@ Verified base: `password` at `86e32cd8fa89dafd4a7ec680dc48f71d12d1f48d`
 Scope: repository evidence and safe local/test verification only  
 Status: security baseline, not a penetration test or certification
 
+This document preserves the point-in-time Phase 01 baseline. The current requirement status,
+deployment gates, and residual risks are maintained in
+[`authentication-rollout-verification.md`](authentication-rollout-verification.md).
+
 ## Executive assessment
 
 Buddy Budget is a static React/Vite application that delegates identity, credential verification,
