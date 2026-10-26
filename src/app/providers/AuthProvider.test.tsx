@@ -49,6 +49,31 @@ describe('AuthProvider', () => {
     expect(screen.getByText('signed-out')).toBeInTheDocument();
   });
 
+  it('clears the previous account cache before exposing a replacement session', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: sessionFor('user-a') }, error: null });
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SessionView />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('user-a')).toBeInTheDocument();
+    queryClient.setQueryData(['user', 'user-a', 'household', 'household-a', 'budget'], {
+      private: true,
+    });
+    localStorage.setItem('buddy-budget-active-household', 'household-a');
+
+    act(() => auth.listener?.('SIGNED_IN', sessionFor('user-b')));
+
+    expect(screen.getByText('user-b')).toBeInTheDocument();
+    expect(
+      queryClient.getQueryData(['user', 'user-a', 'household', 'household-a', 'budget']),
+    ).toBeUndefined();
+    expect(localStorage.getItem('buddy-budget-active-household')).toBeNull();
+  });
+
   it('uses local-only sign-out after authoritative account deletion', async () => {
     auth.getSession.mockResolvedValue({ data: { session: sessionFor('user-a') }, error: null });
     auth.signOut.mockResolvedValue({ error: null });
