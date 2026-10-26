@@ -8,6 +8,7 @@ import { requireSupabase } from '../../data/supabase/client';
 import { signInSchema } from '../../shared/validation/schemas';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { getAuthErrorMessage } from './authErrors';
 
@@ -65,9 +66,8 @@ export const SignInPage = () => {
           error={formState.errors.email?.message}
           {...register('email')}
         />
-        <FormField
+        <PasswordField
           label="Password"
-          type="password"
           autoComplete="current-password"
           error={formState.errors.password?.message}
           {...register('password')}

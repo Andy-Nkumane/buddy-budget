@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { requireSupabase } from '../../data/supabase/client';
 import { Button } from '../../shared/ui/Button';
-import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
 import { passwordSchema } from '../../shared/validation/schemas';
 import { getAuthErrorMessage, getNewPasswordErrorMessage } from './authErrors';
 
@@ -91,17 +91,15 @@ export const ResetPasswordPage = () => {
       {!ready && !submitError && !passwordUpdated && <p role="status">Checking your reset link…</p>}
       {ready && (
         <form onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
-          <FormField
+          <PasswordField
             label="New password"
-            type="password"
             autoComplete="new-password"
-            hint="Use 15 or more characters. Spaces and passphrases are welcome."
+            hint="Use 15 or more characters (maximum 72 UTF-8 bytes). Spaces and passphrases are welcome."
             error={formState.errors.password?.message}
             {...register('password')}
           />
-          <FormField
+          <PasswordField
             label="Confirm password"
-            type="password"
             autoComplete="new-password"
             error={formState.errors.confirmation?.message}
             {...register('confirmation')}
