@@ -9,7 +9,9 @@ export type RuleDescriptionMatch = 'contains' | 'exact';
 export type ScheduleRecurrence = 'once' | 'weekly' | 'fortnightly' | 'monthly' | 'selected_days';
 export type ScheduleOccurrenceStatus = 'expected' | 'paid' | 'received' | 'skipped' | 'disabled';
 export type FinancialGoalType = 'savings' | 'sinking_fund' | 'debt_paydown';
-export type FinancialGoalStatus = 'active' | 'paused' | 'completed' | 'archived';
+export type FinancialGoalStatus = 'active' | 'paused' | 'completed' | 'cancelled' | 'archived';
+export type GoalContributionFrequency = 'daily' | 'weekly' | 'fortnightly' | 'monthly';
+export type GoalContributionStartMode = 'this_month' | 'next_month';
 export type CheckInDeliveryChannel = 'in_app' | 'email';
 export type CheckInDeliveryStatus =
   'queued' | 'processing' | 'delivered' | 'failed' | 'failed_final' | 'skipped';
@@ -484,6 +486,10 @@ export type FinancialGoal = {
   target_date: string | null;
   starting_balance_minor: number;
   desired_monthly_contribution_minor: number | null;
+  desired_contribution_minor: number | null;
+  contribution_frequency: GoalContributionFrequency;
+  contribution_start_mode: GoalContributionStartMode;
+  contribution_start_date: string;
   priority: number;
   status: FinancialGoalStatus;
   category_id: string | null;

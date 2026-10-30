@@ -271,6 +271,10 @@ export interface Database {
           | 'id'
           | 'starting_balance_minor'
           | 'desired_monthly_contribution_minor'
+          | 'desired_contribution_minor'
+          | 'contribution_frequency'
+          | 'contribution_start_mode'
+          | 'contribution_start_date'
           | 'target_date'
           | 'priority'
           | 'status'
@@ -823,6 +827,10 @@ export interface Database {
       delete_goal_contribution: {
         Args: { requested_contribution_id: string };
         Returns: undefined;
+      };
+      delete_expired_budget_month_items: {
+        Args: Record<string, never>;
+        Returns: number;
       };
       update_weekly_checkin_preferences: {
         Args: { requested_preferences: Record<string, unknown> };

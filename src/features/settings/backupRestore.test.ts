@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { inspectBackupText } from './backupRestore';
 
 const backup = {
-  schema_version: 11,
+  schema_version: 12,
   exported_at: '2026-10-02T00:00:00.000Z',
   range: { from_month: '2026-01-01', to_month: '2026-09-01' },
   profile: { user_id: 'hostile-owner', currency_code: 'ZAR' },
@@ -39,9 +39,33 @@ describe('inspectBackupText', () => {
     const result = inspectBackupText(
       JSON.stringify({ ...backup, schema_version: 9, notification_deliveries: [{ secret: true }] }),
     );
-    expect(result.schemaVersion).toBe(11);
+    expect(result.schemaVersion).toBe(12);
     expect(result.payload).not.toHaveProperty('notification_deliveries');
     expect(result.warnings[0]).toMatch(/upgraded locally/);
+  });
+
+  it('migrates version 11 goal timing without changing exact amounts', () => {
+    const result = inspectBackupText(
+      JSON.stringify({
+        ...backup,
+        schema_version: 11,
+        financial_goals: [
+          {
+            id: '22222222-2222-4222-8222-222222222222',
+            created_at: '2026-09-15T12:00:00.000Z',
+            desired_monthly_contribution_minor: 12345,
+          },
+        ],
+      }),
+    );
+    expect(result.payload.financial_goals).toEqual([
+      expect.objectContaining({
+        contribution_frequency: 'monthly',
+        contribution_start_mode: 'this_month',
+        contribution_start_date: '2026-09-01',
+        desired_contribution_minor: 12345,
+      }),
+    ]);
   });
 
   it('rejects corrupt, future, and structurally incomplete backups', () => {

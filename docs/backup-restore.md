@@ -1,6 +1,6 @@
 # Backup restoration and recovery
 
-Buddy Budget JSON backups use schema version 11. Version 9 and 10 files are upgraded locally by forward migration hooks; older or future versions are rejected. The browser validates structure, identifiers, exact minor-unit values, record count (10,000 maximum), and file size (10 MB maximum) before sending structured JSON.
+Buddy Budget JSON backups use schema version 12. Version 9, 10, and 11 files are upgraded locally by forward migration hooks; older or future versions are rejected. Version 11 goals receive the backward-compatible monthly cadence, their existing monthly amount, and a contribution start date derived from their creation date. The browser validates structure, identifiers, exact minor-unit values, record count (10,000 maximum), and file size (10 MB maximum) before sending structured JSON.
 
 Owned templates copied from the starter library retain their source template ID, version, and idempotency key in the backup. The deployment-managed catalog is not exported as user data. Restoring into an empty account reconstructs the owned template against the matching catalog version; it does not fetch newer starter content or rewrite the restored amounts.
 

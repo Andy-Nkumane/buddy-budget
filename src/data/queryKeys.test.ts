@@ -12,4 +12,10 @@ describe('household query isolation', () => {
     expect(queryKeys.categories('user-a')).toContain('household-b');
     expect(queryKeys.categories('user-a')).not.toContain('household-a');
   });
+
+  it('keeps removed-item month details separate from active-only month consumers', () => {
+    expect(queryKeys.monthWithRemoved('user-a', '2026-10-01')).not.toEqual(
+      queryKeys.month('user-a', '2026-10-01'),
+    );
+  });
 });

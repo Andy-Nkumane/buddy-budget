@@ -1,7 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft,
-  ArrowRight,
   CalendarPlus,
   CalendarClock,
   CheckCircle2,
@@ -11,12 +9,13 @@ import {
   Plus,
   TrendingDown,
   TrendingUp,
-  WalletCards,
+  ListChecks,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   createMonthFromTemplate,
+  deleteExpiredMonthItems,
   retrieveDefaultTemplate,
   retrieveMonthByStart,
   retrieveProfile,
@@ -31,7 +30,6 @@ import {
   calculateItemProgress,
   currentMonthStart,
   formatMoney,
-  formatMonth,
   isMonthReadOnly,
 } from '../../shared/formatting/money';
 import type { BudgetMonthItem, BudgetMonthWithItems, ItemType } from '../../shared/types/domain';
@@ -42,10 +40,14 @@ import { parseMoney } from '../../shared/validation/schemas';
 import { hasActiveBudgetEditors } from '../../pwa/editState';
 import { AddMonthItemForm } from './AddMonthItemForm';
 import { BudgetRow } from './BudgetRow';
+import { BudgetMonthNavigation } from './BudgetMonthNavigation';
 import { MonthClosePanel } from './MonthClosePanel';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
 import { formatGoalPriority } from '../../shared/reporting/budgetReport';
+import { InfoHelp } from '../../shared/ui/InfoHelp';
+import { budgetGoalHelp } from '../../shared/copy/budgetGoalHelp';
+import { canRestoreBudgetItem, formatBudgetItemRestoreCountdown } from './removedBudgetItems';
 
 const validMonth = /^\d{4}-(0[1-9]|1[0-2])-01$/;
 
@@ -54,7 +56,6 @@ export const BudgetPage = () => {
   const userId = session?.user.id ?? '';
   const { monthStart: routeMonth } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const current = currentMonthStart(profile.data?.timezone);
@@ -67,8 +68,12 @@ export const BudgetPage = () => {
   const [archivingItemIds, setArchivingItemIds] = useState<Set<string>>(() => new Set());
   const [remoteChange, setRemoteChange] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [restoreClock, setRestoreClock] = useState(() => Date.now());
   const pendingRemoteRefresh = useRef(false);
-  const monthKey = useMemo(() => queryKeys.month(userId, monthStart), [monthStart, userId]);
+  const monthKey = useMemo(
+    () => queryKeys.monthWithRemoved(userId, monthStart),
+    [monthStart, userId],
+  );
 
   const defaultTemplate = useQuery({
     queryKey: queryKeys.defaultTemplate(userId),
@@ -82,7 +87,7 @@ export const BudgetPage = () => {
   });
   const month = useQuery({
     queryKey: monthKey,
-    queryFn: () => retrieveMonthByStart(monthStart),
+    queryFn: () => retrieveMonthByStart(monthStart, true),
     enabled: validMonth.test(monthStart) && profile.isSuccess,
   });
   const readOnly = ageLocked || month.data?.lifecycle?.state === 'closed';
@@ -146,6 +151,31 @@ export const BudgetPage = () => {
     return () => window.clearTimeout(timeout);
   }, [archivedItem]);
 
+  useEffect(() => {
+    if (!month.data?.budget_month_items.some((item) => item.archived_at !== null)) return;
+    const interval = window.setInterval(() => setRestoreClock(Date.now()), 30_000);
+    return () => window.clearInterval(interval);
+  }, [month.data?.budget_month_items]);
+
+  useEffect(() => {
+    if (
+      readOnly ||
+      !month.data?.budget_month_items.some(
+        (item) => item.archived_at && !canRestoreBudgetItem(item.archived_at, restoreClock),
+      )
+    )
+      return;
+    void deleteExpiredMonthItems()
+      .then((deleted) => {
+        if (deleted > 0) void queryClient.invalidateQueries({ queryKey: monthKey });
+      })
+      .catch((error: unknown) => {
+        setActionError(
+          error instanceof Error ? error.message : 'Expired items could not be removed.',
+        );
+      });
+  }, [month.data?.budget_month_items, monthKey, queryClient, readOnly, restoreClock]);
+
   if (!validMonth.test(monthStart)) return <ErrorState message="That month address is invalid." />;
   if (
     month.isLoading ||
@@ -176,45 +206,50 @@ export const BudgetPage = () => {
 
   if (!month.data) {
     return (
-      <section className="page missing-month">
-        <span className="empty-illustration">
-          <CalendarPlus aria-hidden="true" />
-        </span>
-        <p className="eyebrow">{formatMonth(monthStart, profile.data?.locale)}</p>
-        <h1>This month has no budget yet</h1>
-        <p>
-          {monthStart === current
-            ? 'We’re preparing the current month from your recurring plan.'
-            : 'Past and future months are only created when you choose.'}
-        </p>
-        {readOnly ? (
-          <div className="inline-alert" role="status">
-            <LockKeyhole aria-hidden="true" size={18} />
-            This historical month is read-only and cannot be created.
-          </div>
-        ) : defaultTemplate.data ? (
-          <Button loading={createMonth.isPending} onClick={() => createMonth.mutate()}>
-            Create this month
-          </Button>
-        ) : (
-          <Link className="button button--primary" to="/app/templates">
-            Create a default template
-          </Link>
-        )}
-        {createMonth.error && (
-          <div className="inline-alert inline-alert--error" role="alert">
-            {createMonth.error.message}
-          </div>
-        )}
+      <section className="page budget-page">
+        <BudgetMonthNavigation monthStart={monthStart} locale={profile.data?.locale} />
+        <div className="missing-month">
+          <span className="empty-illustration">
+            <CalendarPlus aria-hidden="true" />
+          </span>
+          <h2>This month has no budget yet</h2>
+          <p>
+            {monthStart === current
+              ? 'We’re preparing the current month from your recurring plan.'
+              : 'Past and future months are only created when you choose.'}
+          </p>
+          {readOnly ? (
+            <div className="inline-alert" role="status">
+              <LockKeyhole aria-hidden="true" size={18} />
+              This historical month is read-only and cannot be created.
+            </div>
+          ) : defaultTemplate.data ? (
+            <Button loading={createMonth.isPending} onClick={() => createMonth.mutate()}>
+              Create this month
+            </Button>
+          ) : (
+            <Link className="button button--primary" to="/app/templates">
+              Create a default template
+            </Link>
+          )}
+          {createMonth.error && (
+            <div className="inline-alert inline-alert--error" role="alert">
+              {createMonth.error.message}
+            </div>
+          )}
+        </div>
       </section>
     );
   }
 
   const budgetMonth = month.data;
-  const visibleBudgetItems = budgetMonth.budget_month_items.filter(
-    (item) => !archivingItemIds.has(item.id),
+  const activeBudgetItems = budgetMonth.budget_month_items.filter(
+    (item) => item.archived_at === null && !archivingItemIds.has(item.id),
   );
-  const progress = calculateBudgetProgress(visibleBudgetItems, budgetMonth.budget_transactions);
+  const removedBudgetItems = budgetMonth.budget_month_items.filter(
+    (item) => item.archived_at && canRestoreBudgetItem(item.archived_at, restoreClock),
+  );
+  const progress = calculateBudgetProgress(activeBudgetItems, budgetMonth.budget_transactions);
   const goalRecommendations = budgetMonth.goal_month_recommendations ?? [];
   const goalPlanMinor = goalRecommendations.reduce(
     (total, recommendation) => total + recommendation.recommended_amount_minor,
@@ -223,7 +258,14 @@ export const BudgetPage = () => {
   const locale = profile.data?.locale ?? 'en-ZA';
   const currency = budgetMonth.currency_code;
   const itemsByType = (type: ItemType) =>
-    visibleBudgetItems.filter((item) => item.item_type === type && item.archived_at === null);
+    activeBudgetItems.filter((item) => item.item_type === type);
+  const postedTransactions = budgetMonth.budget_transactions.filter(
+    (transaction) => transaction.status === 'posted',
+  );
+  const postedIncomeCount = postedTransactions.filter(
+    (transaction) => transaction.transaction_type === 'income',
+  ).length;
+  const postedExpenseCount = postedTransactions.length - postedIncomeCount;
   const updateDraft = (id: string, amount: string) => {
     if (readOnly) return;
     if (parseMoney(amount) === null) return;
@@ -253,8 +295,8 @@ export const BudgetPage = () => {
         existing
           ? {
               ...existing,
-              budget_month_items: existing.budget_month_items.filter(
-                (entry) => entry.id !== item.id,
+              budget_month_items: existing.budget_month_items.map((entry) =>
+                entry.id === item.id ? { ...entry, archived_at: new Date().toISOString() } : entry,
               ),
             }
           : existing,
@@ -263,7 +305,7 @@ export const BudgetPage = () => {
       localStorage.setItem(`buddybudget-month-${item.budget_month_id}`, Date.now().toString());
     } catch (error) {
       setArchivedItem(null);
-      setActionError(error instanceof Error ? error.message : 'The item could not be archived.');
+      setActionError(error instanceof Error ? error.message : 'The item could not be removed.');
       refresh();
     } finally {
       setArchivingItemIds((current) => {
@@ -273,10 +315,10 @@ export const BudgetPage = () => {
       });
     }
   };
-  const undoArchive = async () => {
-    if (readOnly || !archivedItem) return;
+  const undoArchive = async (item = archivedItem) => {
+    if (readOnly || !item) return;
     try {
-      await updateMonthItem(archivedItem.id, { archived_at: null });
+      await updateMonthItem(item.id, { archived_at: null });
       setArchivedItem(null);
       setActionError(null);
       refresh();
@@ -309,39 +351,12 @@ export const BudgetPage = () => {
 
   return (
     <section className="page budget-page">
-      <div className="page-heading budget-heading">
-        <div>
-          <p className="eyebrow">Monthly budget</p>
-          <h1>{formatMonth(monthStart, locale)}</h1>
-          <p>
-            {readOnly
-              ? 'This historical month is preserved as a read-only report.'
-              : 'Adjust the plan as life happens. Changes save automatically.'}
-          </p>
-        </div>
-        <div className="month-switcher">
-          <button
-            className="icon-button"
-            aria-label="Previous month"
-            onClick={() => void navigate(`/app/budget/${adjacentMonthStart(monthStart, -1)}`)}
-          >
-            <ArrowLeft aria-hidden="true" />
-          </button>
-          <button
-            className="month-switcher__current"
-            onClick={() => void navigate('/app/budget/current')}
-          >
-            This month
-          </button>
-          <button
-            className="icon-button"
-            aria-label="Next month"
-            onClick={() => void navigate(`/app/budget/${adjacentMonthStart(monthStart, 1)}`)}
-          >
-            <ArrowRight aria-hidden="true" />
-          </button>
-        </div>
-      </div>
+      <BudgetMonthNavigation monthStart={monthStart} locale={locale} />
+      <p>
+        {readOnly
+          ? 'This historical month is preserved as a read-only report.'
+          : 'Adjust the plan as life happens. Changes save automatically.'}
+      </p>
 
       {readOnly && (
         <div className="inline-alert" role="status">
@@ -422,7 +437,9 @@ export const BudgetPage = () => {
             <TrendingUp aria-hidden="true" />
           </span>
           <div>
-            <small>Income</small>
+            <small>
+              Income <InfoHelp label="About actual income">{budgetGoalHelp.actual}</InfoHelp>
+            </small>
             <strong className="actual-amount">
               {formatMoney(progress.actual.income, currency, locale)} actual
             </strong>
@@ -432,12 +449,8 @@ export const BudgetPage = () => {
                 <dd>{formatMoney(progress.planned.income, currency, locale)}</dd>
               </div>
               <div>
-                <dt>Variance</dt>
-                <dd>{formatMoney(progress.incomeVariance, currency, locale)}</dd>
-              </div>
-              <div>
-                <dt>Remaining</dt>
-                <dd>{formatMoney(progress.incomeRemaining, currency, locale)}</dd>
+                <dt>{progress.incomeRemaining < 0 ? 'Above plan' : 'Remaining to plan'}</dt>
+                <dd>{formatMoney(Math.abs(progress.incomeRemaining), currency, locale)}</dd>
               </div>
             </dl>
           </div>
@@ -447,7 +460,9 @@ export const BudgetPage = () => {
             <TrendingDown aria-hidden="true" />
           </span>
           <div>
-            <small>Expenses</small>
+            <small>
+              Expenses <InfoHelp label="About actual expenses">{budgetGoalHelp.actual}</InfoHelp>
+            </small>
             <strong className="actual-amount">
               {formatMoney(progress.actual.expenses, currency, locale)} actual
             </strong>
@@ -457,42 +472,44 @@ export const BudgetPage = () => {
                 <dd>{formatMoney(progress.planned.expenses, currency, locale)}</dd>
               </div>
               <div>
-                <dt>Variance</dt>
-                <dd>{formatMoney(progress.expenseVariance, currency, locale)}</dd>
-              </div>
-              <div>
-                <dt>Remaining</dt>
-                <dd>{formatMoney(progress.expenseRemaining, currency, locale)}</dd>
+                <dt>{progress.expenseRemaining < 0 ? 'Overspent' : 'Remaining'}</dt>
+                <dd>{formatMoney(Math.abs(progress.expenseRemaining), currency, locale)}</dd>
               </div>
             </dl>
           </div>
         </article>
-        <article
-          className={`summary-card summary-card--remaining ${progress.available < 0 ? 'summary-card--negative' : ''}`}
-        >
-          <span className="summary-icon">
-            <WalletCards aria-hidden="true" />
+        <article className="summary-card">
+          <span className="summary-icon summary-icon--transactions">
+            <ListChecks aria-hidden="true" />
           </span>
           <div>
-            <small>Available from your plan</small>
-            <strong>{formatMoney(progress.available, currency, locale)}</strong>
+            <small>Transactions</small>
+            <strong>{postedTransactions.length} posted</strong>
             <dl className="progress-values">
               <div>
-                <dt>Planned balance</dt>
-                <dd>{formatMoney(progress.planned.remaining, currency, locale)}</dd>
+                <dt>Income</dt>
+                <dd>{postedIncomeCount}</dd>
               </div>
               <div>
-                <dt>Actual balance</dt>
-                <dd>{formatMoney(progress.actual.remaining, currency, locale)}</dd>
-              </div>
-              <div>
-                <dt>Variance</dt>
-                <dd>{formatMoney(progress.balanceVariance, currency, locale)}</dd>
+                <dt>Expenses</dt>
+                <dd>{postedExpenseCount}</dd>
               </div>
             </dl>
+            <Link to={`/app/transactions?month=${monthStart}`}>View this month</Link>
           </div>
         </article>
       </div>
+
+      <aside
+        className={`plan-available-strip ${progress.available < 0 ? 'plan-available-strip--negative' : ''}`}
+      >
+        <span>
+          Available from this plan{' '}
+          <InfoHelp label="About available from this plan">{budgetGoalHelp.planAvailable}</InfoHelp>
+        </span>
+        <strong>{formatMoney(progress.available, currency, locale)}</strong>
+        <small>Planned income minus recorded expenses; this is not an account balance.</small>
+      </aside>
 
       <section className="goal-plan-card" aria-labelledby="monthly-goal-plan-heading">
         <div className="goal-plan-card__heading">
@@ -591,11 +608,40 @@ export const BudgetPage = () => {
         );
       })}
 
+      {removedBudgetItems.length > 0 && (
+        <details className="removed-items">
+          <summary>Removed items ({removedBudgetItems.length})</summary>
+          <p>
+            These rows are hidden from this month’s plan. Posted transactions remain unchanged.{' '}
+            <InfoHelp label="About permanently removing budget items">
+              You can restore an item for 24 hours. When the countdown ends, the item is permanently
+              removed, but its posted transactions stay in your records.
+            </InfoHelp>
+          </p>
+          <ul>
+            {removedBudgetItems.map((item) => (
+              <li key={item.id}>
+                <span className="removed-items__details">
+                  <strong>{item.name_snapshot}</strong>
+                  <small>{item.category_snapshot ?? 'Uncategorised'}</small>
+                  <small>{formatBudgetItemRestoreCountdown(item.archived_at!, restoreClock)}</small>
+                </span>
+                {!readOnly && (
+                  <button className="text-button" onClick={() => void undoArchive(item)}>
+                    Restore
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {!readOnly && archivedItem && (
         <div className="undo-toast" role="status">
           <CheckCircle2 aria-hidden="true" size={19} />
-          <span>{archivedItem.name_snapshot} archived</span>
-          <button className="text-button" onClick={() => void undoArchive()}>
+          <span>{archivedItem.name_snapshot} removed from this month’s plan</span>
+          <button className="text-button" onClick={() => void undoArchive(archivedItem)}>
             Undo
           </button>
         </div>
