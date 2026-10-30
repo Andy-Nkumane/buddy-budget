@@ -1,4 +1,4 @@
-export const CURRENT_BACKUP_VERSION = 11;
+export const CURRENT_BACKUP_VERSION = 12;
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 
 const collectionKeys = [
@@ -103,7 +103,7 @@ const migrateBackup = (input: Record<string, unknown>, warnings: string[]) => {
     warnings.push('Schema version 10 was upgraded locally with starter-template lineage fields.');
     migrated = {
       ...migrated,
-      schema_version: CURRENT_BACKUP_VERSION,
+      schema_version: 11,
       templates: Array.isArray(templates)
         ? templates.map((template: unknown) =>
             isObject(template)
@@ -116,6 +116,33 @@ const migrateBackup = (input: Record<string, unknown>, warnings: string[]) => {
               : template,
           )
         : templates,
+    };
+  }
+  if (Number(migrated.schema_version) === 11) {
+    const goals: unknown = migrated.financial_goals;
+    warnings.push('Schema version 11 was upgraded locally with goal contribution timing fields.');
+    migrated = {
+      ...migrated,
+      schema_version: CURRENT_BACKUP_VERSION,
+      financial_goals: Array.isArray(goals)
+        ? goals.map((goal: unknown) =>
+            isObject(goal)
+              ? {
+                  contribution_frequency: 'monthly',
+                  contribution_start_mode: 'this_month',
+                  contribution_start_date:
+                    typeof goal.created_at === 'string'
+                      ? `${goal.created_at.slice(0, 7)}-01`
+                      : `${String(migrated.exported_at).slice(0, 7)}-01`,
+                  desired_contribution_minor:
+                    typeof goal.desired_monthly_contribution_minor === 'number'
+                      ? goal.desired_monthly_contribution_minor
+                      : null,
+                  ...goal,
+                }
+              : goal,
+          )
+        : goals,
     };
   }
   return migrated;

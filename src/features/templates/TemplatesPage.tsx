@@ -330,10 +330,11 @@ export const TemplatesPage = () => {
                     <strong>
                       {formatMoney(
                         calculateGoalProgress(goal, goal.goal_contributions)
-                          .recommendedMonthlyMinor / 100,
+                          .recommendedContributionMinor / 100,
                         profile.data?.currency_code,
                         profile.data?.locale,
-                      )}
+                      )}{' '}
+                      / {goal.contribution_frequency}
                     </strong>
                   </li>
                 ))}

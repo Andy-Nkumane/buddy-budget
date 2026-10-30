@@ -11,6 +11,10 @@ const goal = (overrides: Partial<FinancialGoal> = {}): FinancialGoal => ({
   target_date: '2027-01-31',
   starting_balance_minor: 20_000,
   desired_monthly_contribution_minor: 10_000,
+  desired_contribution_minor: 10_000,
+  contribution_frequency: 'monthly',
+  contribution_start_mode: 'this_month',
+  contribution_start_date: '2026-09-01',
   priority: 1,
   status: 'active',
   category_id: null,
@@ -56,17 +60,73 @@ describe('calculateGoalProgress', () => {
   it('never recommends more than the remaining target', () => {
     const result = calculateGoalProgress(goal(), [contribution(75_000)], '2026-09-01');
     expect(result.remainingMinor).toBe(5_000);
-    expect(result.recommendedMonthlyMinor).toBe(5_000);
+    expect(result.recommendedContributionMinor).toBe(5_000);
   });
 
   it('derives a contribution from the target date when no preference is set', () => {
     const result = calculateGoalProgress(
-      goal({ desired_monthly_contribution_minor: null }),
+      goal({ desired_monthly_contribution_minor: null, desired_contribution_minor: null }),
       [],
       '2026-09-01',
     );
-    expect(result.recommendedMonthlyMinor).toBe(16_000);
+    expect(result.recommendedContributionMinor).toBe(16_000);
+    expect(result.requiredContributionMinor).toBe(16_000);
+    expect(result.plannedContributionMinor).toBeNull();
     expect(result.onTrack).toBe(true);
+  });
+
+  it('does not present an overdue target as an achievable remaining pace', () => {
+    const result = calculateGoalProgress(goal({ target_date: '2026-08-31' }), [], '2026-09-01');
+    expect(result.requiredContributionMinor).toBeNull();
+    expect(result.onTrack).toBe(false);
+  });
+
+  it('counts actual weekly and fortnightly occurrences', () => {
+    const weekly = calculateGoalProgress(
+      goal({
+        target_amount_minor: 50_000,
+        starting_balance_minor: 0,
+        desired_contribution_minor: null,
+        desired_monthly_contribution_minor: null,
+        contribution_frequency: 'weekly',
+        contribution_start_date: '2026-09-01',
+        target_date: '2026-09-29',
+      }),
+      [],
+      '2026-09-01',
+    );
+    const fortnightly = calculateGoalProgress(
+      goal({
+        target_amount_minor: 30_000,
+        starting_balance_minor: 0,
+        desired_contribution_minor: null,
+        desired_monthly_contribution_minor: null,
+        contribution_frequency: 'fortnightly',
+        contribution_start_date: '2026-09-01',
+        target_date: '2026-09-29',
+      }),
+      [],
+      '2026-09-01',
+    );
+    expect(weekly.requiredContributionMinor).toBe(10_000);
+    expect(fortnightly.requiredContributionMinor).toBe(10_000);
+  });
+
+  it('preserves the original monthly anchor after the as-of date passes an occurrence', () => {
+    const result = calculateGoalProgress(
+      goal({
+        target_amount_minor: 20_000,
+        starting_balance_minor: 0,
+        desired_contribution_minor: 10_000,
+        contribution_frequency: 'monthly',
+        contribution_start_date: '2026-01-31',
+        target_date: '2026-04-30',
+      }),
+      [],
+      '2026-02-01',
+    );
+    expect(result.requiredContributionMinor).toBe(6_667);
+    expect(result.projectedCompletionDate).toBe('2026-03-31');
   });
 
   it('handles completed and zero-remaining goals exactly', () => {

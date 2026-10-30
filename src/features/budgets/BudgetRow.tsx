@@ -1,4 +1,4 @@
-import { Archive, Check, CirclePause, CirclePlay, Pencil, RefreshCw } from 'lucide-react';
+import { Check, CirclePause, CirclePlay, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { BudgetMonthItem } from '../../shared/types/domain';
 import { Button } from '../../shared/ui/Button';
@@ -120,10 +120,6 @@ export const BudgetRow = ({
             <dd className="actual-amount">{formatMoney(progress.actual, currencyCode, locale)}</dd>
           </div>
           <div>
-            <dt>Variance</dt>
-            <dd>{formatMoney(progress.variance, currencyCode, locale)}</dd>
-          </div>
-          <div>
             <dt>Remaining</dt>
             <dd>{formatMoney(progress.remaining, currencyCode, locale)}</dd>
           </div>
@@ -169,10 +165,11 @@ export const BudgetRow = ({
           <button
             className="icon-button row-menu-button"
             type="button"
-            aria-label={`Archive ${item.name_snapshot}`}
+            aria-label={`Remove ${item.name_snapshot} from this month's budget`}
+            title="Remove from this month’s plan. Posted transactions remain unchanged."
             onClick={() => onArchive(item)}
           >
-            <Archive aria-hidden="true" size={17} />
+            <Trash2 aria-hidden="true" size={17} />
           </button>
         </div>
       )}

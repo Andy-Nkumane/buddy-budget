@@ -21,8 +21,8 @@ export const queryKeys = {
   defaultTemplate: (userId: string) => [...userRoot(userId), 'default-template'] as const,
   months: (userId: string) => [...userRoot(userId), 'months'] as const,
   accounts: (userId: string) => [...userRoot(userId), 'accounts'] as const,
-  transactions: (userId: string, page: number) =>
-    [...userRoot(userId), 'transactions', page] as const,
+  transactions: (userId: string, page: number, budgetMonthId = 'all') =>
+    [...userRoot(userId), 'transactions', budgetMonthId, page] as const,
   transactionImports: (userId: string) => [...userRoot(userId), 'transaction-imports'] as const,
   categorisationRules: (userId: string) => [...userRoot(userId), 'categorisation-rules'] as const,
   categorisationSuggestions: (userId: string) =>
@@ -36,6 +36,8 @@ export const queryKeys = {
     [...userRoot(userId), 'payment-schedule-occurrences', fromDate, toDate] as const,
   month: (userId: string, monthStart: string) =>
     [...userRoot(userId), 'month', monthStart] as const,
+  monthWithRemoved: (userId: string, monthStart: string) =>
+    [...userRoot(userId), 'month', monthStart, 'with-removed'] as const,
   insightsRoot: (userId: string) => [...userRoot(userId), 'insights'] as const,
   insights: (userId: string, fromMonth: string, toMonth: string, categoryIds: string[]) =>
     [
