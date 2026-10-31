@@ -11,6 +11,10 @@ gate:
   production builds, and public browser tests.
 - `database` starts an isolated local Supabase stack and runs migrations and pgTAP tests.
 
+Known npm vulnerabilities are blocked at low severity and dependency changes receive the same
+threshold in pull requests. Dependabot monitors npm and GitHub Actions without auto-merge. See the
+[dependency security policy](dependency-security.md).
+
 Workflow permissions default to none and are granted per job. The Pages build has read-only source
 access; only the deploy job receives short-lived Pages and OIDC permissions. The workflow-policy
 test rejects mutable Action tags, `pull_request_target`, unreviewed secret references, privileged

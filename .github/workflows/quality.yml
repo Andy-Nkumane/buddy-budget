@@ -26,7 +26,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
-          fail-on-severity: high
+          fail-on-severity: low
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
@@ -60,6 +60,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:compliance
+      - run: npm run test:dependencies
       - run: npm run audit
       - run: npm run build
         env:
