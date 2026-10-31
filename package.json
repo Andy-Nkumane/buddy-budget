@@ -17,6 +17,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:compliance": "node --test scripts/check-compliance-boundaries.test.mjs && node scripts/check-compliance-boundaries.mjs",
+    "test:workflows": "node --test scripts/check-workflow-security.test.mjs && node scripts/check-workflow-security.mjs",
+    "check:artifacts": "node scripts/check-public-artifact-boundaries.mjs",
     "test:secrets": "node scripts/test-secret-scanning.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

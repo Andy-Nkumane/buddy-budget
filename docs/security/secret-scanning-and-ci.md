@@ -11,6 +11,11 @@ gate:
   production builds, and public browser tests.
 - `database` starts an isolated local Supabase stack and runs migrations and pgTAP tests.
 
+Workflow permissions default to none and are granted per job. The Pages build has read-only source
+access; only the deploy job receives short-lived Pages and OIDC permissions. The workflow-policy
+test rejects mutable Action tags, `pull_request_target`, unreviewed secret references, privileged
+`VITE_` names, and permission drift. See [workflow credentials](workflow-credentials.md).
+
 Security-sensitive GitHub Actions are pinned to reviewed commit SHAs. The adjacent version comments
 record the upstream release used; updating an Action requires checking the new upstream tag, reviewing
 its release notes and diff, replacing the SHA, and rerunning the workflow.
@@ -29,6 +34,8 @@ npm run test:compliance
 npm run audit
 npm run build
 npm run test:secrets
+npm run test:workflows
+npm run check:artifacts
 ```
 
 `npm run test:secrets` requires Docker. It creates fixtures in the operating-system temporary
