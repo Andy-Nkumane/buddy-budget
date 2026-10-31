@@ -44,6 +44,10 @@ If the repository does not offer rulesets, configure the equivalent under **Sett
 
 The project URL and publishable key are browser-public even if GitHub variables are used for convenient management. Never add a secret/service-role key to a frontend workflow.
 
+GitHub Pages deployment uses GitHub-issued job credentials and OIDC rather than a stored deployment
+token. Supabase production deployment remains manual because no provider-supported OIDC exchange is
+verified for this repository. Follow the [workflow credential inventory and revocation procedure](security/workflow-credentials.md).
+
 ## Routing strategy
 
 Vite emits assets at the configurable base. GitHub Pages serves `public/404.html` for unknown direct routes; that small page preserves the path, query, and fragment in a root redirect. The application restores them before React Router starts.
