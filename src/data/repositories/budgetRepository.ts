@@ -553,20 +553,24 @@ export const moveTemplateItem = async (id: string, direction: -1 | 1): Promise<v
   throwWhenError(error);
 };
 
-const retrieveMonthItems = async (monthId: string): Promise<BudgetMonthItem[]> => {
+const retrieveMonthItems = async (
+  monthId: string,
+  includeRemoved = false,
+): Promise<BudgetMonthItem[]> => {
   const client = requireSupabase();
-  return retrieveAllPages<BudgetMonthItem>((from, to) =>
-    client
+  return retrieveAllPages<BudgetMonthItem>((from, to) => {
+    let query = client
       .from('budget_month_items')
       .select('*')
       .eq('budget_month_id', monthId)
-      .is('archived_at', null)
       .order('item_type', { ascending: false })
       .order('sort_order')
       .order('created_at')
       .order('id')
-      .range(from, to),
-  );
+      .range(from, to);
+    if (!includeRemoved) query = query.is('archived_at', null);
+    return query;
+  });
 };
 
 const retrieveMonthTransactions = async (monthId: string): Promise<BudgetTransaction[]> => {
@@ -674,7 +678,10 @@ const retrieveMonthLifecycleEvents = async (monthId: string): Promise<MonthLifec
   );
 };
 
-const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> => {
+const combineMonth = async (
+  month: BudgetMonth,
+  includeRemoved = false,
+): Promise<BudgetMonthWithItems> => {
   const [
     items,
     transactions,
@@ -686,7 +693,7 @@ const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> =
     adjustments,
     lifecycleEvents,
   ] = await Promise.all([
-    retrieveMonthItems(month.id),
+    retrieveMonthItems(month.id, includeRemoved),
     retrieveMonthTransactions(month.id),
     retrieveMonthScheduleOccurrences(month.id),
     retrieveMonthGoalRecommendations(month.id),
@@ -712,6 +719,7 @@ const combineMonth = async (month: BudgetMonth): Promise<BudgetMonthWithItems> =
 
 export const retrieveMonthByStart = async (
   monthStart: string,
+  includeRemoved = false,
 ): Promise<BudgetMonthWithItems | null> => {
   const { data, error } = await requireSupabase()
     .from('budget_months')
@@ -719,7 +727,7 @@ export const retrieveMonthByStart = async (
     .eq('month_start', monthStart)
     .maybeSingle();
   throwWhenError(error);
-  return data ? combineMonth(data) : null;
+  return data ? combineMonth(data, includeRemoved) : null;
 };
 
 export const retrieveMonthById = async (id: string): Promise<BudgetMonthWithItems | null> => {
@@ -964,6 +972,12 @@ export const updateMonthItem = async (
   throwWhenError(error);
 };
 
+export const deleteExpiredMonthItems = async (): Promise<number> => {
+  const { data, error } = await requireSupabase().rpc('delete_expired_budget_month_items');
+  throwWhenError(error);
+  return data ?? 0;
+};
+
 export const createMonthItem = async (input: {
   monthId: string;
   name: string;
@@ -1089,18 +1103,35 @@ export const deleteBudgetTransaction = async (id: string): Promise<void> => {
 
 export const searchBudgetTransactions = async (
   page: number,
+  budgetMonthId?: string,
 ): Promise<{ records: BudgetTransaction[]; total: number }> => {
   const from = page * TRANSACTION_PAGE_SIZE;
-  const { data, error, count } = await requireSupabase()
+  let query = requireSupabase()
     .from('budget_transactions')
     .select('*', { count: 'exact' })
     .order('transaction_date', { ascending: false })
     .order('created_at', { ascending: false })
-    .order('id')
-    .range(from, from + TRANSACTION_PAGE_SIZE - 1);
+    .order('id');
+  if (budgetMonthId) query = query.eq('budget_month_id', budgetMonthId);
+  const { data, error, count } = await query.range(from, from + TRANSACTION_PAGE_SIZE - 1);
   throwWhenError(error);
   return { records: data ?? [], total: count ?? 0 };
 };
+
+export const searchPostedBudgetTransactionsByMonth = async (
+  budgetMonthId: string,
+): Promise<BudgetTransaction[]> =>
+  retrieveAllPages<BudgetTransaction>((from, to) =>
+    requireSupabase()
+      .from('budget_transactions')
+      .select('*')
+      .eq('budget_month_id', budgetMonthId)
+      .eq('status', 'posted')
+      .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to),
+  );
 
 export type TransactionImportInput = {
   budgetMonthId: string;
@@ -1375,6 +1406,10 @@ export interface FinancialGoalInput {
   target_date: string | null;
   starting_balance_minor: number;
   desired_monthly_contribution_minor: number | null;
+  desired_contribution_minor: number | null;
+  contribution_frequency: FinancialGoal['contribution_frequency'];
+  contribution_start_mode: FinancialGoal['contribution_start_mode'];
+  contribution_start_date: string;
   priority: number;
   status: FinancialGoalStatus;
   category_id: string | null;

@@ -1,15 +1,7 @@
 import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Archive,
-  CheckCircle2,
-  CirclePause,
-  CirclePlay,
-  Landmark,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { CircleX, CirclePause, CirclePlay, Landmark, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { queryKeys } from '../../data/queryKeys';
 import {
@@ -20,7 +12,7 @@ import {
   searchCategories,
   searchFinancialAccounts,
   searchFinancialGoals,
-  searchBudgetTransactions,
+  searchPostedBudgetTransactionsByMonth,
   searchMonths,
   updateFinancialGoal,
 } from '../../data/repositories/budgetRepository';
@@ -41,6 +33,8 @@ import { calculateGoalProgress } from './goalCalculations';
 import { formatGoalPriority } from '../../shared/reporting/budgetReport';
 import { claimAndAnnounceMilestone } from '../../shared/milestones/milestones';
 import { CollectionNotice } from '../legal/CollectionNotice';
+import { InfoHelp } from '../../shared/ui/InfoHelp';
+import { budgetGoalHelp } from '../../shared/copy/budgetGoalHelp';
 
 const goalTypeLabel = {
   savings: 'Savings',
@@ -48,13 +42,26 @@ const goalTypeLabel = {
   debt_paydown: 'Debt payoff',
 } as const;
 
+const contributionTimingText = {
+  daily: 'each day',
+  weekly: 'each week',
+  fortnightly: 'every two weeks',
+  monthly: 'each month',
+} as const;
+
 export const GoalsPage = () => {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const activeTab =
+    requestedTab === 'paused' || requestedTab === 'cancelled' || requestedTab === 'completed'
+      ? requestedTab
+      : 'ongoing';
   const goals = useQuery({
-    queryKey: queryKeys.goals(userId),
-    queryFn: () => searchFinancialGoals(),
+    queryKey: queryKeys.goals(userId, true),
+    queryFn: () => searchFinancialGoals(true),
   });
   const profile = useQuery({ queryKey: queryKeys.profile(userId), queryFn: retrieveProfile });
   const categories = useQuery({
@@ -66,10 +73,6 @@ export const GoalsPage = () => {
     queryFn: () => searchFinancialAccounts(),
   });
   const months = useQuery({ queryKey: queryKeys.months(userId), queryFn: searchMonths });
-  const transactions = useQuery({
-    queryKey: queryKeys.transactions(userId, 0),
-    queryFn: () => searchBudgetTransactions(0),
-  });
   const [editing, setEditing] = useState<FinancialGoal | null | 'new'>(null);
   const [contributing, setContributing] = useState<FinancialGoalWithContributions | null>(null);
   const [amount, setAmount] = useState('');
@@ -77,14 +80,38 @@ export const GoalsPage = () => {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [transactionId, setTransactionId] = useState('');
+  const transactions = useQuery({
+    queryKey: queryKeys.transactions(userId, 0, monthId || 'none'),
+    queryFn: () => searchPostedBudgetTransactionsByMonth(monthId),
+    enabled: contributing !== null && Boolean(monthId),
+  });
   const [actionError, setActionError] = useState<string | null>(null);
+  const updateVisibleGoal = (savedGoal: FinancialGoal) => {
+    queryClient.setQueryData<FinancialGoalWithContributions[]>(
+      queryKeys.goals(userId, true),
+      (current = []) => {
+        const existing = current.find((goal) => goal.id === savedGoal.id);
+        const nextGoal = {
+          ...savedGoal,
+          goal_contributions: existing?.goal_contributions ?? [],
+        };
+        return existing
+          ? current.map((goal) => (goal.id === savedGoal.id ? nextGoal : goal))
+          : [...current, nextGoal];
+      },
+    );
+  };
   const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.goals(userId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.goals(userId, true) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.goals(userId, false) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot(userId) });
   };
   const saveGoal = async (input: Parameters<typeof createFinancialGoal>[0]) => {
-    if (editing && editing !== 'new') await updateFinancialGoal(editing.id, input);
-    else await createFinancialGoal(input);
+    const savedGoal =
+      editing && editing !== 'new'
+        ? await updateFinancialGoal(editing.id, input)
+        : await createFinancialGoal(input);
+    updateVisibleGoal(savedGoal);
     setEditing(null);
     refresh();
     void queryClient.invalidateQueries({ queryKey: queryKeys.months(userId) });
@@ -92,7 +119,8 @@ export const GoalsPage = () => {
   const changeStatus = async (goal: FinancialGoal, status: FinancialGoal['status']) => {
     try {
       setActionError(null);
-      await updateFinancialGoal(goal.id, { ...goal, status });
+      const savedGoal = await updateFinancialGoal(goal.id, { ...goal, status });
+      updateVisibleGoal(savedGoal);
       refresh();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'The goal could not be updated.');
@@ -138,27 +166,47 @@ export const GoalsPage = () => {
     profile.isLoading ||
     categories.isLoading ||
     accounts.isLoading ||
-    months.isLoading ||
-    transactions.isLoading
+    months.isLoading
   )
     return <LoadingState label="Loading your goals…" />;
   const loadError =
-    goals.error ??
-    profile.error ??
-    categories.error ??
-    accounts.error ??
-    months.error ??
-    transactions.error;
+    goals.error ?? profile.error ?? categories.error ?? accounts.error ?? months.error;
   if (loadError) return <ErrorState message={loadError.message} retry={refresh} />;
   const currency = profile.data?.currency_code ?? 'ZAR';
   const locale = profile.data?.locale ?? 'en-ZA';
+  const formatGoalDate = (value: string) =>
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(
+      new Date(`${value}T00:00:00Z`),
+    );
   const currentMonth = currentMonthStart(profile.data?.timezone);
   const editableMonths = (months.data ?? []).filter(
     (month) => !isMonthReadOnly(month.month_start, currentMonth),
   );
-  const availableTransactions = (transactions.data?.records ?? []).filter(
-    (entry) => entry.budget_month_id === monthId && entry.status === 'posted',
+  const linkedTransactionIds = new Set(
+    (goals.data ?? []).flatMap((goal) =>
+      goal.goal_contributions.flatMap((entry) =>
+        entry.transaction_id ? [entry.transaction_id] : [],
+      ),
+    ),
   );
+  const availableTransactions = (transactions.data ?? []).filter(
+    (entry) => !linkedTransactionIds.has(entry.id),
+  );
+  const goalsByTab = {
+    ongoing: (goals.data ?? []).filter((goal) => goal.status === 'active'),
+    paused: (goals.data ?? []).filter((goal) => goal.status === 'paused'),
+    cancelled: (goals.data ?? []).filter(
+      (goal) => goal.status === 'cancelled' || goal.status === 'archived',
+    ),
+    completed: (goals.data ?? []).filter((goal) => goal.status === 'completed'),
+  };
+  const visibleGoals = goalsByTab[activeTab];
+  const tabLabels = {
+    ongoing: 'Ongoing',
+    paused: 'Paused',
+    cancelled: 'Cancelled',
+    completed: 'Completed',
+  } as const;
 
   return (
     <section className="page goals-page">
@@ -180,6 +228,23 @@ export const GoalsPage = () => {
           {actionError}
         </div>
       )}
+      {(goals.data ?? []).length > 0 && (
+        <div className="goal-tabs" role="tablist" aria-label="Goal status">
+          {(Object.keys(tabLabels) as Array<keyof typeof tabLabels>).map((tab) => (
+            <button
+              key={tab}
+              role="tab"
+              type="button"
+              aria-controls="goal-tab-panel"
+              aria-selected={activeTab === tab}
+              className={activeTab === tab ? 'goal-tab goal-tab--active' : 'goal-tab'}
+              onClick={() => setSearchParams(tab === 'ongoing' ? {} : { tab })}
+            >
+              {tabLabels[tab]} <span>{goalsByTab[tab].length}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {!goals.data?.length ? (
         <div className="empty-card">
           <Landmark aria-hidden="true" />
@@ -187,15 +252,22 @@ export const GoalsPage = () => {
           <p>Create a goal to see a clear recommended contribution in each editable month.</p>
           <Button onClick={() => setEditing('new')}>Create your first goal</Button>
         </div>
-      ) : (
-        <div className="goal-grid">
-          {goals.data.map((goal) => {
+      ) : visibleGoals.length ? (
+        <div className="goal-grid" id="goal-tab-panel" role="tabpanel">
+          {visibleGoals.map((goal) => {
             const progress = calculateGoalProgress(goal, goal.goal_contributions);
+            const completed = goal.status === 'completed' || progress.remainingMinor === 0;
             return (
               <article className="goal-card" key={goal.id}>
                 <header>
                   <div>
-                    <span className={`status-pill status-pill--${goal.status}`}>{goal.status}</span>
+                    <span className={`status-pill status-pill--${goal.status}`}>
+                      {goal.status === 'active'
+                        ? 'ongoing'
+                        : goal.status === 'archived'
+                          ? 'previously archived'
+                          : goal.status}
+                    </span>
                     <h2>{goal.name}</h2>
                     <p>
                       {goalTypeLabel[goal.goal_type]} · {formatGoalPriority(goal.priority)} priority
@@ -220,21 +292,66 @@ export const GoalsPage = () => {
                     <dd>{formatMoney(progress.remainingMinor / 100, currency, locale)}</dd>
                   </div>
                   <div>
-                    <dt>Monthly plan</dt>
-                    <dd>{formatMoney(progress.recommendedMonthlyMinor / 100, currency, locale)}</dd>
+                    <dt>
+                      Planned {goal.contribution_frequency} contribution{' '}
+                      <InfoHelp label="About planned goal contributions">
+                        {budgetGoalHelp.plannedContribution}
+                      </InfoHelp>
+                    </dt>
+                    <dd>
+                      {progress.plannedContributionMinor === null
+                        ? 'Not set'
+                        : formatMoney(progress.plannedContributionMinor / 100, currency, locale)}
+                    </dd>
                   </div>
                   <div>
-                    <dt>Projected finish</dt>
-                    <dd>{progress.projectedCompletionDate ?? 'Needs a monthly amount'}</dd>
+                    <dt>
+                      Required {goal.contribution_frequency} pace{' '}
+                      <InfoHelp label="About required goal pace">
+                        {budgetGoalHelp.requiredContribution}
+                      </InfoHelp>
+                    </dt>
+                    <dd>
+                      {progress.requiredContributionMinor === null
+                        ? 'Needs a future target date'
+                        : formatMoney(progress.requiredContributionMinor / 100, currency, locale)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>
+                      {goal.target_date ? 'Target date' : 'Projected finish'}{' '}
+                      <InfoHelp
+                        label={
+                          goal.target_date ? 'About the target date' : 'About projected completion'
+                        }
+                      >
+                        {goal.target_date
+                          ? budgetGoalHelp.targetDate
+                          : budgetGoalHelp.projectedCompletion}
+                      </InfoHelp>
+                    </dt>
+                    <dd>
+                      {goal.target_date
+                        ? formatGoalDate(goal.target_date)
+                        : progress.projectedCompletionDate
+                          ? `Estimated ${formatGoalDate(progress.projectedCompletionDate)}`
+                          : 'Needs a planned amount'}
+                    </dd>
                   </div>
                 </dl>
                 {goal.target_date && (
                   <p className={`goal-track goal-track--${progress.onTrack ? 'good' : 'behind'}`}>
                     {progress.onTrack
-                      ? 'On track for target date'
-                      : 'Monthly contribution is below the target pace'}
+                      ? `Your plan is on track for ${formatGoalDate(goal.target_date)}.`
+                      : progress.requiredContributionMinor !== null
+                        ? `At this amount, you may miss ${formatGoalDate(goal.target_date)}. Try adding at least ${formatMoney(progress.requiredContributionMinor / 100, currency, locale)} ${contributionTimingText[goal.contribution_frequency]}.`
+                        : `Your target date has passed. Choose a new date to make a new plan.`}
                   </p>
                 )}
+                <p className="goal-estimate-note">
+                  Planning estimates use your entries and exclude returns, fees, and unexpected
+                  costs. They are not personalised financial advice.
+                </p>
                 {goal.goal_contributions.length > 0 && (
                   <details className="goal-history">
                     <summary>
@@ -276,18 +393,20 @@ export const GoalsPage = () => {
                   </details>
                 )}
                 <footer>
-                  {goal.status === 'active' && (
+                  {goal.status === 'active' && !completed && (
                     <Button variant="secondary" onClick={() => setContributing(goal)}>
                       Add contribution
                     </Button>
                   )}
-                  <button
-                    className="icon-button"
-                    aria-label={`Edit ${goal.name}`}
-                    onClick={() => setEditing(goal)}
-                  >
-                    <Pencil size={17} />
-                  </button>
+                  {!completed && goal.status !== 'cancelled' && goal.status !== 'archived' && (
+                    <button
+                      className="icon-button"
+                      aria-label={`Edit ${goal.name}`}
+                      onClick={() => setEditing(goal)}
+                    >
+                      <Pencil size={17} />
+                    </button>
+                  )}
                   {goal.status === 'active' ? (
                     <button
                       className="icon-button"
@@ -305,26 +424,30 @@ export const GoalsPage = () => {
                       <CirclePlay size={18} />
                     </button>
                   ) : null}
-                  {goal.status !== 'completed' && (
+                  {(goal.status === 'active' || goal.status === 'paused') && !completed && (
                     <button
                       className="icon-button"
-                      aria-label={`Complete ${goal.name}`}
-                      onClick={() => void changeStatus(goal, 'completed')}
+                      aria-label={`Cancel ${goal.name}`}
+                      onClick={() => void changeStatus(goal, 'cancelled')}
                     >
-                      <CheckCircle2 size={18} />
+                      <CircleX size={18} />
                     </button>
                   )}
-                  <button
-                    className="icon-button"
-                    aria-label={`Archive ${goal.name}`}
-                    onClick={() => void changeStatus(goal, 'archived')}
-                  >
-                    <Archive size={18} />
-                  </button>
+                  {(goal.status === 'cancelled' || goal.status === 'archived') && (
+                    <Button variant="ghost" onClick={() => void changeStatus(goal, 'active')}>
+                      Restore as ongoing
+                    </Button>
+                  )}
                 </footer>
               </article>
             );
           })}
+        </div>
+      ) : (
+        <div className="empty-card" id="goal-tab-panel" role="tabpanel">
+          <Landmark aria-hidden="true" />
+          <h2>No {tabLabels[activeTab].toLowerCase()} goals</h2>
+          <p>Goals in this lifecycle state will appear here.</p>
         </div>
       )}
       <Modal
@@ -334,9 +457,12 @@ export const GoalsPage = () => {
         onClose={() => setEditing(null)}
       >
         <GoalForm
+          key={editing === 'new' ? 'new' : editing?.id}
           goal={editing === 'new' ? null : editing}
           categories={categories.data ?? []}
           accounts={accounts.data ?? []}
+          existingGoals={goals.data ?? []}
+          timeZone={profile.data?.timezone}
           onSave={saveGoal}
         />
       </Modal>
@@ -416,6 +542,12 @@ export const GoalsPage = () => {
               </option>
             ))}
           </SelectField>
+          {transactions.isLoading && <p className="muted">Loading posted transactions…</p>}
+          {transactions.error && (
+            <div className="inline-alert inline-alert--error" role="alert">
+              Posted transactions could not be loaded. Choose the month again to retry.
+            </div>
+          )}
           {addContribution.error && (
             <div className="inline-alert inline-alert--error" role="alert">
               {addContribution.error.message}

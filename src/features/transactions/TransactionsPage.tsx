@@ -71,9 +71,13 @@ export const TransactionsPage = () => {
     queryKey: queryKeys.accounts(userId),
     queryFn: () => searchFinancialAccounts(true),
   });
+  const requestedMonthStart = searchParams.get('month');
+  const requestedMonthId = (months.data ?? []).find(
+    (month) => month.month_start === requestedMonthStart,
+  )?.id;
   const transactions = useQuery({
-    queryKey: queryKeys.transactions(userId, page),
-    queryFn: () => searchBudgetTransactions(page),
+    queryKey: queryKeys.transactions(userId, page, requestedMonthId),
+    queryFn: () => searchBudgetTransactions(page, requestedMonthId),
   });
   const importBatches = useQuery({
     queryKey: queryKeys.transactionImports(userId),
@@ -334,7 +338,12 @@ export const TransactionsPage = () => {
         <header>
           <div>
             <h2 id="transaction-history-heading">Transaction history</h2>
-            <p>{transactions.data?.total ?? 0} recorded transactions</p>
+            <p>
+              {transactions.data?.total ?? 0}{' '}
+              {requestedMonthId
+                ? `transactions in ${requestedMonthStart?.slice(0, 7)}`
+                : 'recorded transactions'}
+            </p>
           </div>
         </header>
         {transactions.data?.records.length ? (
