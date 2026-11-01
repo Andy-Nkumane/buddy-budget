@@ -1,5 +1,7 @@
 export const CURRENT_BACKUP_VERSION = 12;
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
+export const MAX_BACKUP_DEPTH = 64;
+export const MAX_BACKUP_NODES = 50_000;
 
 const collectionKeys = [
   'categories',
@@ -67,6 +69,22 @@ export interface BackupInspection {
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const assertBackupComplexity = (value: unknown): void => {
+  const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+  let nodes = 0;
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current || (!Array.isArray(current.value) && !isObject(current.value))) continue;
+    nodes += 1;
+    if (current.depth > MAX_BACKUP_DEPTH)
+      throw new Error(`The backup exceeds the maximum nesting depth of ${MAX_BACKUP_DEPTH}.`);
+    if (nodes > MAX_BACKUP_NODES)
+      throw new Error(`The backup exceeds the maximum structural size of ${MAX_BACKUP_NODES}.`);
+    const entries = Array.isArray(current.value) ? current.value : Object.values(current.value);
+    entries.forEach((entry) => pending.push({ value: entry, depth: current.depth + 1 }));
+  }
+};
 
 const sanitize = (value: unknown, path: string, incompatibleFields: string[]): unknown => {
   if (Array.isArray(value))
@@ -207,6 +225,7 @@ export const inspectBackupText = (text: string): BackupInspection => {
     throw new Error('This file is not valid JSON.');
   }
   if (!isObject(parsed)) throw new Error('The backup root must be a JSON object.');
+  assertBackupComplexity(parsed);
   const originalSchemaVersion = Number(parsed.schema_version);
   if (!Number.isInteger(originalSchemaVersion))
     throw new Error('The backup has no valid schema version.');
