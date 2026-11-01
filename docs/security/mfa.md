@@ -17,6 +17,10 @@ Last reviewed: 24 October 2026
 
 - MFA is opt-in so existing users are not locked out.
 - Settings can enroll and verify one or more TOTP authenticator apps.
+- Before enrollment, the user gives each authenticator a unique provider-owned name of 1–48
+  Unicode characters. Buddy Budget trims surrounding whitespace, preserves internal whitespace,
+  and rejects control or invisible formatting characters. Existing factors without a provider name
+  remain usable with a display-only fallback based on their enrollment date.
 - The enrollment QR code and manual secret exist only in component memory and disappear after
   completion or cancellation. They are not logged or persisted by Buddy Budget.
 - Cancelling setup removes the unverified provider factor.

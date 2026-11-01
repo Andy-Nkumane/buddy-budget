@@ -9,7 +9,8 @@ import {
 } from '../auth/mfa';
 import { MfaSettings } from './MfaSettings';
 
-vi.mock('../auth/mfa', () => ({
+vi.mock('../auth/mfa', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../auth/mfa')>()),
   createTotpEnrollment: vi.fn(),
   deleteTotpFactor: vi.fn(),
   retrieveMfaAssurance: vi.fn(),
@@ -53,6 +54,10 @@ describe('AUTH-002 MfaSettings', () => {
     render(<MfaSettings />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Set up authenticator' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Authenticator name' }), {
+      target: { value: 'Personal phone' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue setup' }));
     expect(await screen.findByAltText('Authenticator setup QR code')).toBeVisible();
     expect(screen.getByText('SYNTHETICSETUPKEY')).toBeVisible();
 
@@ -62,6 +67,7 @@ describe('AUTH-002 MfaSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Verify and enable' }));
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/app added/i));
+    expect(createTotpEnrollment).toHaveBeenCalledWith('Personal phone');
     expect(verifyTotpFactor).toHaveBeenCalledWith('new-factor', '123456');
     expect(screen.queryByText('SYNTHETICSETUPKEY')).not.toBeInTheDocument();
   });
@@ -69,10 +75,16 @@ describe('AUTH-002 MfaSettings', () => {
   it('removes an abandoned unverified factor when setup is cancelled', async () => {
     render(<MfaSettings />);
     fireEvent.click(await screen.findByRole('button', { name: 'Set up authenticator' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Authenticator name' }), {
+      target: { value: 'Work password manager' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue setup' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel setup' }));
 
     await waitFor(() => expect(deleteTotpFactor).toHaveBeenCalledWith('new-factor'));
     expect(screen.queryByAltText('Authenticator setup QR code')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Set up authenticator' }));
+    expect(screen.getByRole('textbox', { name: 'Authenticator name' })).toHaveValue('');
   });
 
   it('shows an incorrect verification code beside the code field', async () => {
@@ -82,6 +94,10 @@ describe('AUTH-002 MfaSettings', () => {
     render(<MfaSettings />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Set up authenticator' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Authenticator name' }), {
+      target: { value: 'Personal phone' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue setup' }));
     const codeField = await screen.findByLabelText('Six-digit verification code');
     fireEvent.change(codeField, { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Verify and enable' }));
@@ -89,5 +105,23 @@ describe('AUTH-002 MfaSettings', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not be confirmed/i);
     expect(codeField).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByRole('button', { name: 'Verify and enable' })).toBeVisible();
+  });
+
+  it('shows empty and duplicate name errors beside the name field', async () => {
+    vi.mocked(createTotpEnrollment).mockRejectedValueOnce(
+      new Error('That name is already in use. Choose a different authenticator name.'),
+    );
+    render(<MfaSettings />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Set up authenticator' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue setup' }));
+    const nameField = screen.getByRole('textbox', { name: 'Authenticator name' });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/enter a name/i);
+    expect(nameField).toHaveAttribute('aria-invalid', 'true');
+
+    fireEvent.change(nameField, { target: { value: 'Personal phone' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue setup' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/already in use/i);
+    expect(nameField).toHaveAttribute('aria-invalid', 'true');
   });
 });

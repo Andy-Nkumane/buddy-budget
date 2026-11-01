@@ -12,6 +12,26 @@ export type TotpEnrollment = {
   secret: string;
 };
 
+export const MFA_FRIENDLY_NAME_MAX_LENGTH = 48;
+
+export const validateMfaFriendlyName = (value: string): string | null => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return 'Enter a name for this authenticator.';
+  if (/\p{Cc}|\p{Cf}/u.test(trimmedValue))
+    return 'Use a name without control or invisible formatting characters.';
+  if ([...trimmedValue].length > MFA_FRIENDLY_NAME_MAX_LENGTH)
+    return `Use ${MFA_FRIENDLY_NAME_MAX_LENGTH} characters or fewer.`;
+  return null;
+};
+
+export const getTotpFactorDisplayName = (
+  factor: Pick<Factor<'totp', 'verified'>, 'friendly_name' | 'created_at'>,
+): string => {
+  if (factor.friendly_name?.trim()) return factor.friendly_name.trim();
+  const createdDate = factor.created_at?.slice(0, 10);
+  return createdDate ? `Authenticator added ${createdDate}` : 'Unnamed authenticator';
+};
+
 export const retrieveMfaAssurance = async (): Promise<MfaAssurance> => {
   const { data, error } = await requireSupabase().auth.mfa.getAuthenticatorAssuranceLevel();
   if (error || !data) throw new Error('Your security level could not be verified.');
@@ -24,15 +44,16 @@ export const retrieveTotpFactors = async (): Promise<Factor<'totp', 'verified'>[
   return data.totp;
 };
 
-export const createTotpEnrollment = async (): Promise<TotpEnrollment> => {
+export const createTotpEnrollment = async (friendlyName: string): Promise<TotpEnrollment> => {
+  const nameError = validateMfaFriendlyName(friendlyName);
+  if (nameError) throw new Error(nameError);
   const client = requireSupabase();
-  const { data: factorData, error: factorError } = await client.auth.mfa.listFactors();
-  if (factorError || !factorData) throw new Error('Authenticator setup could not be started.');
-  const totpCount = factorData.all.filter((factor) => factor.factor_type === 'totp').length;
   const { data, error } = await client.auth.mfa.enroll({
     factorType: 'totp',
-    friendlyName: `Authenticator app ${totpCount + 1}`,
+    friendlyName: friendlyName.trim(),
   });
+  if (error?.code === 'mfa_factor_name_conflict')
+    throw new Error('That name is already in use. Choose a different authenticator name.');
   if (error || !data) throw new Error('Authenticator setup could not be started.');
   return { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret };
 };

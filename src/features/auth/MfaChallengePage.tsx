@@ -4,7 +4,12 @@ import type { Factor } from '@supabase/supabase-js';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { LoadingState } from '../../shared/ui/AsyncState';
-import { retrieveMfaAssurance, retrieveTotpFactors, verifyTotpFactor } from './mfa';
+import {
+  getTotpFactorDisplayName,
+  retrieveMfaAssurance,
+  retrieveTotpFactors,
+  verifyTotpFactor,
+} from './mfa';
 import { useAuth } from '../../app/providers/AuthProvider';
 
 export const MfaChallengePage = () => {
@@ -92,9 +97,9 @@ export const MfaChallengePage = () => {
             value={selectedFactorId}
             onChange={(event) => setSelectedFactorId(event.target.value)}
           >
-            {factors.map((factor, index) => (
+            {factors.map((factor) => (
               <option key={factor.id} value={factor.id}>
-                {factor.friendly_name || `Authenticator app ${index + 1}`}
+                {getTotpFactorDisplayName(factor)}
               </option>
             ))}
           </select>
