@@ -5,7 +5,8 @@ import { MfaChallengePage } from './MfaChallengePage';
 import { retrieveMfaAssurance, retrieveTotpFactors, verifyTotpFactor } from './mfa';
 import { useAuth } from '../../app/providers/AuthProvider';
 
-vi.mock('./mfa', () => ({
+vi.mock('./mfa', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./mfa')>()),
   retrieveMfaAssurance: vi.fn(),
   retrieveTotpFactors: vi.fn(),
   verifyTotpFactor: vi.fn(),
@@ -86,5 +87,22 @@ describe('AUTH-002 MfaChallengePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
 
     await waitFor(() => expect(signOut).toHaveBeenCalledWith({ scope: 'local' }));
+  });
+
+  it('shows provider names and a stable fallback without exposing factor IDs', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([
+      factor,
+      {
+        ...factor,
+        id: 'legacy-factor-id',
+        friendly_name: undefined,
+        created_at: '2026-10-25T00:00:00.000Z',
+      },
+    ]);
+    renderPage();
+
+    expect(await screen.findByRole('option', { name: 'Budget authenticator' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Authenticator added 2026-10-25' })).toBeVisible();
+    expect(screen.queryByText('legacy-factor-id')).not.toBeInTheDocument();
   });
 });

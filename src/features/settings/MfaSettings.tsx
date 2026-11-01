@@ -6,8 +6,10 @@ import { FormField } from '../../shared/ui/FormField';
 import {
   createTotpEnrollment,
   deleteTotpFactor,
+  getTotpFactorDisplayName,
   retrieveMfaAssurance,
   retrieveTotpFactors,
+  validateMfaFriendlyName,
   verifyTotpFactor,
   type TotpEnrollment,
 } from '../auth/mfa';
@@ -16,6 +18,8 @@ export const MfaSettings = () => {
   const [factors, setFactors] = useState<Factor<'totp', 'verified'>[]>([]);
   const [assurance, setAssurance] = useState<string | null>(null);
   const [enrollment, setEnrollment] = useState<TotpEnrollment | null>(null);
+  const [showNameField, setShowNameField] = useState(false);
+  const [friendlyName, setFriendlyName] = useState('');
   const [code, setCode] = useState('');
   const [removeFactorId, setRemoveFactorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,12 +44,18 @@ export const MfaSettings = () => {
       .catch(() => setError('Authenticator settings could not be loaded.'));
   }, []);
 
-  const startEnrollment = async () => {
+  const startEnrollment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const nameError = validateMfaFriendlyName(friendlyName);
+    if (nameError) {
+      setError(nameError);
+      return;
+    }
     setBusy(true);
     setError(null);
     setStatus(null);
     try {
-      setEnrollment(await createTotpEnrollment());
+      setEnrollment(await createTotpEnrollment(friendlyName));
     } catch (startError) {
       setError(startError instanceof Error ? startError.message : 'Setup could not be started.');
     } finally {
@@ -64,6 +74,8 @@ export const MfaSettings = () => {
     try {
       await verifyTotpFactor(enrollment.factorId, code);
       setEnrollment(null);
+      setShowNameField(false);
+      setFriendlyName('');
       setCode('');
       await load();
       setStatus('Authenticator app added. Other sessions were signed out by Supabase.');
@@ -83,6 +95,8 @@ export const MfaSettings = () => {
     try {
       await deleteTotpFactor(enrollment.factorId);
       setEnrollment(null);
+      setShowNameField(false);
+      setFriendlyName('');
       setCode('');
     } catch (cancelError) {
       setError(
@@ -128,9 +142,9 @@ export const MfaSettings = () => {
         </p>
       )}
       <ul className="mfa-factor-list" aria-label="Authenticator apps">
-        {factors.map((factor, index) => (
+        {factors.map((factor) => (
           <li key={factor.id}>
-            <span>{factor.friendly_name || `Authenticator app ${index + 1}`}</span>
+            <span>{getTotpFactorDisplayName(factor)}</span>
             {removeFactorId === factor.id ? (
               <span className="mfa-factor-list__actions">
                 <Button variant="danger" disabled={busy} onClick={() => void removeFactor()}>
@@ -190,8 +204,48 @@ export const MfaSettings = () => {
             </Button>
           </div>
         </form>
+      ) : showNameField ? (
+        <form className="mfa-enrollment" onSubmit={(event) => void startEnrollment(event)}>
+          <FormField
+            id="mfa-friendly-name"
+            label="Authenticator name"
+            aria-label="Authenticator name"
+            hint="Use a name you will recognise, such as “Personal phone”."
+            error={error ?? undefined}
+            autoComplete="off"
+            value={friendlyName}
+            onChange={(event) => {
+              setFriendlyName(event.target.value);
+              setError(null);
+            }}
+          />
+          <div className="settings-card__actions">
+            <Button loading={busy} type="submit">
+              Continue setup
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={busy}
+              type="button"
+              onClick={() => {
+                setShowNameField(false);
+                setFriendlyName('');
+                setError(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
       ) : (
-        <Button variant="secondary" loading={busy} onClick={() => void startEnrollment()}>
+        <Button
+          variant="secondary"
+          loading={busy}
+          onClick={() => {
+            setShowNameField(true);
+            setError(null);
+          }}
+        >
           {factors.length ? 'Add another authenticator' : 'Set up authenticator'}
         </Button>
       )}
@@ -200,7 +254,7 @@ export const MfaSettings = () => {
         is lost, recovery requires the test administrator; Buddy Budget does not issue recovery
         codes yet.
       </p>
-      {error && !enrollment && (
+      {error && !enrollment && !showNameField && (
         <div className="inline-alert inline-alert--error" role="alert">
           {error}
         </div>

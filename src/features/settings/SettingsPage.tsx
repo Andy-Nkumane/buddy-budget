@@ -44,7 +44,7 @@ import { queryKeys } from '../../data/queryKeys';
 import { LegalLinks } from '../legal/LegalLinks';
 import { MfaSettings } from './MfaSettings';
 import { ChangePasswordForm } from './ChangePasswordForm';
-import { retrieveTotpFactors, verifyTotpFactor } from '../auth/mfa';
+import { getTotpFactorDisplayName, retrieveTotpFactors, verifyTotpFactor } from '../auth/mfa';
 
 type SettingsValues = z.infer<typeof profileSchema>;
 
@@ -420,9 +420,9 @@ export const SettingsPage = () => {
                     disabled={deleteCompleted}
                     onChange={(event) => setDeleteMfaFactorId(event.target.value)}
                   >
-                    {deleteMfaFactors.map((factor, index) => (
+                    {deleteMfaFactors.map((factor) => (
                       <option key={factor.id} value={factor.id}>
-                        {factor.friendly_name || `Authenticator app ${index + 1}`}
+                        {getTotpFactorDisplayName(factor)}
                       </option>
                     ))}
                   </select>

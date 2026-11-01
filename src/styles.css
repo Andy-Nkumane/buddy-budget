@@ -3647,6 +3647,11 @@ p {
   border-radius: var(--radius-sm);
 }
 
+.mfa-factor-list li > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .mfa-enrollment {
   display: grid;
   gap: 1rem;
@@ -3674,6 +3679,14 @@ p {
   overflow-wrap: anywhere;
   background: var(--surface-muted);
   border-radius: var(--radius-sm);
+}
+
+@media (max-width: 36rem) {
+  .mfa-factor-list li,
+  .mfa-factor-list__actions,
+  .mfa-enrollment .settings-card__actions {
+    flex-wrap: wrap;
+  }
 }
 
 .privacy-note {
