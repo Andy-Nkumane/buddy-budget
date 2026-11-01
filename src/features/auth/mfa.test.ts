@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireSupabase } from '../../data/supabase/client';
 import {
   createTotpEnrollment,
+  deleteTotpFactor,
   getTotpFactorDisplayName,
+  refreshMfaSessionAssurance,
   validateMfaFriendlyName,
   verifyTotpFactor,
 } from './mfa';
@@ -11,12 +13,20 @@ vi.mock('../../data/supabase/client', () => ({ requireSupabase: vi.fn() }));
 
 const enroll = vi.fn();
 const challengeAndVerify = vi.fn();
+const unenroll = vi.fn();
+const refreshSession = vi.fn();
+const signOut = vi.fn();
+const getAuthenticatorAssuranceLevel = vi.fn();
 
 describe('AUTH-002 MFA provider boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireSupabase).mockReturnValue({
-      auth: { mfa: { enroll, challengeAndVerify } },
+      auth: {
+        refreshSession,
+        signOut,
+        mfa: { enroll, challengeAndVerify, unenroll, getAuthenticatorAssuranceLevel },
+      },
     } as never);
   });
 
@@ -77,5 +87,50 @@ describe('AUTH-002 MFA provider boundary', () => {
     await expect(verifyTotpFactor('factor-id', '000000')).rejects.toThrow(
       'That verification code could not be confirmed. Check it and try again.',
     );
+  });
+
+  it('maps a stale factor removal without exposing provider diagnostics', async () => {
+    unenroll.mockResolvedValue({
+      error: { code: 'mfa_factor_not_found', message: 'Provider diagnostic' },
+    });
+
+    await expect(deleteTotpFactor('stale-factor')).rejects.toThrow(
+      'This authenticator is no longer available. Refresh and try again.',
+    );
+  });
+
+  it('uses the factor ID only at the provider unenrollment boundary', async () => {
+    unenroll.mockResolvedValue({ data: {}, error: null });
+
+    await expect(deleteTotpFactor('selected-factor')).resolves.toBeUndefined();
+    expect(unenroll).toHaveBeenCalledWith({ factorId: 'selected-factor' });
+  });
+
+  it('refreshes the session before returning updated assurance', async () => {
+    refreshSession.mockResolvedValue({ data: { session: {} }, error: null });
+    getAuthenticatorAssuranceLevel.mockResolvedValue({
+      data: { currentLevel: 'aal1', nextLevel: 'aal1' },
+      error: null,
+    });
+
+    await expect(refreshMfaSessionAssurance()).resolves.toEqual({
+      currentLevel: 'aal1',
+      nextLevel: 'aal1',
+    });
+    expect(refreshSession).toHaveBeenCalledOnce();
+    expect(getAuthenticatorAssuranceLevel).toHaveBeenCalledOnce();
+  });
+
+  it('signs out locally when assurance cannot be refreshed after removal', async () => {
+    refreshSession.mockResolvedValue({
+      data: { session: null },
+      error: { message: 'Provider refresh diagnostic' },
+    });
+    signOut.mockResolvedValue({ error: null });
+
+    await expect(refreshMfaSessionAssurance()).rejects.toThrow(
+      'The authenticator was removed, but your session ended. Sign in again.',
+    );
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
   });
 });
