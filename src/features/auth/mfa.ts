@@ -66,5 +66,17 @@ export const verifyTotpFactor = async (factorId: string, code: string): Promise<
 
 export const deleteTotpFactor = async (factorId: string): Promise<void> => {
   const { error } = await requireSupabase().auth.mfa.unenroll({ factorId });
+  if (error?.code === 'mfa_factor_not_found')
+    throw new Error('This authenticator is no longer available. Refresh and try again.');
   if (error) throw new Error('The authenticator app could not be removed.');
+};
+
+export const refreshMfaSessionAssurance = async (): Promise<MfaAssurance> => {
+  const client = requireSupabase();
+  const { error } = await client.auth.refreshSession();
+  if (error) {
+    await client.auth.signOut({ scope: 'local' });
+    throw new Error('The authenticator was removed, but your session ended. Sign in again.');
+  }
+  return retrieveMfaAssurance();
 };

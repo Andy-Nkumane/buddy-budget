@@ -1,12 +1,16 @@
 import type { Factor } from '@supabase/supabase-js';
 import { ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
+import { PasswordField } from '../../shared/ui/PasswordField';
+import { reauthenticateWithPassword } from '../../data/repositories/budgetRepository';
 import {
   createTotpEnrollment,
   deleteTotpFactor,
   getTotpFactorDisplayName,
+  refreshMfaSessionAssurance,
   retrieveMfaAssurance,
   retrieveTotpFactors,
   validateMfaFriendlyName,
@@ -15,13 +19,23 @@ import {
 } from '../auth/mfa';
 
 export const MfaSettings = () => {
+  const navigate = useNavigate();
   const [factors, setFactors] = useState<Factor<'totp', 'verified'>[]>([]);
   const [assurance, setAssurance] = useState<string | null>(null);
   const [enrollment, setEnrollment] = useState<TotpEnrollment | null>(null);
   const [showNameField, setShowNameField] = useState(false);
   const [friendlyName, setFriendlyName] = useState('');
   const [code, setCode] = useState('');
-  const [removeFactorId, setRemoveFactorId] = useState<string | null>(null);
+  const [removal, setRemoval] = useState<{
+    factorId: string;
+    factorName: string;
+    verificationFactorId: string;
+    verificationFactorName: string;
+    isLastFactor: boolean;
+  } | null>(null);
+  const [removalPassword, setRemovalPassword] = useState('');
+  const [removalCode, setRemovalCode] = useState('');
+  const [removalConfirmation, setRemovalConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -107,15 +121,127 @@ export const MfaSettings = () => {
     }
   };
 
-  const removeFactor = async () => {
-    if (!removeFactorId) return;
+  const clearRemoval = () => {
+    setRemoval(null);
+    setRemovalPassword('');
+    setRemovalCode('');
+    setRemovalConfirmation('');
+    setError(null);
+  };
+
+  const beginRemoval = async (factorId: string) => {
     setBusy(true);
     setError(null);
+    setStatus(null);
     try {
-      await deleteTotpFactor(removeFactorId);
-      setRemoveFactorId(null);
+      const [availableFactors, currentAssurance] = await Promise.all([
+        retrieveTotpFactors(),
+        retrieveMfaAssurance(),
+      ]);
+      setFactors(availableFactors);
+      setAssurance(currentAssurance.currentLevel);
+      if (currentAssurance.currentLevel !== 'aal2') {
+        setError('Verify with an authenticator before starting removal.');
+        return;
+      }
+      const targetFactor = availableFactors.find((factor) => factor.id === factorId);
+      if (!targetFactor) {
+        setError('This authenticator is no longer available. The list has been refreshed.');
+        return;
+      }
+      const remainingFactor = availableFactors.find((factor) => factor.id !== factorId);
+      setRemoval({
+        factorId,
+        factorName: getTotpFactorDisplayName(targetFactor),
+        verificationFactorId: remainingFactor?.id ?? targetFactor.id,
+        verificationFactorName: getTotpFactorDisplayName(remainingFactor ?? targetFactor),
+        isLastFactor: !remainingFactor,
+      });
+    } catch {
+      setError('Authenticator removal could not be started. Refresh and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeFactor = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!removal) return;
+    if (removalConfirmation !== removal.factorName) {
+      setError(`Type “${removal.factorName}” exactly to confirm removal.`);
+      return;
+    }
+    if (!removalPassword) {
+      setError('Enter your current password.');
+      return;
+    }
+    if (!/^\d{6}$/.test(removalCode)) {
+      setError('Enter the six-digit code from the named authenticator.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const [factorsBeforeReauthentication, assuranceBeforeReauthentication] = await Promise.all([
+        retrieveTotpFactors(),
+        retrieveMfaAssurance(),
+      ]);
+      const currentTarget = factorsBeforeReauthentication.find(
+        (factor) => factor.id === removal.factorId,
+      );
+      const currentVerificationFactor = factorsBeforeReauthentication.find(
+        (factor) => factor.id === removal.verificationFactorId,
+      );
+      if (
+        assuranceBeforeReauthentication.currentLevel !== 'aal2' ||
+        !currentTarget ||
+        !currentVerificationFactor ||
+        getTotpFactorDisplayName(currentTarget) !== removal.factorName
+      ) {
+        clearRemoval();
+        await load();
+        setError('Authenticator settings changed. Review the refreshed list and try again.');
+        return;
+      }
+      try {
+        await reauthenticateWithPassword(removalPassword);
+      } catch {
+        setError('Your current password could not be confirmed.');
+        return;
+      }
+      try {
+        await verifyTotpFactor(removal.verificationFactorId, removalCode);
+      } catch {
+        clearRemoval();
+        void navigate('/auth/mfa', {
+          replace: true,
+          state: {
+            from: '/app/settings',
+            reason: 'reauthentication-code-rejected',
+          },
+        });
+        return;
+      }
+      const [factorsBeforeRemoval, assuranceBeforeRemoval] = await Promise.all([
+        retrieveTotpFactors(),
+        retrieveMfaAssurance(),
+      ]);
+      if (
+        assuranceBeforeRemoval.currentLevel !== 'aal2' ||
+        !factorsBeforeRemoval.some((factor) => factor.id === removal.factorId)
+      ) {
+        clearRemoval();
+        await load();
+        setError('Authenticator settings changed. Review the refreshed list and try again.');
+        return;
+      }
+      await deleteTotpFactor(removal.factorId);
+      const refreshedAssurance = await refreshMfaSessionAssurance();
+      clearRemoval();
       await load();
-      setStatus('Authenticator app removed.');
+      setAssurance(refreshedAssurance.currentLevel);
+      setStatus('Authenticator app removed. Your security level has been refreshed.');
     } catch (removeError) {
       setError(
         removeError instanceof Error
@@ -145,27 +271,87 @@ export const MfaSettings = () => {
         {factors.map((factor) => (
           <li key={factor.id}>
             <span>{getTotpFactorDisplayName(factor)}</span>
-            {removeFactorId === factor.id ? (
-              <span className="mfa-factor-list__actions">
-                <Button variant="danger" disabled={busy} onClick={() => void removeFactor()}>
-                  Confirm removal
-                </Button>
-                <Button variant="ghost" disabled={busy} onClick={() => setRemoveFactorId(null)}>
-                  Keep it
-                </Button>
-              </span>
-            ) : (
-              <Button
-                variant="secondary"
-                disabled={busy || assurance !== 'aal2'}
-                onClick={() => setRemoveFactorId(factor.id)}
-              >
-                Remove
-              </Button>
-            )}
+            <Button
+              variant="secondary"
+              aria-label={`Remove ${getTotpFactorDisplayName(factor)}`}
+              disabled={busy || assurance !== 'aal2' || Boolean(removal)}
+              onClick={() => void beginRemoval(factor.id)}
+            >
+              Remove
+            </Button>
           </li>
         ))}
       </ul>
+      {factors.length > 0 && assurance !== 'aal2' && (
+        <p className="muted">Verify with an authenticator before removing one.</p>
+      )}
+      {removal && (
+        <form className="mfa-removal" onSubmit={(event) => void removeFactor(event)}>
+          <h3>Remove {removal.factorName}?</h3>
+          {removal.isLastFactor ? (
+            <div className="inline-alert inline-alert--warning">
+              This is your last authenticator. Removing it turns off your second sign-in step. If
+              you no longer have access to it, you cannot remove it here. Contact the authorised
+              test administrator for account recovery.
+            </div>
+          ) : (
+            <p>
+              Confirm this change with a fresh code from {removal.verificationFactorName}. This
+              keeps a different authenticator available after removal.
+            </p>
+          )}
+          <PasswordField
+            id="mfa-removal-password"
+            label="Current password"
+            autoComplete="current-password"
+            value={removalPassword}
+            onChange={(event) => {
+              setRemovalPassword(event.target.value);
+              setError(null);
+            }}
+          />
+          <FormField
+            id="mfa-removal-code"
+            label={`Six-digit code from ${removal.verificationFactorName}`}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6}"
+            value={removalCode}
+            onChange={(event) => {
+              setRemovalCode(event.target.value);
+              setError(null);
+            }}
+          />
+          <FormField
+            id="mfa-removal-confirmation"
+            label={`Type ${removal.factorName} to confirm`}
+            autoComplete="off"
+            value={removalConfirmation}
+            onChange={(event) => {
+              setRemovalConfirmation(event.target.value);
+              setError(null);
+            }}
+          />
+          {error && (
+            <div className="inline-alert inline-alert--error" role="alert">
+              {error}
+            </div>
+          )}
+          <div className="settings-card__actions">
+            <Button
+              variant="danger"
+              aria-label={`Confirm removal of ${removal.factorName}`}
+              loading={busy}
+              type="submit"
+            >
+              Remove {removal.factorName}
+            </Button>
+            <Button variant="ghost" disabled={busy} type="button" onClick={clearRemoval}>
+              Keep authenticator
+            </Button>
+          </div>
+        </form>
+      )}
       {enrollment ? (
         <form className="mfa-enrollment" onSubmit={(event) => void verifyEnrollment(event)}>
           <p>
@@ -254,7 +440,7 @@ export const MfaSettings = () => {
         is lost, recovery requires the test administrator; Buddy Budget does not issue recovery
         codes yet.
       </p>
-      {error && !enrollment && !showNameField && (
+      {error && !enrollment && !showNameField && !removal && (
         <div className="inline-alert inline-alert--error" role="alert">
           {error}
         </div>

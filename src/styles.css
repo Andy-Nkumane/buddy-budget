@@ -3657,6 +3657,18 @@ p {
   gap: 1rem;
 }
 
+.mfa-removal {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.mfa-removal > * {
+  margin: 0;
+}
+
 .mfa-enrollment > * {
   margin: 0;
 }

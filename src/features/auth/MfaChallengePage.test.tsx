@@ -34,6 +34,25 @@ const renderPage = () =>
     </MemoryRouter>,
   );
 
+const renderPageWithMessage = () =>
+  render(
+    <MemoryRouter
+      initialEntries={[
+        {
+          pathname: '/auth/mfa',
+          state: {
+            from: '/app/settings',
+            reason: 'reauthentication-code-rejected',
+          },
+        },
+      ]}
+    >
+      <Routes>
+        <Route path="/auth/mfa" element={<MfaChallengePage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
 describe('AUTH-002 MfaChallengePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -104,5 +123,14 @@ describe('AUTH-002 MfaChallengePage', () => {
     expect(await screen.findByRole('option', { name: 'Budget authenticator' })).toBeVisible();
     expect(screen.getByRole('option', { name: 'Authenticator added 2026-10-25' })).toBeVisible();
     expect(screen.queryByText('legacy-factor-id')).not.toBeInTheDocument();
+  });
+
+  it('explains why an interrupted settings action requires MFA again', async () => {
+    renderPageWithMessage();
+
+    expect(
+      await screen.findByText(/password was confirmed, but the authenticator code was not/i),
+    ).toBeVisible();
+    expect(screen.getByLabelText('Six-digit code')).toBeVisible();
   });
 });
