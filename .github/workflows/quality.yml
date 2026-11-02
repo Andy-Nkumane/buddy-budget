@@ -59,6 +59,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:auth-emails
       - run: npm run test:compliance
       - run: npm run test:dependencies
       - run: npm run audit

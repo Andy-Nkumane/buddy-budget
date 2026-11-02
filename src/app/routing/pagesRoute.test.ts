@@ -15,6 +15,25 @@ describe('resolvePagesRoute', () => {
     );
   });
 
+  it('preserves callback and reset credentials beneath the production base path', () => {
+    expect(
+      resolvePagesRoute(
+        '?/auth/callback&code=synthetic-callback-code',
+        '#callback-fragment',
+        '/buddy-budget/',
+      ),
+    ).toBe('/buddy-budget/auth/callback?code=synthetic-callback-code#callback-fragment');
+    expect(
+      resolvePagesRoute(
+        '?/auth/reset-password&code=synthetic-recovery-code~and~next=review',
+        '#reset-fragment',
+        '/buddy-budget/',
+      ),
+    ).toBe(
+      '/buddy-budget/auth/reset-password?code=synthetic-recovery-code&next=review#reset-fragment',
+    );
+  });
+
   it('ignores ordinary query strings', () => {
     expect(resolvePagesRoute('?source=test', '', '/buddy-budget/')).toBeNull();
   });
