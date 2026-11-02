@@ -16,3 +16,6 @@ Milestone rows are operational product state rather than financial backup data. 
 4. Enable reduced motion at the operating-system level and confirm no milestone animation runs.
 5. Open two tabs and complete the same first action; confirm only the tab winning the database claim shows feedback.
 6. Trigger an error and confirm no milestone appears or covers the error or recovery result.
+7. At 320 x 568, 360 x 800, and 390 x 844 CSS pixels, confirm long feedback wraps without horizontal scrolling and the action remains full width below the message.
+8. At 200% browser zoom, confirm the message, action, and dismiss control remain visible and usable.
+9. Repeat the narrow-screen checks in dark mode and confirm the notice remains readable.

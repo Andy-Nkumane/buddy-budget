@@ -9,31 +9,39 @@ import {
 } from './milestones';
 
 export const MilestoneNotice = () => {
-  const [milestone, setMilestone] = useState<ActivationMilestoneKey | null>(() =>
-    takePendingMilestone(),
-  );
+  const [milestone, setMilestone] = useState<ActivationMilestoneKey | null>(null);
 
   useEffect(() => {
+    let active = true;
     const receive = (event: Event) => {
       const key = (event as CustomEvent<ActivationMilestoneKey>).detail;
       const pending = takePendingMilestone();
-      if (key in milestoneDetails) setMilestone(pending ?? key);
+      if (pending) setMilestone(pending);
+      else if (typeof key === 'string' && key in milestoneDetails) setMilestone(key);
     };
     window.addEventListener(milestoneEventName, receive);
-    return () => window.removeEventListener(milestoneEventName, receive);
+    queueMicrotask(() => {
+      if (!active) return;
+      const pending = takePendingMilestone();
+      if (pending) setMilestone(pending);
+    });
+    return () => {
+      active = false;
+      window.removeEventListener(milestoneEventName, receive);
+    };
   }, []);
 
   if (!milestone) return null;
   const detail = milestoneDetails[milestone];
   return (
     <aside className="milestone-notice" aria-label="Completed milestone" aria-live="polite">
-      <CheckCircle2 aria-hidden="true" size={22} />
-      <div>
+      <CheckCircle2 className="milestone-notice__icon" aria-hidden="true" size={22} />
+      <div className="milestone-notice__content">
         <strong>{detail.title}</strong>
         <p>{detail.message}</p>
       </div>
       <Link
-        className="button button--secondary"
+        className="button button--secondary milestone-notice__action"
         to={detail.path}
         onClick={() => setMilestone(null)}
       >
@@ -41,7 +49,7 @@ export const MilestoneNotice = () => {
       </Link>
       <button
         aria-label="Dismiss milestone"
-        className="icon-button"
+        className="icon-button milestone-notice__dismiss"
         type="button"
         onClick={() => setMilestone(null)}
       >
