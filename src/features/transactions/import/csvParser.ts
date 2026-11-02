@@ -102,17 +102,25 @@ export const parseCsvText = (input: string): CsvTable => {
   if (!text.trim()) throw new Error('The CSV file is empty.');
   const candidates = (Object.entries(delimiterCharacters) as Array<[CsvDelimiter, string]>).map(
     ([name, delimiter]) => {
-      const rows = parseWithDelimiter(text, delimiter);
-      const widths = rows.slice(0, 20).map((row) => row.values.length);
-      const frequency = new Map<number, number>();
-      widths.forEach((width) => frequency.set(width, (frequency.get(width) ?? 0) + 1));
-      const [width = 1, matches = 0] =
-        [...frequency.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
-      return { name, rows, score: width > 1 ? matches * width : 0 };
+      try {
+        const rows = parseWithDelimiter(text, delimiter);
+        const widths = rows.slice(0, 20).map((row) => row.values.length);
+        const frequency = new Map<number, number>();
+        widths.forEach((width) => frequency.set(width, (frequency.get(width) ?? 0) + 1));
+        const [width = 1, matches = 0] =
+          [...frequency.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+        return { name, rows, score: width > 1 ? matches * width : 0, error: null };
+      } catch (error) {
+        return { name, rows: [], score: 0, error: error as Error };
+      }
     },
   );
   const selected = candidates.sort((a, b) => b.score - a.score)[0];
-  if (!selected || selected.score === 0) throw new Error('No supported CSV delimiter was found.');
+  if (!selected || selected.score === 0) {
+    const parseError = candidates.find((candidate) => candidate.error)?.error;
+    if (parseError) throw parseError;
+    throw new Error('No supported CSV delimiter was found.');
+  }
   const [headerRow, ...rows] = selected.rows;
   const headers = headerRow.values.map((header, index) => header.trim() || `Column ${index + 1}`);
   if (headers.length > CSV_MAX_COLUMNS)

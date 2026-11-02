@@ -50,7 +50,8 @@ vi.mock('../../data/repositories/budgetRepository', () => ({
   }),
   updateProfileAndPreferences: vi.fn(),
 }));
-vi.mock('../auth/mfa', () => ({
+vi.mock('../auth/mfa', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../auth/mfa')>()),
   retrieveTotpFactors: account.retrieveTotpFactors,
   verifyTotpFactor: account.verifyTotpFactor,
   retrieveMfaAssurance: vi.fn().mockResolvedValue({ currentLevel: 'aal1', nextLevel: 'aal1' }),

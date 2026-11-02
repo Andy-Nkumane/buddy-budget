@@ -5,7 +5,8 @@ import { MfaChallengePage } from './MfaChallengePage';
 import { retrieveMfaAssurance, retrieveTotpFactors, verifyTotpFactor } from './mfa';
 import { useAuth } from '../../app/providers/AuthProvider';
 
-vi.mock('./mfa', () => ({
+vi.mock('./mfa', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./mfa')>()),
   retrieveMfaAssurance: vi.fn(),
   retrieveTotpFactors: vi.fn(),
   verifyTotpFactor: vi.fn(),
@@ -29,6 +30,25 @@ const renderPage = () =>
       <Routes>
         <Route path="/auth/mfa" element={<MfaChallengePage />} />
         <Route path="/app/settings" element={<p>Account settings</p>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+const renderPageWithMessage = () =>
+  render(
+    <MemoryRouter
+      initialEntries={[
+        {
+          pathname: '/auth/mfa',
+          state: {
+            from: '/app/settings',
+            reason: 'reauthentication-code-rejected',
+          },
+        },
+      ]}
+    >
+      <Routes>
+        <Route path="/auth/mfa" element={<MfaChallengePage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -86,5 +106,31 @@ describe('AUTH-002 MfaChallengePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
 
     await waitFor(() => expect(signOut).toHaveBeenCalledWith({ scope: 'local' }));
+  });
+
+  it('shows provider names and a stable fallback without exposing factor IDs', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([
+      factor,
+      {
+        ...factor,
+        id: 'legacy-factor-id',
+        friendly_name: undefined,
+        created_at: '2026-10-25T00:00:00.000Z',
+      },
+    ]);
+    renderPage();
+
+    expect(await screen.findByRole('option', { name: 'Budget authenticator' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Authenticator added 2026-10-25' })).toBeVisible();
+    expect(screen.queryByText('legacy-factor-id')).not.toBeInTheDocument();
+  });
+
+  it('explains why an interrupted settings action requires MFA again', async () => {
+    renderPageWithMessage();
+
+    expect(
+      await screen.findByText(/password was confirmed, but the authenticator code was not/i),
+    ).toBeVisible();
+    expect(screen.getByLabelText('Six-digit code')).toBeVisible();
   });
 });

@@ -17,6 +17,10 @@ Last reviewed: 24 October 2026
 
 - MFA is opt-in so existing users are not locked out.
 - Settings can enroll and verify one or more TOTP authenticator apps.
+- Before enrollment, the user gives each authenticator a unique provider-owned name of 1–48
+  Unicode characters. Buddy Budget trims surrounding whitespace, preserves internal whitespace,
+  and rejects control or invisible formatting characters. Existing factors without a provider name
+  remain usable with a display-only fallback based on their enrollment date.
 - The enrollment QR code and manual secret exist only in component memory and disappear after
   completion or cancellation. They are not logged or persisted by Buddy Budget.
 - Cancelling setup removes the unverified provider factor.
@@ -24,8 +28,20 @@ Last reviewed: 24 October 2026
   or authenticated application routes render.
 - Successful verification upgrades the Supabase session to `aal2` and returns to the intended
   in-app route.
-- Removing a verified factor is available only from an `aal2` session and requires an explicit
-  confirmation.
+- Removing a verified factor re-reads the provider factor list and assurance level, requires an
+  `aal2` session, current-password reauthentication, the exact friendly name, and a fresh TOTP
+  challenge. When another factor remains, its code is required so removal does not prove possession
+  using only the factor being removed. Last-factor removal instead shows an explicit loss-of-MFA
+  warning and verifies the target factor.
+- After removal, the Supabase session is refreshed so a last-factor removal is represented as
+  `aal1` immediately instead of retaining a stale `aal2` access token until the refresh interval.
+- Password reauthentication creates a new `aal1` session. If the following TOTP verification
+  fails, the settings form is cleared and the user is sent to the dedicated MFA challenge instead
+  of leaving inaccessible private content on screen.
+- Supabase's unenrollment endpoint is the trusted enforcement boundary and independently requires
+  `aal2`. The password and typed-name confirmations are application safeguards and can be bypassed
+  by a caller who invokes the provider endpoint directly with a valid `aal2` session. They must not
+  be described as server-enforced controls.
 - Account deletion for an enrolled user requires a recent password authentication followed by a
   TOTP verification. PostgreSQL independently rejects deletion unless the JWT is `aal2`.
 
@@ -52,6 +68,10 @@ Buddy Budget does not claim phishing-resistant authentication in this phase.
 Users should enroll a second authenticator before replacing or losing a device. A user who can
 verify any remaining factor can enter the app at `aal2`, add a replacement, and remove the old
 factor.
+
+An email sign-in or reauthentication OTP is an `aal1` credential and is not a substitute for the
+`aal2` factor Supabase requires to remove a verified authenticator. Users should enroll a backup
+authenticator on a separate device before losing access to their primary factor.
 
 If every factor is lost, self-service recovery is not available. An authorised test administrator
 must:
@@ -82,6 +102,8 @@ For staging and production, record redacted evidence for:
 3. MFA endpoint rate limits remain enabled.
 4. The project's site URL and redirects still match the GitHub Pages deployment.
 5. Administrator MFA is enabled separately for people who can access the Supabase organisation.
+6. Hosted factor-removal security notifications and Auth log retention are enabled and evidenced,
+   or their absence is recorded as **CONFIGURATION REQUIRED** with an approved monitoring plan.
 
 Do not enable experimental WebAuthn MFA or recovery codes merely because the installed SDK contains
 their types.

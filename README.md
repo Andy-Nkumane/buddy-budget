@@ -114,7 +114,9 @@ In Supabase Dashboard → Authentication:
 1. Enable email/password sign-up and require email verification in staging/production.
 2. Set the site URL to the deployed application root.
 3. Add every callback and reset URL below to the redirect allowlist.
-4. Customize confirmation and recovery email templates, keeping `{{ .ConfirmationURL }}` intact.
+4. Apply the reviewed versioned Auth templates using
+   [`docs/security/auth-email-templates.md`](docs/security/auth-email-templates.md); hosted activation
+   and SMTP tracking settings require separate verification.
 5. Optionally configure custom SMTP; do not put SMTP credentials in frontend variables.
 
 Exact redirect URLs:

@@ -4,7 +4,12 @@ import type { Factor } from '@supabase/supabase-js';
 import { Button } from '../../shared/ui/Button';
 import { FormField } from '../../shared/ui/FormField';
 import { LoadingState } from '../../shared/ui/AsyncState';
-import { retrieveMfaAssurance, retrieveTotpFactors, verifyTotpFactor } from './mfa';
+import {
+  getTotpFactorDisplayName,
+  retrieveMfaAssurance,
+  retrieveTotpFactors,
+  verifyTotpFactor,
+} from './mfa';
 import { useAuth } from '../../app/providers/AuthProvider';
 
 export const MfaChallengePage = () => {
@@ -17,7 +22,11 @@ export const MfaChallengePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [complete, setComplete] = useState(false);
-  const destination = (location.state as { from?: string } | null)?.from;
+  const challengeState = location.state as {
+    from?: string;
+    reason?: 'reauthentication-code-rejected';
+  } | null;
+  const destination = challengeState?.from;
   const safeDestination =
     destination === '/app' || destination?.startsWith('/app/') ? destination : '/app';
 
@@ -84,6 +93,12 @@ export const MfaChallengePage = () => {
       <p className="muted">
         Enter the current code from an authenticator app you added to Buddy Budget.
       </p>
+      {challengeState?.reason === 'reauthentication-code-rejected' && (
+        <div className="inline-alert inline-alert--warning" role="status">
+          Your password was confirmed, but the authenticator code was not. Verify with a current
+          code to continue.
+        </div>
+      )}
       {factors && factors.length > 1 && (
         <label className="field">
           <span className="field__label">Authenticator app</span>
@@ -92,9 +107,9 @@ export const MfaChallengePage = () => {
             value={selectedFactorId}
             onChange={(event) => setSelectedFactorId(event.target.value)}
           >
-            {factors.map((factor, index) => (
+            {factors.map((factor) => (
               <option key={factor.id} value={factor.id}>
-                {factor.friendly_name || `Authenticator app ${index + 1}`}
+                {getTotpFactorDisplayName(factor)}
               </option>
             ))}
           </select>

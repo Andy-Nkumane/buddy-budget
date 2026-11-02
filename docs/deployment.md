@@ -20,6 +20,10 @@ After applying database migrations, deploy `share-report` with `supabase functio
 12. Confirm the calculator canonical URL includes the repository base path and that editing it produces no Supabase request.
 13. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
 
+Authentication email subjects, HTML, redirect allowlists, SMTP tracking settings, staging checks,
+and rollback are documented in [`security/auth-email-templates.md`](security/auth-email-templates.md).
+Repository sources do not prove that hosted Supabase templates are active.
+
 ## Authorised tester registration gate
 
 Before exposing any deployed registration route, apply migration `202610170001_add_tester_signup_allowlist.sql`, add approved lower-case tester emails to `buddy_budget_private.tester_signup_allowlist`, and select `public.authorize_tester_signup` under **Authentication > Hooks > Before User Created**. Test one approved address and one unapproved address. The unapproved request must return the generic authorised-testers error and must not create an Auth user.
@@ -43,6 +47,10 @@ To prevent a failed or pending check from being merged into `main`, configure a 
 If the repository does not offer rulesets, configure the equivalent under **Settings → Branches → Add branch protection rule** for `main`. Repository administrators must configure this in GitHub; a workflow file cannot enforce its own required-check status.
 
 The project URL and publishable key are browser-public even if GitHub variables are used for convenient management. Never add a secret/service-role key to a frontend workflow.
+
+GitHub Pages deployment uses GitHub-issued job credentials and OIDC rather than a stored deployment
+token. Supabase production deployment remains manual because no provider-supported OIDC exchange is
+verified for this repository. Follow the [workflow credential inventory and revocation procedure](security/workflow-credentials.md).
 
 ## Routing strategy
 

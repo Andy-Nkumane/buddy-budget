@@ -29,6 +29,12 @@ describe('CSV statement parsing', () => {
     expect(table.rows[1].values[1]).toBe('Quoted "merchant"');
   });
 
+  it('does not let an invalid alternate delimiter reject a valid quoted file', () => {
+    const table = parseCsvText('Date,Description\n"",";"');
+    expect(table.delimiter).toBe('comma');
+    expect(table.rows[0].values).toEqual(['', ';']);
+  });
+
   it('normalizes debit and credit columns with comma decimals exactly', async () => {
     const table = parseCsvText(semicolon);
     const rows = await normalizeCsvRows(
