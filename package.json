@@ -19,6 +19,7 @@
     "test:compliance": "node --test scripts/check-compliance-boundaries.test.mjs && node scripts/check-compliance-boundaries.mjs",
     "test:workflows": "node --test scripts/check-workflow-security.test.mjs && node scripts/check-workflow-security.mjs",
     "test:dependencies": "node --test scripts/check-dependency-policy.test.mjs && node scripts/check-dependency-policy.mjs",
+    "test:auth-emails": "node --test scripts/check-auth-email-templates.test.mjs && node scripts/check-auth-email-templates.mjs",
     "test:properties": "vitest run src/test/property",
     "check:artifacts": "node scripts/check-public-artifact-boundaries.mjs",
     "test:secrets": "node scripts/test-secret-scanning.mjs",

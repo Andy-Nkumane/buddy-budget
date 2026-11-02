@@ -46,6 +46,26 @@ double_confirm_changes = true
 enable_confirmations = false
 secure_password_change = true
 
+[auth.email.template.confirmation]
+subject = "Confirm your Buddy Budget test account"
+content_path = "./supabase/templates/auth/v1/confirmation.html"
+
+[auth.email.template.invite]
+subject = "You're invited to test Buddy Budget"
+content_path = "./supabase/templates/auth/v1/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Your Buddy Budget sign-in link"
+content_path = "./supabase/templates/auth/v1/magic-link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your Buddy Budget email change"
+content_path = "./supabase/templates/auth/v1/email-change.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Buddy Budget password"
+content_path = "./supabase/templates/auth/v1/recovery.html"
+
 [auth.mfa]
 max_enrolled_factors = 10
 

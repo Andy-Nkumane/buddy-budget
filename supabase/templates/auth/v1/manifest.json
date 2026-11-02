@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "templates": [
+    {
+      "type": "confirmation",
+      "file": "confirmation.html",
+      "subject": "Confirm your Buddy Budget test account",
+      "allowedVariables": ["ConfirmationURL"],
+      "localConfig": true
+    },
+    {
+      "type": "invite",
+      "file": "invite.html",
+      "subject": "You're invited to test Buddy Budget",
+      "allowedVariables": ["ConfirmationURL"],
+      "localConfig": true
+    },
+    {
+      "type": "magic_link",
+      "file": "magic-link.html",
+      "subject": "Your Buddy Budget sign-in link",
+      "allowedVariables": ["ConfirmationURL"],
+      "localConfig": true
+    },
+    {
+      "type": "email_change",
+      "file": "email-change.html",
+      "subject": "Confirm your Buddy Budget email change",
+      "allowedVariables": ["ConfirmationURL", "NewEmail"],
+      "localConfig": true
+    },
+    {
+      "type": "recovery",
+      "file": "recovery.html",
+      "subject": "Reset your Buddy Budget password",
+      "allowedVariables": ["ConfirmationURL"],
+      "localConfig": true
+    },
+    {
+      "type": "reauthentication",
+      "file": "reauthentication.html",
+      "subject": "Your Buddy Budget verification code",
+      "allowedVariables": ["Token"],
+      "localConfig": false
+    }
+  ]
+}

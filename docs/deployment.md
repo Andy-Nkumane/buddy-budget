@@ -20,6 +20,10 @@ After applying database migrations, deploy `share-report` with `supabase functio
 12. Confirm the calculator canonical URL includes the repository base path and that editing it produces no Supabase request.
 13. Add the final callback/reset URLs to the Supabase Auth redirect allowlist.
 
+Authentication email subjects, HTML, redirect allowlists, SMTP tracking settings, staging checks,
+and rollback are documented in [`security/auth-email-templates.md`](security/auth-email-templates.md).
+Repository sources do not prove that hosted Supabase templates are active.
+
 ## Authorised tester registration gate
 
 Before exposing any deployed registration route, apply migration `202610170001_add_tester_signup_allowlist.sql`, add approved lower-case tester emails to `buddy_budget_private.tester_signup_allowlist`, and select `public.authorize_tester_signup` under **Authentication > Hooks > Before User Created**. Test one approved address and one unapproved address. The unapproved request must return the generic authorised-testers error and must not create an Auth user.
