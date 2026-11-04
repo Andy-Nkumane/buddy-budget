@@ -8,6 +8,7 @@ import {
 describe('COMP-023 PWA cache policy', () => {
   it('precaches only public application assets and has no private runtime cache', () => {
     expect(pwaRuntimeCaching).toEqual([]);
+    expect(pwaPrecachePatterns.join(',')).toContain('mjs');
     expect(pwaPrecachePatterns.join(',')).not.toMatch(/json|csv|pdf/i);
   });
 

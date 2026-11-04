@@ -3,9 +3,12 @@ import { requireSupabase } from '../../data/supabase/client';
 import {
   createTotpEnrollment,
   deleteTotpFactor,
+  generateRecoveryCodes,
   getTotpFactorDisplayName,
   refreshMfaSessionAssurance,
+  retrieveRecoveryCodesStatus,
   validateMfaFriendlyName,
+  verifyRecoveryCode,
   verifyTotpFactor,
 } from './mfa';
 
@@ -17,6 +20,9 @@ const unenroll = vi.fn();
 const refreshSession = vi.fn();
 const signOut = vi.fn();
 const getAuthenticatorAssuranceLevel = vi.fn();
+const getRecoveryCodesStatus = vi.fn();
+const generateRecoveryCodeSet = vi.fn();
+const verifyRecoveryCodeAtProvider = vi.fn();
 
 describe('AUTH-002 MFA provider boundary', () => {
   beforeEach(() => {
@@ -25,7 +31,17 @@ describe('AUTH-002 MFA provider boundary', () => {
       auth: {
         refreshSession,
         signOut,
-        mfa: { enroll, challengeAndVerify, unenroll, getAuthenticatorAssuranceLevel },
+        mfa: {
+          enroll,
+          challengeAndVerify,
+          unenroll,
+          getAuthenticatorAssuranceLevel,
+          recoveryCodes: {
+            getStatus: getRecoveryCodesStatus,
+            generate: generateRecoveryCodeSet,
+            verify: verifyRecoveryCodeAtProvider,
+          },
+        },
       },
     } as never);
   });
@@ -132,5 +148,49 @@ describe('AUTH-002 MFA provider boundary', () => {
       'The authenticator was removed, but your session ended. Sign in again.',
     );
     expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('returns only recovery-code status from normal account APIs', async () => {
+    getRecoveryCodesStatus.mockResolvedValue({
+      data: { id: 'recovery-factor', type: 'recovery_code', total: 8, remaining: 7 },
+      error: null,
+    });
+
+    await expect(retrieveRecoveryCodesStatus()).resolves.toEqual({
+      id: 'recovery-factor',
+      total: 8,
+      remaining: 7,
+    });
+  });
+
+  it('returns generated plaintext once without persisting or transforming it', async () => {
+    generateRecoveryCodeSet.mockResolvedValue({
+      data: {
+        id: 'recovery-factor',
+        type: 'recovery_code',
+        total: 2,
+        codes: ['SYNTHETIC-ONE', 'SYNTHETIC-TWO'],
+      },
+      error: null,
+    });
+
+    await expect(generateRecoveryCodes()).resolves.toEqual({
+      id: 'recovery-factor',
+      total: 2,
+      remaining: 2,
+      codes: ['SYNTHETIC-ONE', 'SYNTHETIC-TWO'],
+    });
+  });
+
+  it('keeps invalid, used, and provider recovery-code failures generic', async () => {
+    verifyRecoveryCodeAtProvider.mockResolvedValue({
+      data: null,
+      error: { code: 'mfa_verification_failed', message: 'Provider diagnostic' },
+    });
+
+    await expect(verifyRecoveryCode('used-code')).rejects.toThrow(
+      'That recovery code is invalid, expired, or has already been used.',
+    );
+    expect(verifyRecoveryCodeAtProvider).toHaveBeenCalledWith({ code: 'used-code' });
   });
 });

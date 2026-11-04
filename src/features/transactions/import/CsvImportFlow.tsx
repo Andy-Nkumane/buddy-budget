@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import type {
   BudgetMonth,
   BudgetMonthItem,
@@ -37,8 +38,42 @@ type Props = {
 const columnValue = (value: number | null): string => (value === null ? '' : String(value));
 const optionalColumn = (value: string): number | null => (value === '' ? null : Number(value));
 
+const CategorisationHelp = ({ preview = false }: { preview?: boolean }) => (
+  <details className="import-guidance">
+    <summary>How categorisation rules work</summary>
+    <div>
+      <p>
+        Enabled rules run from top to bottom. For each field, the first matching rule that provides
+        a value wins; a later rule can still fill a different field.
+      </p>
+      <ul>
+        <li>
+          Description matching ignores letter case and repeated whitespace. Rules support exact or
+          contains matching, plus optional amount, type, date, and weekday conditions.
+        </li>
+        <li>
+          Example: a rule containing “coffee shop” can suggest Food for “COFFEE SHOP”. A higher rule
+          assigning another category wins that field, while a later rule may still add notes.
+        </li>
+        <li>
+          {preview
+            ? 'The preview names the rules that would change each transaction. Rules are checked again when you confirm, so review changes made in another tab before importing.'
+            : 'No rule is created or changed by opening this guide. Unmatched transactions remain uncategorised.'}
+        </li>
+        <li>
+          After import, you can edit a transaction manually. That does not create a rule or rewrite
+          earlier transactions. Historical transactions change only when you explicitly test and
+          apply rules from the rules screen.
+        </li>
+      </ul>
+      <Link to="/app/settings/rules">Manage categorisation rules</Link>
+    </div>
+  </details>
+);
+
 export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }: Props) => {
   const [file, setFile] = useState<File | null>(null);
+  const [fileFormat, setFileFormat] = useState<'csv' | 'pdf'>('csv');
   const [table, setTable] = useState<CsvTable | null>(null);
   const [mapping, setMapping] = useState<CsvColumnMapping | null>(null);
   const [monthId, setMonthId] = useState(months[0]?.id ?? '');
@@ -135,10 +170,27 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
     setBusy(true);
     setError(null);
     try {
-      const parsed = await readCsvFile(selected);
+      const prefix = new TextDecoder('latin1').decode(
+        await selected.slice(0, Math.min(selected.size, 1024)).arrayBuffer(),
+      );
+      const isPdf =
+        prefix.includes('%PDF-') ||
+        /\.pdf$/i.test(selected.name) ||
+        selected.type === 'application/pdf';
+      const parsed = isPdf
+        ? await (await import('./pdfParser')).readPdfFile(selected)
+        : await readCsvFile(selected);
       setFile(selected);
+      setFileFormat(isPdf ? 'pdf' : 'csv');
       setTable(parsed);
-      setMapping(suggestCsvMapping(parsed));
+      const suggested = suggestCsvMapping(parsed);
+      const firstDate = parsed.rows[0]?.values[suggested.dateColumn]?.trim() ?? '';
+      setMapping({
+        ...suggested,
+        dateFormat: /^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$/.test(firstDate)
+          ? 'dmy'
+          : suggested.dateFormat,
+      });
       setPreview(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The CSV file could not be read.');
@@ -149,6 +201,10 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
 
   const buildPreview = async () => {
     if (!table || !mapping || !selectedMonth) return;
+    if (fileFormat === 'pdf' && !accountId) {
+      setError('Choose the account shown on this PDF statement.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -193,6 +249,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
         fileName: file.name,
         batchKey,
         mappingMetadata: {
+          source_format: fileFormat,
           delimiter: table.delimiter,
           date_format: mapping.dateFormat,
           decimal_format: mapping.decimalFormat,
@@ -211,7 +268,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
       await onComplete(
         monthId,
         result.was_existing
-          ? 'This CSV was already imported. No duplicates were added.'
+          ? `This ${fileFormat.toUpperCase()} was already imported. No duplicates were added.`
           : `${result.accepted_count} transaction${result.accepted_count === 1 ? '' : 's'} imported.`,
       );
     } catch (reason) {
@@ -232,18 +289,20 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
           businesses, so import only information you are authorised to use.
         </CollectionNotice>
         <label className="field" htmlFor="csv-statement">
-          <span className="field__label">Bank statement CSV</span>
+          <span className="field__label">Bank statement file</span>
           <input
             id="csv-statement"
             className="input"
             type="file"
-            accept=".csv,text/csv,text/plain"
+            accept=".csv,.pdf,text/csv,text/plain,application/pdf"
             onChange={(event) => void chooseFile(event.target.files?.[0])}
           />
           <span className="field__hint">
-            UTF-8, up to 2 MiB and {CSV_MAX_ROWS.toLocaleString()} data rows.
+            UTF-8 CSV up to 2 MiB, or a supported text-based PDF up to 5 MiB and 50 pages. Up to{' '}
+            {CSV_MAX_ROWS.toLocaleString()} transaction rows.
           </span>
         </label>
+        <CategorisationHelp />
         {error && (
           <div className="inline-alert inline-alert--error" role="alert">
             {error}
@@ -296,7 +355,9 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
               </select>
             </label>
             <label className="field">
-              <span className="field__label">Account (optional)</span>
+              <span className="field__label">
+                Account {fileFormat === 'pdf' ? '(required for PDF)' : '(optional)'}
+              </span>
               <select
                 className="input"
                 value={accountId}
@@ -463,6 +524,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
               setFile(null);
               setTable(null);
               setMapping(null);
+              setFileFormat('csv');
               setPreview(null);
               setPreviewItems([]);
             }}
@@ -478,7 +540,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
   }
 
   return (
-    <section className="csv-import-flow" aria-label="CSV import preview">
+    <section className="csv-import-flow" aria-label={`${fileFormat.toUpperCase()} import preview`}>
       <div className="csv-preview-summary" role="status">
         <strong>{counts.valid} ready</strong>
         <span>{counts.invalid} invalid</span>
@@ -488,6 +550,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
       {(counts.invalid > 0 || counts.duplicate > 0) && (
         <p>Every row is shown below. Resolve mapping errors or exclude rows before importing.</p>
       )}
+      <CategorisationHelp preview />
       <div className="csv-preview-table">
         <table>
           <thead>
@@ -507,7 +570,7 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
                 <td>
                   <input
                     type="checkbox"
-                    aria-label={`Include CSV line ${row.line}`}
+                    aria-label={`Include ${fileFormat.toUpperCase()} row ${row.line}`}
                     checked={row.status === 'valid'}
                     disabled={row.status === 'invalid' || row.status === 'duplicate'}
                     onChange={(event) =>
@@ -535,22 +598,23 @@ export const CsvImportFlow = ({ userId, months, accounts, onComplete, onCancel }
                   {row.errors.length > 0 && <small>{row.errors.join(' ')}</small>}
                 </td>
                 <td>
-                  {(ruleEvaluations.get(row.id)?.changes.length ?? 0) > 0 ? (
-                    <span
-                      title={ruleEvaluations
-                        .get(row.id)
-                        ?.changes.map(
-                          (change) =>
-                            `${change.field}: ${String(change.after)} (${change.ruleName})`,
-                        )
-                        .join('\n')}
-                    >
-                      {ruleEvaluations.get(row.id)?.changes.length} field change
-                      {ruleEvaluations.get(row.id)?.changes.length === 1 ? '' : 's'}
-                    </span>
-                  ) : (
-                    'No change'
-                  )}
+                  {(() => {
+                    const evaluation = ruleEvaluations.get(row.id);
+                    if (!evaluation?.matchedRuleIds.length) return 'No matching rule';
+                    if (!evaluation.changes.length) return 'Matched; no new values';
+                    return (
+                      <ul className="import-rule-results">
+                        {evaluation.changes.map((change) => (
+                          <li key={`${change.field}-${change.ruleId}`}>
+                            <strong>{change.ruleName}</strong>: {change.field.replaceAll('_', ' ')}
+                          </li>
+                        ))}
+                        {evaluation.conflicts.length > 0 && (
+                          <li>{evaluation.conflicts.length} lower-priority action ignored</li>
+                        )}
+                      </ul>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}

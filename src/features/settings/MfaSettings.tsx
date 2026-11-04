@@ -9,13 +9,18 @@ import { reauthenticateWithPassword } from '../../data/repositories/budgetReposi
 import {
   createTotpEnrollment,
   deleteTotpFactor,
+  generateRecoveryCodes,
   getTotpFactorDisplayName,
+  regenerateRecoveryCodes,
   refreshMfaSessionAssurance,
   retrieveMfaAssurance,
+  retrieveRecoveryCodesStatus,
   retrieveTotpFactors,
   validateMfaFriendlyName,
   verifyTotpFactor,
   type TotpEnrollment,
+  type GeneratedRecoveryCodes,
+  type RecoveryCodesStatus,
 } from '../auth/mfa';
 
 export const MfaSettings = () => {
@@ -39,21 +44,34 @@ export const MfaSettings = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryCodesStatus | null>(null);
+  const [recoveryCodes, setRecoveryCodes] = useState<GeneratedRecoveryCodes | null>(null);
+  const [showRegeneration, setShowRegeneration] = useState(false);
+  const [regenerationPassword, setRegenerationPassword] = useState('');
+  const [regenerationCode, setRegenerationCode] = useState('');
+  const [regenerationFactorId, setRegenerationFactorId] = useState('');
 
   const load = async () => {
-    const [availableFactors, currentAssurance] = await Promise.all([
+    const [availableFactors, currentAssurance, currentRecoveryStatus] = await Promise.all([
       retrieveTotpFactors(),
       retrieveMfaAssurance(),
+      retrieveRecoveryCodesStatus().catch(() => null),
     ]);
     setFactors(availableFactors);
     setAssurance(currentAssurance.currentLevel);
+    setRecoveryStatus(currentRecoveryStatus);
   };
 
   useEffect(() => {
-    void Promise.all([retrieveTotpFactors(), retrieveMfaAssurance()])
-      .then(([availableFactors, currentAssurance]) => {
+    void Promise.all([
+      retrieveTotpFactors(),
+      retrieveMfaAssurance(),
+      retrieveRecoveryCodesStatus().catch(() => null),
+    ])
+      .then(([availableFactors, currentAssurance, currentRecoveryStatus]) => {
         setFactors(availableFactors);
         setAssurance(currentAssurance.currentLevel);
+        setRecoveryStatus(currentRecoveryStatus);
       })
       .catch(() => setError('Authenticator settings could not be loaded.'));
   }, []);
@@ -87,12 +105,29 @@ export const MfaSettings = () => {
     setError(null);
     try {
       await verifyTotpFactor(enrollment.factorId, code);
+      let recoveryCodeCreationFailed = false;
+      const generatedCodes = recoveryStatus
+        ? null
+        : await generateRecoveryCodes().catch(() => {
+            recoveryCodeCreationFailed = true;
+            return null;
+          });
       setEnrollment(null);
       setShowNameField(false);
       setFriendlyName('');
       setCode('');
       await load();
-      setStatus('Authenticator app added. Other sessions were signed out by Supabase.');
+      if (generatedCodes) {
+        setRecoveryCodes(generatedCodes);
+        setRecoveryStatus(generatedCodes);
+      }
+      setStatus(
+        generatedCodes
+          ? 'Authenticator app added. Save your recovery codes now.'
+          : recoveryCodeCreationFailed
+            ? 'Authenticator app added, but recovery codes could not be created. Try again below.'
+            : 'Authenticator app added. Other sessions were signed out by Supabase.',
+      );
     } catch (verifyError) {
       setError(
         verifyError instanceof Error ? verifyError.message : 'The code could not be verified.',
@@ -100,6 +135,79 @@ export const MfaSettings = () => {
     } finally {
       setBusy(false);
     }
+  };
+
+  const replaceRecoveryCodes = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!regenerationPassword) {
+      setError('Enter your current password.');
+      return;
+    }
+    if (!/^\d{6}$/.test(regenerationCode) || !regenerationFactorId) {
+      setError('Enter a current six-digit authenticator code.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await reauthenticateWithPassword(regenerationPassword);
+      await verifyTotpFactor(regenerationFactorId, regenerationCode);
+      const generatedCodes = await regenerateRecoveryCodes();
+      setRecoveryCodes(generatedCodes);
+      setRecoveryStatus(generatedCodes);
+      setShowRegeneration(false);
+      setRegenerationPassword('');
+      setRegenerationCode('');
+      setRegenerationFactorId('');
+      setStatus('Recovery codes replaced. Save the new codes now; every old code is invalid.');
+    } catch (replaceError) {
+      setError(
+        replaceError instanceof Error
+          ? replaceError.message
+          : 'Recovery codes could not be replaced.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyRecoveryCodes = async () => {
+    if (!recoveryCodes) return;
+    try {
+      await navigator.clipboard.writeText(recoveryCodes.codes.join('\n'));
+      setStatus('Recovery codes copied. Store them in a secure password manager.');
+    } catch {
+      setError('Recovery codes could not be copied. Select and copy them manually.');
+    }
+  };
+
+  const createRecoveryCodeSet = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const generatedCodes = await generateRecoveryCodes();
+      setRecoveryCodes(generatedCodes);
+      setRecoveryStatus(generatedCodes);
+      setStatus('Recovery codes created. Save them now.');
+    } catch (createError) {
+      setError(
+        createError instanceof Error ? createError.message : 'Recovery codes could not be created.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadRecoveryCodes = () => {
+    if (!recoveryCodes) return;
+    const url = URL.createObjectURL(
+      new Blob([`${recoveryCodes.codes.join('\n')}\n`], { type: 'text/plain;charset=utf-8' }),
+    );
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'buddy-budget-recovery-codes.txt';
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   const cancelEnrollment = async () => {
@@ -436,10 +544,121 @@ export const MfaSettings = () => {
         </Button>
       )}
       <p className="privacy-note">
-        Add a second authenticator before replacing or losing your current device. If every device
-        is lost, recovery requires the test administrator; Buddy Budget does not issue recovery
-        codes yet.
+        Add a second authenticator before replacing or losing your current device. Store recovery
+        codes in a secure password manager, never in Buddy Budget. If every option is lost, contact
+        the test administrator; email codes are not used to bypass MFA.
       </p>
+      {recoveryCodes && (
+        <section className="mfa-recovery-codes" aria-labelledby="recovery-codes-heading">
+          <h3 id="recovery-codes-heading">Save your recovery codes now</h3>
+          <div className="inline-alert inline-alert--warning" role="status">
+            Each code works once. These codes cannot be shown again after you leave this screen.
+          </div>
+          <ol>
+            {recoveryCodes.codes.map((recoveryCode) => (
+              <li key={recoveryCode}>
+                <code>{recoveryCode}</code>
+              </li>
+            ))}
+          </ol>
+          <div className="settings-card__actions">
+            <Button type="button" onClick={() => void copyRecoveryCodes()}>
+              Copy all
+            </Button>
+            <Button type="button" variant="secondary" onClick={downloadRecoveryCodes}>
+              Download
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => window.print()}>
+              Print
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setRecoveryCodes(null)}>
+              I saved them
+            </Button>
+          </div>
+        </section>
+      )}
+      {!recoveryCodes && recoveryStatus && (
+        <section className="mfa-recovery-summary" aria-labelledby="recovery-summary-heading">
+          <h3 id="recovery-summary-heading">Recovery codes</h3>
+          <p>
+            {recoveryStatus.remaining} of {recoveryStatus.total} unused codes remain.
+          </p>
+          {showRegeneration ? (
+            <form onSubmit={(event) => void replaceRecoveryCodes(event)}>
+              <div className="inline-alert inline-alert--warning">
+                Replacing the set immediately invalidates every old recovery code.
+              </div>
+              <PasswordField
+                id="recovery-regeneration-password"
+                label="Current password"
+                autoComplete="current-password"
+                value={regenerationPassword}
+                onChange={(event) => setRegenerationPassword(event.target.value)}
+              />
+              {factors.length > 1 && (
+                <label className="field">
+                  <span className="field__label">Authenticator app</span>
+                  <select
+                    className="input"
+                    value={regenerationFactorId}
+                    onChange={(event) => setRegenerationFactorId(event.target.value)}
+                  >
+                    {factors.map((factor) => (
+                      <option key={factor.id} value={factor.id}>
+                        {getTotpFactorDisplayName(factor)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <FormField
+                id="recovery-regeneration-code"
+                label="Current six-digit authenticator code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                value={regenerationCode}
+                onChange={(event) => setRegenerationCode(event.target.value)}
+              />
+              <div className="settings-card__actions">
+                <Button type="submit" loading={busy} variant="danger">
+                  Replace recovery codes
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setShowRegeneration(false)}>
+                  Keep current codes
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={assurance !== 'aal2' || factors.length === 0}
+              onClick={() => {
+                setRegenerationFactorId(factors[0]?.id ?? '');
+                setShowRegeneration(true);
+              }}
+            >
+              Replace recovery codes
+            </Button>
+          )}
+        </section>
+      )}
+      {!recoveryCodes && !recoveryStatus && factors.length > 0 && (
+        <section className="mfa-recovery-summary" aria-labelledby="recovery-create-heading">
+          <h3 id="recovery-create-heading">Recovery codes</h3>
+          <p>Create one-time codes to use if your authenticator is unavailable.</p>
+          <Button
+            type="button"
+            variant="secondary"
+            loading={busy}
+            disabled={assurance !== 'aal2'}
+            onClick={() => void createRecoveryCodeSet()}
+          >
+            Create recovery codes
+          </Button>
+        </section>
+      )}
       {error && !enrollment && !showNameField && !removal && (
         <div className="inline-alert inline-alert--error" role="alert">
           {error}

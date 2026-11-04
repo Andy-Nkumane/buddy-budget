@@ -34,6 +34,7 @@ export const supabase = configurationResult.success
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,
+        experimental: { recoveryCodes: true },
       },
       global: { fetch: noStoreFetch },
     })

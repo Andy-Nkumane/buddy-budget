@@ -2,13 +2,21 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MfaChallengePage } from './MfaChallengePage';
-import { retrieveMfaAssurance, retrieveTotpFactors, verifyTotpFactor } from './mfa';
+import {
+  retrieveMfaAssurance,
+  retrieveRecoveryCodesStatus,
+  retrieveTotpFactors,
+  verifyRecoveryCode,
+  verifyTotpFactor,
+} from './mfa';
 import { useAuth } from '../../app/providers/AuthProvider';
 
 vi.mock('./mfa', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./mfa')>()),
   retrieveMfaAssurance: vi.fn(),
+  retrieveRecoveryCodesStatus: vi.fn(),
   retrieveTotpFactors: vi.fn(),
+  verifyRecoveryCode: vi.fn(),
   verifyTotpFactor: vi.fn(),
 }));
 vi.mock('../../app/providers/AuthProvider', () => ({ useAuth: vi.fn() }));
@@ -61,6 +69,8 @@ describe('AUTH-002 MfaChallengePage', () => {
       nextLevel: 'aal2',
     });
     vi.mocked(retrieveTotpFactors).mockResolvedValue([factor]);
+    vi.mocked(retrieveRecoveryCodesStatus).mockResolvedValue(null);
+    vi.mocked(verifyRecoveryCode).mockResolvedValue(undefined);
     vi.mocked(verifyTotpFactor).mockResolvedValue(undefined);
     vi.mocked(useAuth).mockReturnValue({
       session: {} as never,
@@ -132,5 +142,24 @@ describe('AUTH-002 MfaChallengePage', () => {
       await screen.findByText(/password was confirmed, but the authenticator code was not/i),
     ).toBeVisible();
     expect(screen.getByLabelText('Six-digit code')).toBeVisible();
+  });
+
+  it('uses an available recovery code without exposing its value after submission', async () => {
+    vi.mocked(retrieveRecoveryCodesStatus).mockResolvedValue({
+      id: 'recovery-factor',
+      total: 8,
+      remaining: 3,
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Use a recovery code' }));
+    fireEvent.change(screen.getByLabelText('Recovery code'), {
+      target: { value: 'synthetic-code' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify and continue' }));
+
+    await waitFor(() => expect(screen.getByText('Account settings')).toBeVisible());
+    expect(verifyRecoveryCode).toHaveBeenCalledWith('synthetic-code');
+    expect(verifyTotpFactor).not.toHaveBeenCalled();
   });
 });

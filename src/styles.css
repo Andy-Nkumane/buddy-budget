@@ -3211,6 +3211,38 @@ p {
   color: var(--ink-500);
 }
 
+.import-guidance {
+  padding: 0.875rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.import-guidance summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.import-guidance div,
+.import-rule-results {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.import-guidance div {
+  margin-top: 0.75rem;
+}
+
+.import-guidance p,
+.import-guidance ul,
+.import-rule-results {
+  margin: 0;
+}
+
+.import-rule-results {
+  padding-left: 1rem;
+}
+
 .csv-preview-table {
   max-height: 25rem;
   overflow: auto;
@@ -3693,11 +3725,48 @@ p {
   border-radius: var(--radius-sm);
 }
 
+.mfa-recovery-codes,
+.mfa-recovery-summary,
+.mfa-recovery-summary form {
+  display: grid;
+  gap: 1rem;
+}
+
+.mfa-recovery-codes {
+  padding: 1rem;
+  border: 0.125rem solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.mfa-recovery-codes > *,
+.mfa-recovery-summary > *,
+.mfa-recovery-summary form > * {
+  margin: 0;
+}
+
+.mfa-recovery-codes ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.5rem 1.5rem;
+  padding-left: 1.5rem;
+}
+
+.mfa-recovery-codes code {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 36rem) {
   .mfa-factor-list li,
   .mfa-factor-list__actions,
   .mfa-enrollment .settings-card__actions {
     flex-wrap: wrap;
+  }
+}
+
+@media print {
+  .mfa-recovery-codes .settings-card__actions,
+  .mfa-recovery-codes ~ * {
+    display: none;
   }
 }
 

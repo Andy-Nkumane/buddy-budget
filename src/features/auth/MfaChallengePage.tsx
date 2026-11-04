@@ -7,7 +7,9 @@ import { LoadingState } from '../../shared/ui/AsyncState';
 import {
   getTotpFactorDisplayName,
   retrieveMfaAssurance,
+  retrieveRecoveryCodesStatus,
   retrieveTotpFactors,
+  verifyRecoveryCode,
   verifyTotpFactor,
 } from './mfa';
 import { useAuth } from '../../app/providers/AuthProvider';
@@ -22,6 +24,8 @@ export const MfaChallengePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [recoveryAvailable, setRecoveryAvailable] = useState(false);
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const challengeState = location.state as {
     from?: string;
     reason?: 'reauthentication-code-rejected';
@@ -32,8 +36,12 @@ export const MfaChallengePage = () => {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([retrieveMfaAssurance(), retrieveTotpFactors()])
-      .then(([assurance, availableFactors]) => {
+    void Promise.all([
+      retrieveMfaAssurance(),
+      retrieveTotpFactors(),
+      retrieveRecoveryCodesStatus().catch(() => null),
+    ])
+      .then(([assurance, availableFactors, recoveryStatus]) => {
         if (!active) return;
         if (assurance.currentLevel === 'aal2' || assurance.nextLevel !== 'aal2') {
           setComplete(true);
@@ -41,6 +49,7 @@ export const MfaChallengePage = () => {
         }
         setFactors(availableFactors);
         setSelectedFactorId(availableFactors[0]?.id ?? '');
+        setRecoveryAvailable(Boolean(recoveryStatus?.remaining));
       })
       .catch(() => {
         if (active) setError('Your authenticator challenge could not be loaded. Try again.');
@@ -52,14 +61,20 @@ export const MfaChallengePage = () => {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!selectedFactorId || !/^\d{6}$/.test(code)) {
+    if (useRecoveryCode) {
+      if (!code.trim() || code.length > 64 || !/^[a-z0-9 -]+$/i.test(code)) {
+        setError('Enter a valid recovery code.');
+        return;
+      }
+    } else if (!selectedFactorId || !/^\d{6}$/.test(code)) {
       setError('Enter the six-digit code from your authenticator app.');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await verifyTotpFactor(selectedFactorId, code);
+      if (useRecoveryCode) await verifyRecoveryCode(code);
+      else await verifyTotpFactor(selectedFactorId, code);
       void navigate(safeDestination, { replace: true });
     } catch (submitError) {
       setError(
@@ -89,9 +104,11 @@ export const MfaChallengePage = () => {
   return (
     <div className="auth-card">
       <p className="eyebrow">Extra sign-in check</p>
-      <h2>Verify with your authenticator</h2>
+      <h2>{useRecoveryCode ? 'Use a recovery code' : 'Verify with your authenticator'}</h2>
       <p className="muted">
-        Enter the current code from an authenticator app you added to Buddy Budget.
+        {useRecoveryCode
+          ? 'Enter one unused recovery code. A successful code can never be used again.'
+          : 'Enter the current code from an authenticator app you added to Buddy Budget.'}
       </p>
       {challengeState?.reason === 'reauthentication-code-rejected' && (
         <div className="inline-alert inline-alert--warning" role="status">
@@ -99,7 +116,7 @@ export const MfaChallengePage = () => {
           code to continue.
         </div>
       )}
-      {factors && factors.length > 1 && (
+      {!useRecoveryCode && factors && factors.length > 1 && (
         <label className="field">
           <span className="field__label">Authenticator app</span>
           <select
@@ -120,15 +137,15 @@ export const MfaChallengePage = () => {
           {error}
         </div>
       )}
-      {factors && factors.length === 0 ? (
+      {!useRecoveryCode && factors && factors.length === 0 ? (
         <p>There is no verified authenticator available. Contact the test administrator.</p>
       ) : (
         <form onSubmit={(event) => void submit(event)} noValidate>
           <FormField
-            label="Six-digit code"
-            inputMode="numeric"
+            label={useRecoveryCode ? 'Recovery code' : 'Six-digit code'}
+            inputMode={useRecoveryCode ? 'text' : 'numeric'}
             autoComplete="one-time-code"
-            pattern="[0-9]{6}"
+            pattern={useRecoveryCode ? '[A-Za-z0-9 -]+' : '[0-9]{6}'}
             value={code}
             onChange={(event) => setCode(event.target.value)}
           />
@@ -136,6 +153,19 @@ export const MfaChallengePage = () => {
             Verify and continue
           </Button>
         </form>
+      )}
+      {recoveryAvailable && (
+        <Button
+          variant="ghost"
+          type="button"
+          onClick={() => {
+            setUseRecoveryCode((current) => !current);
+            setCode('');
+            setError(null);
+          }}
+        >
+          {useRecoveryCode ? 'Use an authenticator app' : 'Use a recovery code'}
+        </Button>
       )}
       <Button variant="ghost" onClick={() => void leaveSession()}>
         Sign out
