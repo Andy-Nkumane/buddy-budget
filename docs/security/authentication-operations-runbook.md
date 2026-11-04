@@ -74,8 +74,9 @@ ended.
    support owner and Supabase administrator using the approved identity-verification process.
 3. Record the factor action and administrator without copying factor identifiers into shared
    evidence. Review recent sessions and material account activity for possible compromise.
-4. Buddy Budget does not issue recovery codes. Do not promise automatic recovery or bypass the
-   AAL2 database boundary. If assisted recovery is not staffed and verified, suspend MFA enrollment
+4. Ask whether the user has an unused recovery code without asking them to disclose it. Do not
+   promise automatic recovery or bypass the AAL2 database boundary. If provider recovery codes and
+   assisted recovery are not verified, suspend MFA enrollment
    rather than enrolling additional users.
 
 ### Suspected mailbox compromise

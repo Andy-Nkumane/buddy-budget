@@ -34,6 +34,12 @@ const { searchExistingTransactionFingerprints, importBudgetTransactions } = vi.h
   ),
 }));
 
+const { readPdfFile } = vi.hoisted(() => ({
+  readPdfFile: vi.fn(),
+}));
+
+vi.mock('./pdfParser', () => ({ readPdfFile }));
+
 vi.mock('../../../data/repositories/budgetRepository', () => ({
   searchExistingTransactionFingerprints,
   importBudgetTransactions,
@@ -43,7 +49,10 @@ vi.mock('../../../data/repositories/budgetRepository', () => ({
   ),
 }));
 
-const renderFlow = (onComplete = vi.fn(() => Promise.resolve())) => {
+const renderFlow = (
+  onComplete = vi.fn(() => Promise.resolve()),
+  accounts: React.ComponentProps<typeof CsvImportFlow>['accounts'] = [],
+) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
@@ -51,7 +60,7 @@ const renderFlow = (onComplete = vi.fn(() => Promise.resolve())) => {
         <CsvImportFlow
           userId="user-id"
           months={[month]}
-          accounts={[]}
+          accounts={accounts}
           onComplete={onComplete}
           onCancel={vi.fn()}
         />
@@ -112,7 +121,7 @@ describe('CsvImportFlow', () => {
       [...previewTable.querySelectorAll('tbody tr:first-child td')].map((cell) =>
         cell.textContent?.trim(),
       ),
-    ).toEqual(['', '2', '2026-09-02', 'Coffee', '−25.50', 'valid', 'No change']);
+    ).toEqual(['', '2', '2026-09-02', 'Coffee', '−25.50', 'valid', 'No matching rule']);
     expect(importBudgetTransactions).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Import 1 transactions' }));
     await waitFor(() => expect(importBudgetTransactions).toHaveBeenCalledTimes(1));
@@ -147,5 +156,46 @@ describe('CsvImportFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review transactions' }));
     await screen.findByText('Date is invalid for the selected format.');
     expect(screen.getByRole('button', { name: 'Import 0 transactions' })).toBeDisabled();
+  });
+
+  it('routes a content-identified PDF through the existing preview and import pipeline', async () => {
+    readPdfFile.mockResolvedValue({
+      delimiter: 'comma',
+      headers: ['Date', 'Description', 'Reference', 'Debit', 'Credit'],
+      rows: [{ line: 1, values: ['02/09/2026', 'COFFEE SHOP', 'REF-1', '25.50', ''] }],
+    });
+    const account = {
+      id: 'account-id',
+      user_id: 'user-id',
+      name: 'Daily account',
+      account_type: 'checking' as const,
+      currency_code: 'ZAR',
+      opening_balance_minor: 0,
+      balance_minor: 0,
+      archived_at: null,
+      created_at: '2026-11-01T00:00:00Z',
+      updated_at: '2026-11-01T00:00:00Z',
+    };
+    renderFlow(
+      vi.fn(() => Promise.resolve()),
+      [account],
+    );
+
+    fireEvent.change(document.getElementById('csv-statement')!, {
+      target: { files: [new File(['%PDF-synthetic'], 'statement.bin')] },
+    });
+    await screen.findByRole('button', { name: 'Review transactions' });
+    expect(screen.getByText('Account (required for PDF)')).toBeVisible();
+    fireEvent.change(screen.getByRole('combobox', { name: /account/i }), {
+      target: { value: 'account-id' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Review transactions' }));
+
+    expect(await screen.findByText('COFFEE SHOP')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Import 1 transactions' }));
+    await waitFor(() => expect(importBudgetTransactions).toHaveBeenCalled());
+    const lastImportCall = JSON.stringify(importBudgetTransactions.mock.calls.at(-1));
+    expect(lastImportCall).toContain('"accountId":"account-id"');
+    expect(lastImportCall).toContain('"source_format":"pdf"');
   });
 });

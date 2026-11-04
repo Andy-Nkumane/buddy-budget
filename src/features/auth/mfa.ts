@@ -12,6 +12,9 @@ export type TotpEnrollment = {
   secret: string;
 };
 
+export type RecoveryCodesStatus = { id: string; total: number; remaining: number };
+export type GeneratedRecoveryCodes = RecoveryCodesStatus & { codes: string[] };
+
 export const MFA_FRIENDLY_NAME_MAX_LENGTH = 48;
 
 export const validateMfaFriendlyName = (value: string): string | null => {
@@ -62,6 +65,43 @@ export const verifyTotpFactor = async (factorId: string, code: string): Promise<
   const { error } = await requireSupabase().auth.mfa.challengeAndVerify({ factorId, code });
   if (error)
     throw new Error('That verification code could not be confirmed. Check it and try again.');
+};
+
+const recoveryCodesUnavailable =
+  'Recovery codes are not available in this environment. Keep a second authenticator and contact the test administrator if every authenticator is lost.';
+
+export const retrieveRecoveryCodesStatus = async (): Promise<RecoveryCodesStatus | null> => {
+  try {
+    const { data, error } = await requireSupabase().auth.mfa.recoveryCodes.getStatus();
+    if (error?.code === 'mfa_factor_not_found') return null;
+    if (error || !data) throw new Error(recoveryCodesUnavailable);
+    return { id: data.id, total: data.total, remaining: data.remaining };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('experimental'))
+      throw new Error(recoveryCodesUnavailable, { cause: error });
+    throw error;
+  }
+};
+
+export const generateRecoveryCodes = async (): Promise<GeneratedRecoveryCodes> => {
+  const { data, error } = await requireSupabase().auth.mfa.recoveryCodes.generate();
+  if (error || !data) throw new Error(recoveryCodesUnavailable);
+  return { id: data.id, total: data.total, remaining: data.total, codes: data.codes };
+};
+
+export const regenerateRecoveryCodes = async (): Promise<GeneratedRecoveryCodes> => {
+  const { data, error } = await requireSupabase().auth.mfa.recoveryCodes.regenerate();
+  if (error?.code === 'insufficient_aal')
+    throw new Error('Verify with an authenticator before replacing recovery codes.');
+  if (error || !data) throw new Error('Recovery codes could not be replaced. Try again later.');
+  return { id: data.id, total: data.total, remaining: data.total, codes: data.codes };
+};
+
+export const verifyRecoveryCode = async (code: string): Promise<void> => {
+  const { error } = await requireSupabase().auth.mfa.recoveryCodes.verify({ code });
+  if (error?.status === 429)
+    throw new Error('Too many attempts. Wait before trying another recovery code.');
+  if (error) throw new Error('That recovery code is invalid, expired, or has already been used.');
 };
 
 export const deleteTotpFactor = async (factorId: string): Promise<void> => {

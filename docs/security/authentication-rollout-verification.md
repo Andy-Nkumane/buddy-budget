@@ -50,7 +50,7 @@ deliberately excluded and must not be represented as available.
 | Production migrations through `202610250002` applied in order                    | CONFIGURATION REQUIRED | Supabase migration history                                                                 | Compare target history to the repository; do not edit applied migrations                            | Missing or drifted migrations can weaken authorization                                                    | Database owner                  |
 | SMTP identity, SPF/DKIM/DMARC, and Auth email delivery                           | CONFIGURATION REQUIRED | Supabase custom SMTP and DNS provider                                                      | Redacted provider evidence and disposable staging delivery tests                                    | Recovery availability and anti-phishing trust depend on correct configuration                             | Email and Supabase owners       |
 | Central Auth monitoring and actionable alerts                                    | CONFIGURATION REQUIRED | Supabase/GitHub logs and an owner-approved alert destination                               | Run the alert checks in `authentication-operations-runbook.md`                                      | No repository evidence proves alert delivery or log retention                                             | Security operations owner       |
-| Recovery codes issued by Buddy Budget                                            | NOT APPLICABLE         | None                                                                                       | `mfa.md` explicitly states that recovery codes are not issued                                       | Users who lose every factor require the approved assisted-recovery process                                | Product owner                   |
+| Provider-native MFA recovery-code UI                                             | CONFIGURATION REQUIRED | `mfa.ts`, `MfaSettings.tsx`, `MfaChallengePage.tsx`                                        | Complete `mfa-recovery-codes.md` staging checks without retaining codes                             | Experimental provider availability must be verified; assisted recovery remains required                   | Product owner                   |
 | Application-set HTTP security headers on GitHub Pages                            | BLOCKED                | GitHub Pages hosting boundary                                                              | Verify the deployed response headers before launch                                                  | Static markup cannot enforce HSTS, `frame-ancestors`, or `nosniff`; use a header-capable host if required | Deployment owner                |
 
 ## Existing finding disposition
@@ -111,8 +111,8 @@ login, reset, password change, MFA, account deletion, logout, and cross-user den
   or changed; legacy credentials must still reach the provider at sign-in.
 - MFA remains opt-in. An account with a verified factor must reach AAL2 before financial access;
   an account with no verified factor remains supported at AAL1.
-- Ask users to enroll a second authenticator before replacing a device. Buddy Budget does not issue
-  recovery codes; publish the assisted-recovery contact and escalation owner before rollout.
+- Ask users to enroll a second authenticator and securely store provider recovery codes before
+  replacing a device; publish the assisted-recovery contact and escalation owner before rollout.
 - Confirm existing household roles, adviser grants, onboarding state, and financial records remain
   unchanged after migrations. Use synthetic or disposable staging records only.
 

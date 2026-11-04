@@ -37,6 +37,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.65.0",
+    "pdfjs-dist": "5.4.624",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.91.0",

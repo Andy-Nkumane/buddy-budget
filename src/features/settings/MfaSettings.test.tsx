@@ -3,8 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createTotpEnrollment,
   deleteTotpFactor,
+  generateRecoveryCodes,
+  regenerateRecoveryCodes,
   refreshMfaSessionAssurance,
   retrieveMfaAssurance,
+  retrieveRecoveryCodesStatus,
   retrieveTotpFactors,
   verifyTotpFactor,
 } from '../auth/mfa';
@@ -22,8 +25,11 @@ vi.mock('../auth/mfa', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../auth/mfa')>()),
   createTotpEnrollment: vi.fn(),
   deleteTotpFactor: vi.fn(),
+  generateRecoveryCodes: vi.fn(),
+  regenerateRecoveryCodes: vi.fn(),
   refreshMfaSessionAssurance: vi.fn(),
   retrieveMfaAssurance: vi.fn(),
+  retrieveRecoveryCodesStatus: vi.fn(),
   retrieveTotpFactors: vi.fn(),
   verifyTotpFactor: vi.fn(),
 }));
@@ -56,6 +62,19 @@ describe('AUTH-002 MfaSettings', () => {
       nextLevel: 'aal1',
     });
     vi.mocked(retrieveTotpFactors).mockResolvedValue([]);
+    vi.mocked(retrieveRecoveryCodesStatus).mockResolvedValue(null);
+    vi.mocked(generateRecoveryCodes).mockResolvedValue({
+      id: 'recovery-factor',
+      total: 2,
+      remaining: 2,
+      codes: ['SYNTHETIC-ONE', 'SYNTHETIC-TWO'],
+    });
+    vi.mocked(regenerateRecoveryCodes).mockResolvedValue({
+      id: 'recovery-factor',
+      total: 2,
+      remaining: 2,
+      codes: ['REPLACED-ONE', 'REPLACED-TWO'],
+    });
     vi.mocked(createTotpEnrollment).mockResolvedValue({
       factorId: 'new-factor',
       qrCode: 'data:image/svg+xml,test-qr',
@@ -101,10 +120,14 @@ describe('AUTH-002 MfaSettings', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Verify and enable' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/app added/i));
+    expect(
+      await screen.findByText('Authenticator app added. Save your recovery codes now.'),
+    ).toBeVisible();
     expect(createTotpEnrollment).toHaveBeenCalledWith('Personal phone');
     expect(verifyTotpFactor).toHaveBeenCalledWith('new-factor', '123456');
     expect(screen.queryByText('SYNTHETICSETUPKEY')).not.toBeInTheDocument();
+    expect(screen.getByText('SYNTHETIC-ONE')).toBeVisible();
+    expect(generateRecoveryCodes).toHaveBeenCalledOnce();
   });
 
   it('removes an abandoned unverified factor when setup is cancelled', async () => {
@@ -318,5 +341,36 @@ describe('AUTH-002 MfaSettings', () => {
     expect(
       screen.queryByRole('heading', { name: 'Remove Personal phone?' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('requires password and a selected authenticator before replacing recovery codes', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([personalPhone, workAuthenticator]);
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal2',
+      nextLevel: 'aal2',
+    });
+    vi.mocked(retrieveRecoveryCodesStatus).mockResolvedValue({
+      id: 'recovery-factor',
+      total: 8,
+      remaining: 3,
+    });
+    render(<MfaSettings />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Replace recovery codes' }));
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'correct horse battery staple' },
+    });
+    fireEvent.change(screen.getByLabelText('Authenticator app'), {
+      target: { value: 'work-factor' },
+    });
+    fireEvent.change(screen.getByLabelText('Current six-digit authenticator code'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace recovery codes' }));
+
+    expect(await screen.findByText('REPLACED-ONE')).toBeVisible();
+    expect(reauthenticateWithPassword).toHaveBeenCalledWith('correct horse battery staple');
+    expect(verifyTotpFactor).toHaveBeenCalledWith('work-factor', '123456');
+    expect(regenerateRecoveryCodes).toHaveBeenCalledOnce();
   });
 });

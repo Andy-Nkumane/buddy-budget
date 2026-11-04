@@ -1,4 +1,4 @@
-export const pwaPrecachePatterns = ['**/*.{js,css,html,svg,woff2}', 'icons/icon-{192,512}.png'];
+export const pwaPrecachePatterns = ['**/*.{js,mjs,css,html,svg,woff2}', 'icons/icon-{192,512}.png'];
 
 export const pwaNavigationFallbackDenylist = [
   /\/auth(?:\/|$)/,

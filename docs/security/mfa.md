@@ -1,17 +1,17 @@
 # Multi-factor authentication
 
-Status: opt-in TOTP implemented; hosted verification and recovery operations required  
-Last reviewed: 24 October 2026
+Status: opt-in TOTP and recovery-code UI implemented; hosted verification required
+Last reviewed: 2 November 2026
 
 ## Scoped audit
 
-| Priority | Classification | Finding                                                                                                                      | Remediation                                                                                                                                                            |
-| -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1       | CONFIRMED      | Enrolled accounts previously had no challenge flow, AAL gate, factor management, or trusted protection for account deletion. | Add TOTP enrollment, challenge routing, AAL checks, factor management, and PostgreSQL enforcement for deletion.                                                        |
-| P1       | CONFIRMED      | No self-service recovery mechanism exists when every authenticator is lost.                                                  | Support multiple TOTP factors and document an administrator-assisted recovery process. Recovery codes remain blocked while the installed provider API is experimental. |
-| P2       | CONFIRMED      | Supabase passkey and recovery-code APIs are experimental in the installed SDK/provider documentation.                        | Do not make either experimental API a production dependency in this phase. Reassess after stable support and a migration review.                                       |
-| P2       | CONFIRMED      | TOTP is susceptible to real-time phishing.                                                                                   | Label the limitation plainly and do not describe TOTP as phishing-resistant.                                                                                           |
-| P2       | POSSIBLE       | Hosted MFA enrollment/challenge controls cannot be verified from repository evidence.                                        | Capture redacted Dashboard evidence and complete disposable staging validation.                                                                                        |
+| Priority | Classification | Finding                                                                                                                      | Remediation                                                                                                                                  |
+| -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1       | CONFIRMED      | Enrolled accounts previously had no challenge flow, AAL gate, factor management, or trusted protection for account deletion. | Add TOTP enrollment, challenge routing, AAL checks, factor management, and PostgreSQL enforcement for deletion.                              |
+| P1       | CONFIRMED      | A user without an authenticator previously had no self-service recovery mechanism.                                           | Use the provider-native recovery-code API with one-time display, single-use verification, and authenticated regeneration.                    |
+| P2       | CONFIRMED      | Supabase passkey and recovery-code APIs are experimental in the installed SDK/provider documentation.                        | Stage and verify recovery codes before rollout; retain administrator-assisted recovery and a UI rollback path. Passkeys remain out of scope. |
+| P2       | CONFIRMED      | TOTP is susceptible to real-time phishing.                                                                                   | Label the limitation plainly and do not describe TOTP as phishing-resistant.                                                                 |
+| P2       | POSSIBLE       | Hosted MFA enrollment/challenge controls cannot be verified from repository evidence.                                        | Capture redacted Dashboard evidence and complete disposable staging validation.                                                              |
 
 ## Implemented flow
 
@@ -44,6 +44,9 @@ Last reviewed: 24 October 2026
   be described as server-enforced controls.
 - Account deletion for an enrolled user requires a recent password authentication followed by a
   TOTP verification. PostgreSQL independently rejects deletion unless the JWT is `aal2`.
+- After verified enrollment, Buddy Budget requests one provider-native recovery-code set and shows
+  its plaintext once from component memory. An unused recovery code can complete the MFA challenge.
+  Authenticated replacement requires a password, current TOTP code, and `aal2` session.
 
 The global route gate is a usability control. Supabase Auth enforces factor enrollment, challenge,
 verification, and removal. PostgreSQL is the trusted enforcement boundary for protected account
@@ -73,8 +76,8 @@ An email sign-in or reauthentication OTP is an `aal1` credential and is not a su
 `aal2` factor Supabase requires to remove a verified authenticator. Users should enroll a backup
 authenticator on a separate device before losing access to their primary factor.
 
-If every factor is lost, self-service recovery is not available. An authorised test administrator
-must:
+If every authenticator is lost, an unused provider recovery code can complete the challenge. If no
+valid recovery code remains, an authorised test administrator must:
 
 1. verify the request through the separately approved tester-support channel without asking for a
    password, TOTP secret, session token, or recovery link;
@@ -89,9 +92,9 @@ The exact identity-proofing procedure, authorised operators, support contact, an
 **OWNER-DEPENDENT release blockers**. Do not remove a factor solely because an email requester can
 state the account address.
 
-Supabase recovery codes are experimental in the installed SDK and require explicit client and
-server enablement. They are **BLOCKED** pending stable provider support, a one-time display/download
-design, secure regeneration and removal flows, and a reviewed recovery policy.
+Supabase recovery codes remain experimental in the installed SDK and require client and server
+enablement. The client UI is implemented, but hosted availability and enforcement are
+**CONFIGURATION REQUIRED** until the disposable staging checks in `mfa-recovery-codes.md` pass.
 
 ## Dashboard configuration required
 
@@ -105,8 +108,7 @@ For staging and production, record redacted evidence for:
 6. Hosted factor-removal security notifications and Auth log retention are enabled and evidenced,
    or their absence is recorded as **CONFIGURATION REQUIRED** with an approved monitoring plan.
 
-Do not enable experimental WebAuthn MFA or recovery codes merely because the installed SDK contains
-their types.
+Do not enable experimental WebAuthn MFA merely because the installed SDK contains its types.
 
 ## Disposable staging verification
 
