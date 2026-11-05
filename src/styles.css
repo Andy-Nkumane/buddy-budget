@@ -3755,6 +3755,25 @@ p {
   overflow-wrap: anywhere;
 }
 
+.mfa-removal__method {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  padding: 0;
+  border: 0;
+}
+
+.mfa-removal__method legend {
+  width: 100%;
+  font-weight: 750;
+}
+
+.mfa-removal__method label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 @media (max-width: 36rem) {
   .mfa-factor-list li,
   .mfa-factor-list__actions,
@@ -3764,8 +3783,31 @@ p {
 }
 
 @media print {
-  .mfa-recovery-codes .settings-card__actions,
-  .mfa-recovery-codes ~ * {
+  .print-recovery-codes body * {
+    visibility: hidden;
+  }
+
+  .print-recovery-codes .mfa-recovery-codes,
+  .print-recovery-codes .mfa-recovery-codes * {
+    visibility: visible;
+  }
+
+  .print-recovery-codes .mfa-recovery-codes {
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: 100%;
+    border-color: #000;
+    color: #000;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  .print-recovery-codes #root {
+    height: 0;
+    overflow: visible;
+  }
+
+  .print-recovery-codes .mfa-recovery-codes .settings-card__actions {
     display: none;
   }
 }

@@ -17,6 +17,7 @@ import {
   retrieveRecoveryCodesStatus,
   retrieveTotpFactors,
   validateMfaFriendlyName,
+  verifyRecoveryCode,
   verifyTotpFactor,
   type TotpEnrollment,
   type GeneratedRecoveryCodes,
@@ -40,38 +41,46 @@ export const MfaSettings = () => {
   } | null>(null);
   const [removalPassword, setRemovalPassword] = useState('');
   const [removalCode, setRemovalCode] = useState('');
+  const [removalMethod, setRemovalMethod] = useState<'totp' | 'recovery'>('totp');
   const [removalConfirmation, setRemovalConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryCodesStatus | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<GeneratedRecoveryCodes | null>(null);
+  const [recoveryCodesAvailable, setRecoveryCodesAvailable] = useState<boolean | null>(null);
   const [showRegeneration, setShowRegeneration] = useState(false);
   const [regenerationPassword, setRegenerationPassword] = useState('');
   const [regenerationCode, setRegenerationCode] = useState('');
   const [regenerationFactorId, setRegenerationFactorId] = useState('');
 
   const load = async () => {
-    const [availableFactors, currentAssurance, currentRecoveryStatus] = await Promise.all([
+    const [availableFactors, currentAssurance, recoveryResult] = await Promise.all([
       retrieveTotpFactors(),
       retrieveMfaAssurance(),
-      retrieveRecoveryCodesStatus().catch(() => null),
+      retrieveRecoveryCodesStatus()
+        .then((currentRecoveryStatus) => ({ currentRecoveryStatus, available: true }))
+        .catch(() => ({ currentRecoveryStatus: null, available: false })),
     ]);
     setFactors(availableFactors);
     setAssurance(currentAssurance.currentLevel);
-    setRecoveryStatus(currentRecoveryStatus);
+    setRecoveryStatus(recoveryResult.currentRecoveryStatus);
+    setRecoveryCodesAvailable(recoveryResult.available);
   };
 
   useEffect(() => {
     void Promise.all([
       retrieveTotpFactors(),
       retrieveMfaAssurance(),
-      retrieveRecoveryCodesStatus().catch(() => null),
+      retrieveRecoveryCodesStatus()
+        .then((currentRecoveryStatus) => ({ currentRecoveryStatus, available: true }))
+        .catch(() => ({ currentRecoveryStatus: null, available: false })),
     ])
-      .then(([availableFactors, currentAssurance, currentRecoveryStatus]) => {
+      .then(([availableFactors, currentAssurance, recoveryResult]) => {
         setFactors(availableFactors);
         setAssurance(currentAssurance.currentLevel);
-        setRecoveryStatus(currentRecoveryStatus);
+        setRecoveryStatus(recoveryResult.currentRecoveryStatus);
+        setRecoveryCodesAvailable(recoveryResult.available);
       })
       .catch(() => setError('Authenticator settings could not be loaded.'));
   }, []);
@@ -110,6 +119,7 @@ export const MfaSettings = () => {
         ? null
         : await generateRecoveryCodes().catch(() => {
             recoveryCodeCreationFailed = true;
+            setRecoveryCodesAvailable(false);
             return null;
           });
       setEnrollment(null);
@@ -155,6 +165,7 @@ export const MfaSettings = () => {
       const generatedCodes = await regenerateRecoveryCodes();
       setRecoveryCodes(generatedCodes);
       setRecoveryStatus(generatedCodes);
+      setRecoveryCodesAvailable(true);
       setShowRegeneration(false);
       setRegenerationPassword('');
       setRegenerationCode('');
@@ -188,6 +199,7 @@ export const MfaSettings = () => {
       const generatedCodes = await generateRecoveryCodes();
       setRecoveryCodes(generatedCodes);
       setRecoveryStatus(generatedCodes);
+      setRecoveryCodesAvailable(true);
       setStatus('Recovery codes created. Save them now.');
     } catch (createError) {
       setError(
@@ -208,6 +220,19 @@ export const MfaSettings = () => {
     anchor.download = 'buddy-budget-recovery-codes.txt';
     anchor.click();
     URL.revokeObjectURL(url);
+  };
+
+  const printRecoveryCodes = () => {
+    const cleanup = () => document.documentElement.classList.remove('print-recovery-codes');
+    document.documentElement.classList.add('print-recovery-codes');
+    window.addEventListener('afterprint', cleanup, { once: true });
+    try {
+      window.print();
+    } catch {
+      window.removeEventListener('afterprint', cleanup);
+      cleanup();
+      setError('The print dialog could not be opened. Download the codes instead.');
+    }
   };
 
   const cancelEnrollment = async () => {
@@ -233,6 +258,7 @@ export const MfaSettings = () => {
     setRemoval(null);
     setRemovalPassword('');
     setRemovalCode('');
+    setRemovalMethod('totp');
     setRemovalConfirmation('');
     setError(null);
   };
@@ -265,6 +291,7 @@ export const MfaSettings = () => {
         verificationFactorName: getTotpFactorDisplayName(remainingFactor ?? targetFactor),
         isLastFactor: !remainingFactor,
       });
+      setRemovalMethod('totp');
     } catch {
       setError('Authenticator removal could not be started. Refresh and try again.');
     } finally {
@@ -283,8 +310,16 @@ export const MfaSettings = () => {
       setError('Enter your current password.');
       return;
     }
-    if (!/^\d{6}$/.test(removalCode)) {
-      setError('Enter the six-digit code from the named authenticator.');
+    if (
+      (removalMethod === 'totp' && !/^\d{6}$/.test(removalCode)) ||
+      (removalMethod === 'recovery' &&
+        (!removalCode.trim() || removalCode.length > 64 || !/^[a-z0-9 -]+$/i.test(removalCode)))
+    ) {
+      setError(
+        removalMethod === 'recovery'
+          ? 'Enter a valid unused recovery code.'
+          : 'Enter the six-digit code from the named authenticator.',
+      );
       return;
     }
     setBusy(true);
@@ -304,7 +339,9 @@ export const MfaSettings = () => {
       if (
         assuranceBeforeReauthentication.currentLevel !== 'aal2' ||
         !currentTarget ||
-        !currentVerificationFactor ||
+        (removalMethod === 'totp' && !currentVerificationFactor) ||
+        (removalMethod === 'recovery' &&
+          (!removal.isLastFactor || (recoveryStatus?.remaining ?? 0) < 2)) ||
         getTotpFactorDisplayName(currentTarget) !== removal.factorName
       ) {
         clearRemoval();
@@ -319,17 +356,32 @@ export const MfaSettings = () => {
         return;
       }
       try {
-        await verifyTotpFactor(removal.verificationFactorId, removalCode);
+        if (removalMethod === 'recovery') await verifyRecoveryCode(removalCode);
+        else await verifyTotpFactor(removal.verificationFactorId, removalCode);
       } catch {
         clearRemoval();
         void navigate('/auth/mfa', {
           replace: true,
           state: {
             from: '/app/settings',
-            reason: 'reauthentication-code-rejected',
+            reason:
+              removalMethod === 'recovery'
+                ? 'reauthentication-recovery-code-rejected'
+                : 'reauthentication-code-rejected',
           },
         });
         return;
+      }
+      if (removalMethod === 'recovery') {
+        const recoveryStatusAfterVerification = await retrieveRecoveryCodesStatus();
+        if (!recoveryStatusAfterVerification?.remaining) {
+          setRecoveryStatus(recoveryStatusAfterVerification);
+          setError(
+            'That was the final recovery code, so the authenticator was not removed. Contact the authorised test administrator if the authenticator is lost.',
+          );
+          return;
+        }
+        setRecoveryStatus(recoveryStatusAfterVerification);
       }
       const [factorsBeforeRemoval, assuranceBeforeRemoval] = await Promise.all([
         retrieveTotpFactors(),
@@ -346,9 +398,20 @@ export const MfaSettings = () => {
       }
       await deleteTotpFactor(removal.factorId);
       const refreshedAssurance = await refreshMfaSessionAssurance();
+      const requiresRecoveryChallenge = removal.isLastFactor && Boolean(recoveryStatus?.remaining);
       clearRemoval();
       await load();
       setAssurance(refreshedAssurance.currentLevel);
+      if (requiresRecoveryChallenge) {
+        void navigate('/auth/mfa', {
+          replace: true,
+          state: {
+            from: '/app/settings',
+            reason: 'authenticator-removed',
+          },
+        });
+        return;
+      }
       setStatus('Authenticator app removed. Your security level has been refreshed.');
     } catch (removeError) {
       setError(
@@ -398,9 +461,9 @@ export const MfaSettings = () => {
           <h3>Remove {removal.factorName}?</h3>
           {removal.isLastFactor ? (
             <div className="inline-alert inline-alert--warning">
-              This is your last authenticator. Removing it turns off your second sign-in step. If
-              you no longer have access to it, you cannot remove it here. Contact the authorised
-              test administrator for account recovery.
+              {recoveryStatus?.remaining
+                ? 'This is your last authenticator app. Recovery codes will remain as your second sign-in method. Add a replacement authenticator immediately after removal.'
+                : 'This is your last second sign-in method. Removing it turns off your extra sign-in check.'}
             </div>
           ) : (
             <p>
@@ -418,12 +481,55 @@ export const MfaSettings = () => {
               setError(null);
             }}
           />
+          {removal.isLastFactor && (recoveryStatus?.remaining ?? 0) > 1 && (
+            <fieldset className="mfa-removal__method">
+              <legend>Confirm with</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="mfa-removal-method"
+                  value="totp"
+                  checked={removalMethod === 'totp'}
+                  onChange={() => {
+                    setRemovalMethod('totp');
+                    setRemovalCode('');
+                    setError(null);
+                  }}
+                />
+                Authenticator app
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="mfa-removal-method"
+                  value="recovery"
+                  checked={removalMethod === 'recovery'}
+                  onChange={() => {
+                    setRemovalMethod('recovery');
+                    setRemovalCode('');
+                    setError(null);
+                  }}
+                />
+                Unused recovery code
+              </label>
+            </fieldset>
+          )}
+          {removal.isLastFactor && recoveryStatus?.remaining === 1 && (
+            <p className="muted">
+              Your final recovery code cannot be used for removal because no second sign-in method
+              would remain to add a replacement authenticator.
+            </p>
+          )}
           <FormField
             id="mfa-removal-code"
-            label={`Six-digit code from ${removal.verificationFactorName}`}
-            inputMode="numeric"
+            label={
+              removalMethod === 'recovery'
+                ? 'Recovery code'
+                : `Six-digit code from ${removal.verificationFactorName}`
+            }
+            inputMode={removalMethod === 'recovery' ? 'text' : 'numeric'}
             autoComplete="one-time-code"
-            pattern="[0-9]{6}"
+            pattern={removalMethod === 'recovery' ? '[A-Za-z0-9 -]+' : '[0-9]{6}'}
             value={removalCode}
             onChange={(event) => {
               setRemovalCode(event.target.value);
@@ -568,8 +674,8 @@ export const MfaSettings = () => {
             <Button type="button" variant="secondary" onClick={downloadRecoveryCodes}>
               Download
             </Button>
-            <Button type="button" variant="secondary" onClick={() => window.print()}>
-              Print
+            <Button type="button" variant="secondary" onClick={printRecoveryCodes}>
+              Print codes
             </Button>
             <Button type="button" variant="ghost" onClick={() => setRecoveryCodes(null)}>
               I saved them
@@ -577,7 +683,7 @@ export const MfaSettings = () => {
           </div>
         </section>
       )}
-      {!recoveryCodes && recoveryStatus && (
+      {!recoveryCodes && recoveryCodesAvailable && recoveryStatus && (
         <section className="mfa-recovery-summary" aria-labelledby="recovery-summary-heading">
           <h3 id="recovery-summary-heading">Recovery codes</h3>
           <p>
@@ -644,7 +750,7 @@ export const MfaSettings = () => {
           )}
         </section>
       )}
-      {!recoveryCodes && !recoveryStatus && factors.length > 0 && (
+      {!recoveryCodes && recoveryCodesAvailable && !recoveryStatus && factors.length > 0 && (
         <section className="mfa-recovery-summary" aria-labelledby="recovery-create-heading">
           <h3 id="recovery-create-heading">Recovery codes</h3>
           <p>Create one-time codes to use if your authenticator is unavailable.</p>
@@ -658,6 +764,12 @@ export const MfaSettings = () => {
             Create recovery codes
           </Button>
         </section>
+      )}
+      {recoveryCodesAvailable === false && factors.length > 0 && (
+        <p className="muted">
+          Recovery codes are not enabled for this Supabase project. Add a second authenticator as
+          your backup method.
+        </p>
       )}
       {error && !enrollment && !showNameField && !removal && (
         <div className="inline-alert inline-alert--error" role="alert">

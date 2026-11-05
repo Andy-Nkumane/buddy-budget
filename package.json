@@ -27,6 +27,7 @@
     "test:e2e": "playwright test",
     "test:e2e:compliance": "playwright test e2e/legal-navigation.spec.ts e2e/privacy-policy.spec.ts e2e/registration-transparency.spec.ts",
     "test:db": "supabase test db",
+    "dev:mfa-recovery-codes": "node scripts/enable-local-mfa-recovery-codes.mjs",
     "audit": "npm audit --audit-level=low",
     "assets:icons": "node scripts/generate-icons.mjs"
   },

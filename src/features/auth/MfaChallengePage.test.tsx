@@ -61,6 +61,25 @@ const renderPageWithMessage = () =>
     </MemoryRouter>,
   );
 
+const renderPageAfterAuthenticatorRemoval = () =>
+  render(
+    <MemoryRouter
+      initialEntries={[
+        {
+          pathname: '/auth/mfa',
+          state: {
+            from: '/app/settings',
+            reason: 'authenticator-removed',
+          },
+        },
+      ]}
+    >
+      <Routes>
+        <Route path="/auth/mfa" element={<MfaChallengePage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
 describe('AUTH-002 MfaChallengePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -161,5 +180,18 @@ describe('AUTH-002 MfaChallengePage', () => {
     await waitFor(() => expect(screen.getByText('Account settings')).toBeVisible());
     expect(verifyRecoveryCode).toHaveBeenCalledWith('synthetic-code');
     expect(verifyTotpFactor).not.toHaveBeenCalled();
+  });
+
+  it('explains how to continue after a lost authenticator is removed', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([]);
+    vi.mocked(retrieveRecoveryCodesStatus).mockResolvedValue({
+      id: 'recovery-factor',
+      total: 8,
+      remaining: 2,
+    });
+    renderPageAfterAuthenticatorRemoval();
+
+    expect(await screen.findByText(/lost authenticator was removed/i)).toBeVisible();
+    expect(screen.getByLabelText('Recovery code')).toBeVisible();
   });
 });
