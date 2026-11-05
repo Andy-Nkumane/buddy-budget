@@ -9,6 +9,7 @@ import {
   retrieveMfaAssurance,
   retrieveRecoveryCodesStatus,
   retrieveTotpFactors,
+  verifyRecoveryCode,
   verifyTotpFactor,
 } from '../auth/mfa';
 import { reauthenticateWithPassword } from '../../data/repositories/budgetRepository';
@@ -31,6 +32,7 @@ vi.mock('../auth/mfa', async (importOriginal) => ({
   retrieveMfaAssurance: vi.fn(),
   retrieveRecoveryCodesStatus: vi.fn(),
   retrieveTotpFactors: vi.fn(),
+  verifyRecoveryCode: vi.fn(),
   verifyTotpFactor: vi.fn(),
 }));
 vi.mock('../../data/repositories/budgetRepository', () => ({
@@ -81,6 +83,7 @@ describe('AUTH-002 MfaSettings', () => {
       secret: 'SYNTHETICSETUPKEY',
     });
     vi.mocked(verifyTotpFactor).mockResolvedValue(undefined);
+    vi.mocked(verifyRecoveryCode).mockResolvedValue(undefined);
     vi.mocked(deleteTotpFactor).mockResolvedValue(undefined);
     vi.mocked(refreshMfaSessionAssurance).mockResolvedValue({
       currentLevel: 'aal1',
@@ -246,8 +249,123 @@ describe('AUTH-002 MfaSettings', () => {
     render(<MfaSettings />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Remove Personal phone' }));
-    expect(await screen.findByText(/last authenticator/i)).toBeVisible();
+    expect(await screen.findByText(/last second sign-in method/i)).toBeVisible();
     expect(screen.getByLabelText('Six-digit code from Personal phone')).toBeVisible();
+  });
+
+  it('uses an unused recovery code to remove a lost last authenticator', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([personalPhone]);
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal2',
+      nextLevel: 'aal2',
+    });
+    vi.mocked(retrieveRecoveryCodesStatus).mockResolvedValue({
+      id: 'recovery-factor',
+      total: 8,
+      remaining: 3,
+    });
+    render(<MfaSettings />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Personal phone' }));
+    fireEvent.click(await screen.findByLabelText('Unused recovery code'));
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'correct horse battery staple' },
+    });
+    fireEvent.change(screen.getByLabelText('Recovery code'), {
+      target: { value: 'synthetic-unused-code' },
+    });
+    fireEvent.change(screen.getByLabelText('Type Personal phone to confirm'), {
+      target: { value: 'Personal phone' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm removal of Personal phone' }));
+
+    await waitFor(() => expect(deleteTotpFactor).toHaveBeenCalledWith('personal-factor'));
+    expect(verifyRecoveryCode).toHaveBeenCalledWith('synthetic-unused-code');
+    expect(verifyTotpFactor).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/auth/mfa', {
+      replace: true,
+      state: {
+        from: '/app/settings',
+        reason: 'authenticator-removed',
+      },
+    });
+  });
+
+  it('does not consume the final recovery code to remove a lost authenticator', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([personalPhone]);
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal2',
+      nextLevel: 'aal2',
+    });
+    vi.mocked(retrieveRecoveryCodesStatus).mockResolvedValue({
+      id: 'recovery-factor',
+      total: 8,
+      remaining: 1,
+    });
+    render(<MfaSettings />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Personal phone' }));
+    expect(await screen.findByText(/final recovery code cannot be used/i)).toBeVisible();
+    expect(screen.queryByLabelText('Unused recovery code')).not.toBeInTheDocument();
+  });
+
+  it('keeps the authenticator when recovery verification consumes the final available code', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([personalPhone]);
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal2',
+      nextLevel: 'aal2',
+    });
+    vi.mocked(retrieveRecoveryCodesStatus)
+      .mockResolvedValueOnce({ id: 'recovery-factor', total: 8, remaining: 2 })
+      .mockResolvedValueOnce({ id: 'recovery-factor', total: 8, remaining: 0 });
+    render(<MfaSettings />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Personal phone' }));
+    fireEvent.click(await screen.findByLabelText('Unused recovery code'));
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'correct horse battery staple' },
+    });
+    fireEvent.change(screen.getByLabelText('Recovery code'), {
+      target: { value: 'final-code' },
+    });
+    fireEvent.change(screen.getByLabelText('Type Personal phone to confirm'), {
+      target: { value: 'Personal phone' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm removal of Personal phone' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/final recovery code/i);
+    expect(deleteTotpFactor).not.toHaveBeenCalled();
+  });
+
+  it('prints only through the recovery-code print mode', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([personalPhone]);
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal2',
+      nextLevel: 'aal2',
+    });
+    const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    render(<MfaSettings />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create recovery codes' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Print codes' }));
+
+    expect(print).toHaveBeenCalledOnce();
+    expect(document.documentElement).toHaveClass('print-recovery-codes');
+    window.dispatchEvent(new Event('afterprint'));
+    expect(document.documentElement).not.toHaveClass('print-recovery-codes');
+  });
+
+  it('does not offer recovery-code creation when the provider capability is unavailable', async () => {
+    vi.mocked(retrieveTotpFactors).mockResolvedValue([personalPhone]);
+    vi.mocked(retrieveMfaAssurance).mockResolvedValue({
+      currentLevel: 'aal2',
+      nextLevel: 'aal2',
+    });
+    vi.mocked(retrieveRecoveryCodesStatus).mockRejectedValue(new Error('Unavailable'));
+    render(<MfaSettings />);
+
+    expect(await screen.findByText(/not enabled for this Supabase project/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Create recovery codes' })).not.toBeInTheDocument();
   });
 
   it('does not report success when another tab removes the selected factor', async () => {

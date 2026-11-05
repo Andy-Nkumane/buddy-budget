@@ -28,7 +28,10 @@ export const MfaChallengePage = () => {
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const challengeState = location.state as {
     from?: string;
-    reason?: 'reauthentication-code-rejected';
+    reason?:
+      | 'reauthentication-code-rejected'
+      | 'reauthentication-recovery-code-rejected'
+      | 'authenticator-removed';
   } | null;
   const destination = challengeState?.from;
   const safeDestination =
@@ -50,6 +53,7 @@ export const MfaChallengePage = () => {
         setFactors(availableFactors);
         setSelectedFactorId(availableFactors[0]?.id ?? '');
         setRecoveryAvailable(Boolean(recoveryStatus?.remaining));
+        setUseRecoveryCode(availableFactors.length === 0 && Boolean(recoveryStatus?.remaining));
       })
       .catch(() => {
         if (active) setError('Your authenticator challenge could not be loaded. Try again.');
@@ -114,6 +118,18 @@ export const MfaChallengePage = () => {
         <div className="inline-alert inline-alert--warning" role="status">
           Your password was confirmed, but the authenticator code was not. Verify with a current
           code to continue.
+        </div>
+      )}
+      {challengeState?.reason === 'reauthentication-recovery-code-rejected' && (
+        <div className="inline-alert inline-alert--warning" role="status">
+          Your password was confirmed, but that recovery code was not accepted. Use an unused
+          recovery code or an available authenticator to continue.
+        </div>
+      )}
+      {challengeState?.reason === 'authenticator-removed' && (
+        <div className="inline-alert inline-alert--warning" role="status">
+          The lost authenticator was removed. Use another recovery code to continue, then add a new
+          authenticator in Settings.
         </div>
       )}
       {!useRecoveryCode && factors && factors.length > 1 && (

@@ -70,7 +70,15 @@ export const verifyTotpFactor = async (factorId: string, code: string): Promise<
 const recoveryCodesUnavailable =
   'Recovery codes are not available in this environment. Keep a second authenticator and contact the test administrator if every authenticator is lost.';
 
+const recoveryCodesEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_MFA_RECOVERY_CODES_ENABLED === 'true';
+
+const requireRecoveryCodesEnabled = () => {
+  if (!recoveryCodesEnabled) throw new Error(recoveryCodesUnavailable);
+};
+
 export const retrieveRecoveryCodesStatus = async (): Promise<RecoveryCodesStatus | null> => {
+  requireRecoveryCodesEnabled();
   try {
     const { data, error } = await requireSupabase().auth.mfa.recoveryCodes.getStatus();
     if (error?.code === 'mfa_factor_not_found') return null;
@@ -84,12 +92,14 @@ export const retrieveRecoveryCodesStatus = async (): Promise<RecoveryCodesStatus
 };
 
 export const generateRecoveryCodes = async (): Promise<GeneratedRecoveryCodes> => {
+  requireRecoveryCodesEnabled();
   const { data, error } = await requireSupabase().auth.mfa.recoveryCodes.generate();
   if (error || !data) throw new Error(recoveryCodesUnavailable);
   return { id: data.id, total: data.total, remaining: data.total, codes: data.codes };
 };
 
 export const regenerateRecoveryCodes = async (): Promise<GeneratedRecoveryCodes> => {
+  requireRecoveryCodesEnabled();
   const { data, error } = await requireSupabase().auth.mfa.recoveryCodes.regenerate();
   if (error?.code === 'insufficient_aal')
     throw new Error('Verify with an authenticator before replacing recovery codes.');
@@ -98,6 +108,7 @@ export const regenerateRecoveryCodes = async (): Promise<GeneratedRecoveryCodes>
 };
 
 export const verifyRecoveryCode = async (code: string): Promise<void> => {
+  requireRecoveryCodesEnabled();
   const { error } = await requireSupabase().auth.mfa.recoveryCodes.verify({ code });
   if (error?.status === 429)
     throw new Error('Too many attempts. Wait before trying another recovery code.');

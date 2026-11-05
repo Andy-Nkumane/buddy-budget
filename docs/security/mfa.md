@@ -1,7 +1,7 @@
 # Multi-factor authentication
 
 Status: opt-in TOTP and recovery-code UI implemented; hosted verification required
-Last reviewed: 2 November 2026
+Last reviewed: 5 November 2026
 
 ## Scoped audit
 
@@ -31,8 +31,10 @@ Last reviewed: 2 November 2026
 - Removing a verified factor re-reads the provider factor list and assurance level, requires an
   `aal2` session, current-password reauthentication, the exact friendly name, and a fresh TOTP
   challenge. When another factor remains, its code is required so removal does not prove possession
-  using only the factor being removed. Last-factor removal instead shows an explicit loss-of-MFA
-  warning and verifies the target factor.
+  using only the factor being removed. Last-authenticator removal shows an explicit warning and can
+  use the target authenticator or an unused recovery code. Recovery-code removal is offered only
+  when at least two codes remain: one is consumed to authorize removal and another remains for the
+  required follow-up challenge before the user adds a replacement authenticator.
 - After removal, the Supabase session is refreshed so a last-factor removal is represented as
   `aal1` immediately instead of retaining a stale `aal2` access token until the refresh interval.
 - Password reauthentication creates a new `aal1` session. If the following TOTP verification
@@ -47,6 +49,8 @@ Last reviewed: 2 November 2026
 - After verified enrollment, Buddy Budget requests one provider-native recovery-code set and shows
   its plaintext once from component memory. An unused recovery code can complete the MFA challenge.
   Authenticated replacement requires a password, current TOTP code, and `aal2` session.
+- Printing recovery codes activates a print-only layout containing the warning and codes, not the
+  surrounding Settings page. Copy and text download remain available for password-manager storage.
 
 The global route gate is a usability control. Supabase Auth enforces factor enrollment, challenge,
 verification, and removal. PostgreSQL is the trusted enforcement boundary for protected account
